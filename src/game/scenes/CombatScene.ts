@@ -3,7 +3,7 @@
  * contains no rules logic of its own. All art comes from content/assets.json.
  */
 import * as Phaser from 'phaser';
-import { type Command, type CommandBus, directionFromDelta } from '../../engine/commands';
+import type { Command, CommandBus, Direction } from '../../engine/commands';
 import { createRng, type Rng } from '../../engine/rng';
 import {
   type CombatState,
@@ -11,15 +11,16 @@ import {
   activeUnit,
   chebyshev,
   endTurn,
-  startCombat,
+  planMoveTo,
   reachableSquares,
+  startCombat,
   step,
   turnExhausted,
   unitAt,
 } from '../../rules/combat';
 import { assets, cellSize, cursorCss } from '../../content/assets';
 import skirmish from '../../content/skirmish.json';
-import type { Hud } from '../../ui/hud';
+import type { ActiveCard, Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
 
 export const TILE = cellSize();
@@ -40,7 +41,7 @@ export class CombatScene extends Phaser.Scene {
   private tags = new Map<string, Phaser.GameObjects.Text>();
   private spriteKeyByUnit = new Map<string, string>();
   private cursor = '';
-  private autoEnding = false;
+  private busy = false;
 
   constructor() {
     super('combat');
@@ -51,7 +52,7 @@ export class CombatScene extends Phaser.Scene {
     this.sprites.clear();
     this.tags.clear();
     this.cursor = '';
-    this.autoEnding = false;
+    this.busy = false;
   }
 
   preload(): void {
@@ -68,6 +69,7 @@ export class CombatScene extends Phaser.Scene {
     });
     this.state = startCombat(this.rng, skirmish.width, skirmish.height, units);
 
+    this.deps.hud.setNames(this.state.units);
     this.drawFloor();
     this.reach = this.add.graphics().setDepth(0.4); // under grid lines and units
     this.drawGrid();
@@ -139,6 +141,33 @@ export class CombatScene extends Phaser.Scene {
     }
   }
 
+  private card(u: Unit): ActiveCard {
+    const ref = assets.sprites[this.spriteKeyByUnit.get(u.id) ?? '']!;
+    const sheet = assets.sheets[ref.sheet];
+    const img = this.textures.get(ref.sheet).getSourceImage() as HTMLImageElement;
+    const sheetCols = img.width / sheet.frameWidth;
+    return {
+      name: u.name,
+      side: u.side,
+      hp: u.hp,
+      maxHp: u.maxHp,
+      ac: u.ac,
+      attackBonus: u.attackBonus,
+      damage: u.damage,
+      movesLeft: this.state.movesLeft,
+      speed: u.speed,
+      actionUsed: this.state.actionUsed,
+      sprite: {
+        url: sheet.url,
+        frameWidth: sheet.frameWidth,
+        col: ref.frame % sheetCols,
+        row: Math.floor(ref.frame / sheetCols),
+        sheetCols,
+        sheetRows: img.height / sheet.frameHeight,
+      },
+    };
+  }
+
   private updateCursor(p: Phaser.Input.Pointer): void {
     if (this.state.outcome !== 'ongoing') return this.setCursor('default');
     const x = Math.floor(p.worldX / TILE);
@@ -158,16 +187,14 @@ export class CombatScene extends Phaser.Scene {
   }
 
   private handle(cmd: Command): void {
-    if (this.autoEnding) return; // brief pause while the turn hands over
+    if (this.busy) return; // walking or handing over the turn
     switch (cmd.type) {
       case 'move':
         step(this.state, this.rng, cmd.dir);
         break;
       case 'moveTo': {
-        const u = activeUnit(this.state);
-        if (chebyshev(u, cmd) !== 1) break;
-        const dir = directionFromDelta(Math.sign(cmd.x - u.x), Math.sign(cmd.y - u.y));
-        if (dir) step(this.state, this.rng, dir);
+        const plan = activeUnit(this.state).side === 'party' ? planMoveTo(this.state, cmd.x, cmd.y) : null;
+        if (plan) return this.walk(plan);
         break;
       }
       case 'endTurn':
@@ -179,12 +206,31 @@ export class CombatScene extends Phaser.Scene {
       default:
         break;
     }
+    this.afterAction();
+  }
+
+  /** Execute a planned path one square at a time so the movement is visible. */
+  private walk(plan: Direction[]): void {
+    this.busy = true;
+    const next = (i: number) => {
+      if (i >= plan.length || !step(this.state, this.rng, plan[i])) {
+        this.busy = false;
+        this.afterAction();
+        return;
+      }
+      this.redraw();
+      this.time.delayedCall(110, () => next(i + 1));
+    };
+    next(0);
+  }
+
+  private afterAction(): void {
     this.redraw();
     if (turnExhausted(this.state)) {
       // Nothing left to do: pause so the player can read the result, then hand over.
-      this.autoEnding = true;
+      this.busy = true;
       this.time.delayedCall(600, () => {
-        this.autoEnding = false;
+        this.busy = false;
         endTurn(this.state, this.rng);
         this.redraw();
       });
@@ -232,6 +278,7 @@ export class CombatScene extends Phaser.Scene {
     }
 
     this.deps.hud.setLog(state.log);
+    this.deps.hud.setActive(active && active.side === 'party' ? this.card(active) : null);
     this.deps.hud.setEndTurnHint(!!active && active.side === 'party' && (state.actionUsed || state.movesLeft <= 0));
     this.deps.hud.setStatus(
       state.outcome !== 'ongoing'

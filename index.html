@@ -9,6 +9,11 @@
   <body>
     <header><span id="status">Loading…</span></header>
     <main>
+      <aside id="left">
+        <section id="card" aria-live="polite"></section>
+        <button data-command='{"type":"endTurn"}'>End turn</button>
+        <button data-command='{"type":"confirm"}'>Replay</button>
+      </aside>
       <div id="game"></div>
       <section id="log" aria-live="polite"></section>
     </main>
@@ -21,9 +26,7 @@
       <button data-command='{"type":"move","dir":"sw"}' aria-label="Move south-west">↙</button>
       <button data-command='{"type":"move","dir":"s"}' aria-label="Move south">↓</button>
       <button data-command='{"type":"move","dir":"se"}' aria-label="Move south-east">↘</button>
-      <button data-command='{"type":"endTurn"}'>End turn</button>
-      <button data-command='{"type":"confirm"}'>Replay</button>
-      <span class="hint">WASD / arrows / numpad move · Q E Z C diagonals · walk into an enemy to attack (turn ends automatically when done) · Space ends turn early · tap an adjacent square</span>
+      <span class="hint">Click/tap a shaded square to move · click an enemy to walk up and attack · WASD / arrows / numpad step · Q E Z C diagonals · Space ends turn early</span>
     </footer>
     <script type="module" src="/src/main.ts"></script>
   </body>

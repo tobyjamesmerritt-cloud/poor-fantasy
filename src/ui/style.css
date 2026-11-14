@@ -1,8 +1,12 @@
 :root {
   color-scheme: dark;
   font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace;
+  font-size: 17px;
   background: #0b0b0b;
   color: #e8e2c8;
+  --party: #6fa8ff;
+  --enemy: #ff7a6b;
+  --gold: #f1c40f;
 }
 body {
   margin: 0;
@@ -15,27 +19,136 @@ header {
   border-bottom: 1px solid #333;
 }
 #status {
-  color: #f1c40f;
+  color: var(--gold);
+  font-size: 1.1rem;
 }
 main {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(16rem, 1fr);
+  grid-template-columns: minmax(13rem, 1fr) minmax(0, 3fr) minmax(15rem, 1.2fr);
   gap: 0.5rem;
   padding: 0.5rem;
+  align-items: start;
 }
 #game {
   min-width: 0;
 }
+
+/* Left panel: active character */
+#card {
+  border: 1px solid #333;
+  padding: 0.6rem;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+.portrait {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  border: 1px solid #444;
+  background-color: #1a1a1a;
+}
+#card h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+#card h3 {
+  margin: 0.8rem 0 0.3rem;
+  font-size: 0.95rem;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stat {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.2rem 0;
+}
+.bar {
+  height: 6px;
+  background: #222;
+  margin-bottom: 0.3rem;
+}
+.fill {
+  height: 100%;
+}
+.fill.ok {
+  background: #2ecc71;
+}
+.fill.warn {
+  background: #f39c12;
+}
+.fill.bad {
+  background: #e74c3c;
+}
+.action {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  margin: 0.3rem 0;
+}
+.action small {
+  opacity: 0.7;
+  font-size: 0.8rem;
+}
+.action.used,
+.action.disabled {
+  opacity: 0.45;
+}
+.muted {
+  opacity: 0.6;
+}
+#left button {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+/* Right panel: log */
 #log {
   overflow-y: auto;
   max-height: 70dvh;
   border: 1px solid #333;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 1rem;
+  line-height: 1.35;
 }
 #log p {
-  margin: 0.15rem 0;
+  margin: 0.25rem 0;
 }
+#log .turn {
+  color: var(--gold);
+}
+#log .round {
+  color: #888;
+}
+#log .crit {
+  font-weight: bold;
+}
+#log .win {
+  color: #2ecc71;
+  font-weight: bold;
+}
+#log .lose {
+  color: #e74c3c;
+  font-weight: bold;
+}
+.name.party {
+  color: var(--party);
+  font-weight: bold;
+}
+.name.enemy {
+  color: var(--enemy);
+  font-weight: bold;
+}
+
+/* Footer: touch controls */
 footer {
   display: flex;
   flex-wrap: wrap;
@@ -43,7 +156,7 @@ footer {
   padding: 0.5rem;
   border-top: 1px solid #333;
 }
-footer button {
+button {
   min-width: 3rem;
   min-height: 3rem; /* touch-friendly targets */
   font: inherit;
@@ -55,24 +168,24 @@ footer button {
 footer .hint {
   align-self: center;
   opacity: 0.7;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
-@media (max-width: 800px) {
+button.suggest {
+  border-color: var(--gold);
+  color: var(--gold);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0.6rem var(--gold);
+  }
+}
+
+@media (max-width: 900px) {
   main {
     grid-template-columns: 1fr;
   }
   #log {
     max-height: 25dvh;
-  }
-}
-
-footer button.suggest {
-  border-color: #f1c40f;
-  color: #f1c40f;
-  animation: pulse 1.2s ease-in-out infinite;
-}
-@keyframes pulse {
-  50% {
-    box-shadow: 0 0 0.6rem #f1c40f;
   }
 }

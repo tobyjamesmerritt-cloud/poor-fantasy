@@ -8,7 +8,7 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 - Move: WASD, arrows or numpad; Q E Z C for diagonals — or tap an adjacent square / the on-screen buttons.
-- Attack: move into an enemy. **Space** ends the turn. **Enter** replays after victory/defeat.
+- Click a shaded square to walk there; click an enemy to walk up and attack. **Space** ends the turn early. **Enter** replays after victory/defeat.
 - Reproduce a fight exactly: add `?seed=1234` to the URL (the seed is shown when a fight ends).
 - Console debug handle: `pf` (game, command bus, seed).
 

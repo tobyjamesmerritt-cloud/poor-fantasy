@@ -83,3 +83,33 @@ describe('turnExhausted', () => {
     expect(turnExhausted(s)).toBe(true);
   });
 });
+
+describe('planMoveTo', () => {
+  const setup = () => {
+    const units: Unit[] = [
+      { id: 'a', name: 'A', side: 'party', x: 0, y: 0, hp: 10, maxHp: 10, ac: 10, speed: 6, initBonus: 99, attackBonus: 5, damage: '1d4' },
+      { id: 'z', name: 'Z', side: 'enemy', x: 5, y: 0, hp: 50, maxHp: 50, ac: 1, speed: 6, initBonus: -99, attackBonus: 0, damage: '1d4' },
+      { id: 'w', name: 'W', side: 'party', x: 1, y: 1, hp: 10, maxHp: 10, ac: 10, speed: 6, initBonus: -50, attackBonus: 0, damage: '1d4' },
+    ];
+    const rng = createRng(9);
+    return { rng, s: startCombat(rng, 10, 10, units) };
+  };
+
+  it('finds a shortest path to an empty square within movement', async () => {
+    const { planMoveTo } = await import('../src/rules/combat');
+    const { s } = setup();
+    expect(planMoveTo(s, 3, 3)).toHaveLength(4); // ally W on (1,1) blocks the 3-step diagonal
+    expect(planMoveTo(s, 9, 9)).toBeNull(); // 9 moves away, speed 6
+    expect(planMoveTo(s, 1, 1)).toBeNull(); // occupied by ally
+  });
+
+  it('walks next to an enemy and ends with the attack step', async () => {
+    const { planMoveTo, activeUnit } = await import('../src/rules/combat');
+    const { s, rng } = setup();
+    const plan = planMoveTo(s, 5, 0)!;
+    expect(plan).toHaveLength(5); // 4 moves to (4,y) then attack
+    for (const d of plan) step(s, rng, d);
+    expect(s.actionUsed).toBe(true);
+    expect(activeUnit(s).x).toBe(4);
+  });
+});
