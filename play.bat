@@ -3,14 +3,26 @@ rem Poor Fantasy - update and play. Double-click to run; close this window (or C
 title Poor Fantasy
 pushd "%~dp0"
 
-echo === Getting the latest version...
-git pull
-if errorlevel 1 echo WARNING: git pull failed - starting the version you already have.
+if not exist package.json (
+  echo ERROR: play.bat must be inside the poor-fantasy folder ^(C:\Users\tobym\Documents\poor-fantasy^).
+  pause
+  exit /b 1
+)
 
-echo === Installing any new packages...
-call npm install --no-fund --no-audit
+echo === Getting the latest version...
+git pull --ff-only
 if errorlevel 1 (
-  echo ERROR: npm install failed. Copy the messages above and send them to Claude.
+  echo.
+  echo WARNING: could not update - see the message above. Starting the version you already have.
+  echo Send the message above to Claude if this keeps happening.
+  pause
+)
+
+echo === Installing packages exactly as pinned...
+rem npm ci never edits package-lock.json, so the next update cannot be blocked by it.
+call npm ci --no-fund --no-audit
+if errorlevel 1 (
+  echo ERROR: package install failed. Copy the messages above and send them to Claude.
   pause
   exit /b 1
 )
