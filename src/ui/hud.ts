@@ -121,6 +121,8 @@ export class Hud {
   private renderLine(text: string): HTMLElement {
     const cls = text.startsWith('▶')
       ? 'turn'
+      : text.startsWith('⟲')
+        ? 'rewind'
       : text.startsWith('—')
         ? 'round'
         : /Victory!/.test(text)

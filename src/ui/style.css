@@ -179,6 +179,10 @@ main {
 #log .turn {
   color: var(--gold);
 }
+#log .rewind {
+  color: #c39bff;
+  font-style: italic;
+}
 #log .round {
   color: #888;
 }

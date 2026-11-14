@@ -4,6 +4,7 @@
  */
 import * as Phaser from 'phaser';
 import type { Command, CommandBus, Direction } from '../../engine/commands';
+import { History } from '../../engine/history';
 import { createRng, type Rng } from '../../engine/rng';
 import {
   type CombatState,
@@ -42,6 +43,7 @@ export class CombatScene extends Phaser.Scene {
   private spriteKeyByUnit = new Map<string, string>();
   private cursor = '';
   private busy = false;
+  private history = new History<{ state: CombatState; rng: number }>();
 
   constructor() {
     super('combat');
@@ -53,6 +55,7 @@ export class CombatScene extends Phaser.Scene {
     this.tags.clear();
     this.cursor = '';
     this.busy = false;
+    this.history = new History();
   }
 
   preload(): void {
@@ -188,7 +191,15 @@ export class CombatScene extends Phaser.Scene {
 
   private handle(cmd: Command): void {
     if (this.busy) return; // walking or handing over the turn
+    let before: string | null = null;
+    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn') && this.state.outcome === 'ongoing') {
+      before = JSON.stringify(this.state);
+      this.history.push({ state: this.state, rng: this.rng.state });
+    }
     switch (cmd.type) {
+      case 'undo':
+        this.rewind();
+        break;
       case 'move':
         step(this.state, this.rng, cmd.dir);
         break;
@@ -206,7 +217,21 @@ export class CombatScene extends Phaser.Scene {
       default:
         break;
     }
+    // A blocked step (wall, no moves left) changes nothing: don't leave an empty rewind point.
+    if (before !== null && JSON.stringify(this.state) === before) this.history.pop();
     this.afterAction();
+  }
+
+  /** Restore the moment before the last player action, dice included. */
+  private rewind(): void {
+    const snap = this.history.pop();
+    if (!snap) {
+      this.state.log.push('⟲ Nothing to rewind.');
+      return;
+    }
+    this.state = snap.state;
+    this.rng = createRng(snap.rng);
+    this.state.log.push(`⟲ Time rewinds… (${this.history.size} more)`);
   }
 
   /** Execute a planned path one square at a time so the movement is visible. */

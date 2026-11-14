@@ -28,6 +28,8 @@ const KEY_MAP: Record<string, Command> = {
   KeyZ: { type: 'move', dir: 'sw' },
   KeyC: { type: 'move', dir: 'se' },
   Space: { type: 'endTurn' },
+  Backspace: { type: 'undo' },
+  KeyU: { type: 'undo' },
   Enter: { type: 'confirm' },
   Escape: { type: 'cancel' },
 };

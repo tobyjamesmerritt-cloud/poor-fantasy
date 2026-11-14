@@ -10,6 +10,7 @@ export type Command =
   | { type: 'moveTo'; x: number; y: number }
   | { type: 'attack'; targetId: string }
   | { type: 'endTurn' }
+  | { type: 'undo' } // rewind one player action (debug now; patron-god mechanic later, DND-27)
   | { type: 'confirm' }
   | { type: 'cancel' }
   | { type: 'menu'; option: string }

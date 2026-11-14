@@ -12,6 +12,7 @@
       <aside id="left">
         <section id="card" aria-live="polite"></section>
         <button data-command='{"type":"endTurn"}'>End turn</button>
+        <button data-command='{"type":"undo"}' title="Backspace or U">⟲ Rewind (debug)</button>
         <button data-command='{"type":"confirm"}'>Replay</button>
       </aside>
       <div id="stage">
@@ -33,7 +34,7 @@
       <button data-command='{"type":"move","dir":"sw"}' aria-label="Move south-west">↙</button>
       <button data-command='{"type":"move","dir":"s"}' aria-label="Move south">↓</button>
       <button data-command='{"type":"move","dir":"se"}' aria-label="Move south-east">↘</button>
-      <span class="hint">Click/tap a shaded square to move · click an enemy to walk up and attack · WASD / arrows / numpad step · Q E Z C diagonals · Space ends turn early</span>
+      <span class="hint">Click/tap a shaded square to move · click an enemy to walk up and attack · WASD / arrows / numpad step · Q E Z C diagonals · Space ends turn early · Backspace/U rewinds</span>
     </footer>
     <script type="module" src="/src/main.ts"></script>
   </body>
