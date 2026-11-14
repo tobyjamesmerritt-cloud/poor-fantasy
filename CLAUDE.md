@@ -36,3 +36,6 @@ Official Phaser 4 skills are in `.claude/skills/` (copied from the pinned `phase
 - New content type → JSON file in `src/content/` + a TypeScript type; validate at load.
 - Monsters: SRD 5.2 stat blocks only, in `src/content/monsters.json`; encounters reference them by id. Check difficulty against the SRD XP budget (`encounterBudget`).
 - Art goes in `public/assets/<tiles|sprites|portraits|ui|audio>/`; see `docs/art-pipeline.md`.
+- Maps are Tiled JSON in `public/assets/maps/`. Impassable tiles carry the tileset tile property `blocked: true`; locations live in the `locations` object layer (type town|cave|ruins, properties `locationId`, `description`; one `start` object). `src/content/world.ts` validates and converts them; `src/rules/world.ts` does travel. `tools/gen-world.mjs` generated the first world map — never rerun it once the map has been edited in Tiled.
+- Navigation commands (`worldMap`, `newFight`, `restart`) are handled in `main.ts`; scenes handle gameplay commands.
+- Player preferences (grid, auto-end turn, text size) live in `src/ui/prefs.ts` (localStorage).

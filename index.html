@@ -7,25 +7,80 @@
     <link rel="icon" href="data:," />
   </head>
   <body>
-    <header><span id="status">Loading…</span></header>
+    <header id="menubar">
+      <nav>
+        <div class="menu">
+          <button class="menu-btn">Game</button>
+          <div class="menu-panel">
+            <button data-command='{"type":"worldMap"}'>World map</button>
+            <button data-command='{"type":"newFight"}'>New test fight</button>
+            <button data-command='{"type":"restart"}'>Restart this fight <small>(same dice)</small></button>
+            <button data-command='{"type":"undo"}'>Rewind last action <small>Backspace</small></button>
+            <hr />
+            <button disabled>Save game <small>coming — DND-31</small></button>
+            <button disabled>Load game <small>coming — DND-31</small></button>
+          </div>
+        </div>
+        <div class="menu">
+          <button class="menu-btn">Preferences</button>
+          <div class="menu-panel">
+            <label><input type="checkbox" id="pref-grid" /> Grid lines</label>
+            <label><input type="checkbox" id="pref-autoend" /> End turn automatically</label>
+            <label
+              >Text size
+              <select id="pref-text">
+                <option value="small">Small</option>
+                <option value="normal">Normal</option>
+                <option value="large">Large</option>
+              </select>
+            </label>
+            <hr />
+            <label class="disabled"><input type="checkbox" disabled /> Sound <small>coming — DND-33</small></label>
+            <label class="disabled"><input type="checkbox" disabled /> Music <small>coming — DND-34</small></label>
+            <label class="disabled"><input type="checkbox" disabled /> Dice animation <small>coming — DND-32</small></label>
+          </div>
+        </div>
+        <div class="menu">
+          <button class="menu-btn">About</button>
+          <div class="menu-panel">
+            <button id="open-controls">Controls</button>
+            <button id="open-about">About Poor Fantasy</button>
+          </div>
+        </div>
+      </nav>
+      <span id="status">Loading…</span>
+    </header>
+
     <main>
       <aside id="left">
         <section id="card" aria-live="polite"></section>
-        <button data-command='{"type":"endTurn"}'>End turn</button>
-        <button data-command='{"type":"undo"}' title="Backspace or U">⟲ Rewind (debug)</button>
-        <button data-command='{"type":"confirm"}'>Replay</button>
+        <div id="turn-buttons">
+          <button data-command='{"type":"endTurn"}'>End turn</button>
+          <button data-command='{"type":"undo"}' title="Backspace or U">⟲ Rewind</button>
+        </div>
       </aside>
       <div id="stage">
         <div id="game"></div>
-        <div id="banner" hidden>
+        <div id="banner" class="overlay" hidden>
           <h1 id="banner-title"></h1>
           <p id="banner-sub"></p>
-          <button data-command='{"type":"confirm"}'>Fight again</button>
+          <div class="row">
+            <button data-command='{"type":"newFight"}'>Fight again</button>
+            <button data-command='{"type":"worldMap"}'>Back to map</button>
+          </div>
+        </div>
+        <div id="place" class="overlay" hidden>
+          <h2 id="place-name"></h2>
+          <p id="place-kind"></p>
+          <p id="place-desc"></p>
+          <div class="row" id="place-actions"></div>
         </div>
       </div>
       <section id="log" aria-live="polite"></section>
     </main>
-    <footer>
+
+    <!-- On-screen pad: shown on touch devices only -->
+    <footer id="touchpad">
       <button data-command='{"type":"move","dir":"nw"}' aria-label="Move north-west">↖</button>
       <button data-command='{"type":"move","dir":"n"}' aria-label="Move north">↑</button>
       <button data-command='{"type":"move","dir":"ne"}' aria-label="Move north-east">↗</button>
@@ -34,8 +89,40 @@
       <button data-command='{"type":"move","dir":"sw"}' aria-label="Move south-west">↙</button>
       <button data-command='{"type":"move","dir":"s"}' aria-label="Move south">↓</button>
       <button data-command='{"type":"move","dir":"se"}' aria-label="Move south-east">↘</button>
-      <span class="hint">Click/tap a shaded square to move · click an enemy to walk up and attack · WASD / arrows / numpad step · Q E Z C diagonals · Space ends turn early · Backspace/U rewinds</span>
     </footer>
+
+    <dialog id="controls">
+      <h2>Controls</h2>
+      <h3>World map</h3>
+      <ul>
+        <li>Click a square to travel there, or step with WASD / arrows / numpad (Q E Z C diagonals).</li>
+        <li>Walk onto a town, cave or ruins to visit it.</li>
+      </ul>
+      <h3>Combat</h3>
+      <ul>
+        <li>The marching ants show where the active character can still move. Click inside to walk there.</li>
+        <li>Click an enemy (sword cursor) to walk up and attack.</li>
+        <li>Click a fallen ally (open hand) to try to stabilise them.</li>
+        <li>Space ends the turn early. Backspace or U rewinds the last action.</li>
+      </ul>
+      <button class="close">Close</button>
+    </dialog>
+
+    <dialog id="about">
+      <h2>Poor Fantasy</h2>
+      <p>A personal homage to the late-1980s Gold Box games, on the current D&amp;D rules. Version 0.2.</p>
+      <h3>Credits</h3>
+      <ul>
+        <li>
+          This work includes material from the System Reference Document 5.2 ("SRD 5.2") by Wizards of the Coast LLC,
+          licensed under the Creative Commons Attribution 4.0 International License.
+        </li>
+        <li>Art: Kenney (www.kenney.nl) — Tiny Dungeon, Tiny Battle, Cursor Pack — CC0.</li>
+        <li>Engine: Phaser (MIT licence).</li>
+      </ul>
+      <button class="close">Close</button>
+    </dialog>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -1,7 +1,7 @@
 /**
- * HTML overlay UI (character panel, message log, status, buttons). Menus and
- * text live in the DOM rather than Phaser: easier layout, accessibility and
- * mobile scaling. Text is always set via textContent (never innerHTML).
+ * HTML overlay UI (character card, party roster, message log, status, board
+ * overlays). Menus and text live in the DOM rather than Phaser: easier layout,
+ * accessibility and mobile scaling. Text is always set via textContent.
  */
 import type { Command, CommandBus } from '../engine/commands';
 
@@ -31,7 +31,17 @@ export interface ActiveCard {
   sprite: SpriteCss;
 }
 
-const CARD_PX = 64; // portrait box size
+export interface RosterEntry {
+  name: string;
+  hp: number;
+  maxHp: number;
+  sprite: SpriteCss;
+}
+
+export interface PlaceAction {
+  label: string;
+  command?: Command; // omitted = disabled ("coming soon")
+}
 
 export class Hud {
   private logEl = must('log');
@@ -40,10 +50,15 @@ export class Hud {
   private namePattern: RegExp | null = null;
   private sideByName = new Map<string, Side>();
 
-  constructor(bus: CommandBus) {
+  constructor(private bus: CommandBus) {
     document.querySelectorAll<HTMLButtonElement>('[data-command]').forEach((btn) => {
       btn.addEventListener('click', () => bus.dispatch(JSON.parse(btn.dataset.command!) as Command));
     });
+  }
+
+  /** Show or hide controls that only make sense in combat. */
+  setCombatControls(on: boolean): void {
+    must('turn-buttons').hidden = !on;
   }
 
   /** Register unit names so the log can colour them by side. */
@@ -54,22 +69,8 @@ export class Hud {
   }
 
   setLog(lines: readonly string[]): void {
-    this.logEl.replaceChildren(...lines.slice(-60).map((l) => this.renderLine(l)));
+    this.logEl.replaceChildren(...lines.slice(-80).map((l) => this.renderLine(l)));
     this.logEl.scrollTop = this.logEl.scrollHeight;
-  }
-
-  /** Full-board victory/defeat banner; hidden while combat is ongoing. */
-  setOutcome(outcome: 'ongoing' | 'victory' | 'defeat', detail: string): void {
-    const banner = must('banner');
-    if (outcome === 'ongoing') {
-      banner.hidden = true;
-      return;
-    }
-    if (!banner.hidden && banner.className === outcome) return; // keep the animation from replaying
-    banner.className = outcome;
-    must('banner-title').textContent = outcome === 'victory' ? 'Victory!' : 'The party has fallen';
-    must('banner-sub').textContent = detail;
-    banner.hidden = false;
   }
 
   setStatus(text: string): void {
@@ -83,39 +84,98 @@ export class Hud {
       .forEach((b) => b.classList.toggle('suggest', on));
   }
 
-  setActive(card: ActiveCard | null): void {
-    if (!card) {
-      this.cardEl.replaceChildren(el('p', 'muted', 'Combat over — Enter or Replay for another fight.'));
+  /** Full-board victory/defeat banner; hidden while combat is ongoing. */
+  setOutcome(outcome: 'ongoing' | 'victory' | 'defeat' | 'none', detail = ''): void {
+    const banner = must('banner');
+    if (outcome === 'ongoing' || outcome === 'none') {
+      banner.hidden = true;
+      banner.className = 'overlay';
       return;
     }
-    const s = card.sprite;
-    const portrait = el('div', 'portrait');
-    const scale = CARD_PX / s.frameWidth;
-    Object.assign(portrait.style, {
-      backgroundImage: `url(${s.url})`,
-      backgroundSize: `${s.sheetCols * CARD_PX}px ${s.sheetRows * CARD_PX}px`,
-      backgroundPosition: `-${s.col * s.frameWidth * scale}px -${s.row * s.frameWidth * scale}px`,
-    });
+    if (!banner.hidden && banner.classList.contains(outcome)) return; // don't replay the animation
+    banner.className = `overlay ${outcome}`;
+    must('banner-title').textContent = outcome === 'victory' ? 'Victory!' : 'The party has fallen';
+    must('banner-sub').textContent = detail;
+    banner.hidden = false;
+  }
 
+  /** Location panel on the world map; null hides it. */
+  setPlace(place: { name: string; kind: string; description: string; actions: PlaceAction[] } | null): void {
+    const panel = must('place');
+    if (!place) {
+      panel.hidden = true;
+      return;
+    }
+    must('place-name').textContent = place.name;
+    must('place-kind').textContent = place.kind;
+    must('place-desc').textContent = place.description;
+    must('place-actions').replaceChildren(
+      ...place.actions.map((a) => {
+        const btn = el('button', '', a.label) as HTMLButtonElement;
+        if (a.command) btn.addEventListener('click', () => this.bus.dispatch(a.command!));
+        else btn.disabled = true;
+        return btn;
+      }),
+    );
+    panel.hidden = false;
+  }
+
+  /** Compact active-character card: name over the portrait, stats beside it. */
+  setActive(card: ActiveCard | null): void {
+    if (!card) {
+      this.cardEl.replaceChildren(el('p', 'muted', 'Combat over.'));
+      return;
+    }
     const hpPct = Math.round((card.hp / card.maxHp) * 100);
     const hpFill = el('div', hpPct > 50 ? 'fill ok' : hpPct > 25 ? 'fill warn' : 'fill bad');
     hpFill.style.width = `${hpPct}%`;
-
-    this.cardEl.replaceChildren(
-      el('div', 'card-head', portrait, el('h2', `name ${card.side}`, card.name)),
-      el('div', 'stat', el('span', '', 'HP'), el('span', '', `${card.hp} / ${card.maxHp}`)),
+    const stats = el(
+      'dl',
+      'stats',
+      el('dt', '', 'HP'),
+      el('dd', '', `${card.hp}/${card.maxHp}`),
       el('div', 'bar', hpFill),
-      el('div', 'stat', el('span', '', 'AC'), el('span', '', String(card.ac))),
-      el('div', 'stat', el('span', '', 'Moves'), el('span', '', `${card.movesLeft} / ${card.speed}`)),
-      el('h3', '', 'Actions'),
+      el('dt', '', 'AC'),
+      el('dd', '', String(card.ac)),
+      el('dt', '', 'Moves'),
+      el('dd', '', `${card.movesLeft}/${card.speed}`),
+    );
+    this.cardEl.replaceChildren(
+      el('div', 'card-top', el('div', `name ${card.side}`, card.name), portrait(card.sprite, 64), stats),
       el(
         'div',
-        card.actionUsed ? 'action used' : 'action',
-        el('span', '', `⚔ ${card.attackName}  +${card.attackBonus}  ${card.damage}`),
-        el('small', '', card.actionUsed ? 'used this turn' : 'click an enemy · or a fallen ally to stabilise'),
+        'actions',
+        el(
+          'div',
+          card.actionUsed ? 'action used' : 'action',
+          `⚔ ${card.attackName} +${card.attackBonus} · ${card.damage}`,
+          el('small', '', card.actionUsed ? 'used this turn' : 'click an enemy · or a fallen ally'),
+        ),
+        el('div', 'action disabled', '✦ Spells', el('small', '', 'coming — DND-23')),
+        el('div', 'action disabled', '⚗ Items', el('small', '', 'coming — DND-24')),
       ),
-      el('div', 'action disabled', el('span', '', '✦ Spells'), el('small', '', 'coming — DND-23')),
-      el('div', 'action disabled', el('span', '', '⚗ Items'), el('small', '', 'coming — DND-24')),
+    );
+  }
+
+  /** Party list for the world map. */
+  setRoster(entries: readonly RosterEntry[]): void {
+    this.cardEl.replaceChildren(
+      el('div', 'name party', 'The party'),
+      el(
+        'div',
+        'roster',
+        ...entries.map((e) => {
+          const pct = Math.round((e.hp / e.maxHp) * 100);
+          const fill = el('div', pct > 50 ? 'fill ok' : pct > 25 ? 'fill warn' : 'fill bad');
+          fill.style.width = `${pct}%`;
+          return el(
+            'div',
+            'roster-row',
+            portrait(e.sprite, 32),
+            el('div', '', `${e.name}  ${e.hp}/${e.maxHp}`, el('div', 'bar', fill)),
+          );
+        }),
+      ),
     );
   }
 
@@ -124,19 +184,19 @@ export class Hud {
       ? 'turn'
       : text.startsWith('⟲')
         ? 'rewind'
-      : text.startsWith('—')
-        ? 'round'
-        : /Victory!/.test(text)
-          ? 'win'
-          : /fallen…|dies\.|slain|killed outright/.test(text)
-            ? 'lose'
-            : /unconscious|death save/.test(text)
-              ? 'down'
-              : /CRITS/.test(text)
-                ? 'crit'
-                : /stable|regains consciousness/.test(text)
-                  ? 'saved'
-                  : '';
+        : text.startsWith('—')
+          ? 'round'
+          : /Victory!/.test(text)
+            ? 'win'
+            : /fallen…|dies\.|slain|killed outright/.test(text)
+              ? 'lose'
+              : /unconscious|death save/.test(text)
+                ? 'down'
+                : /CRITS/.test(text)
+                  ? 'crit'
+                  : /stable|regains consciousness/.test(text)
+                    ? 'saved'
+                    : '';
     const p = el('p', cls);
     if (!this.namePattern) {
       p.textContent = text;
@@ -148,6 +208,17 @@ export class Hud {
     }
     return p;
   }
+}
+
+function portrait(s: SpriteCss, px: number): HTMLElement {
+  const p = el('div', 'portrait');
+  const scale = px / s.frameWidth;
+  Object.assign(p.style, {
+    backgroundImage: `url(${s.url})`,
+    backgroundSize: `${s.sheetCols * px}px ${s.sheetRows * px}px`,
+    backgroundPosition: `-${s.col * s.frameWidth * scale}px -${s.row * s.frameWidth * scale}px`,
+  });
+  return p;
 }
 
 function el(tag: string, cls: string, ...children: (Node | string)[]): HTMLElement {

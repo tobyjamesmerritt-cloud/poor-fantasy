@@ -10,6 +10,7 @@ Or manually:
 npm install
 npm run dev        # http://localhost:5173
 ```
+- The game opens on the world map: click to travel; walk onto the cave for the test fight. About → Controls lists everything.
 - Move: WASD, arrows or numpad; Q E Z C for diagonals — or tap an adjacent square / the on-screen buttons.
 - Click a shaded square to walk there; click an enemy to walk up and attack. **Space** ends the turn early. **Enter** replays after victory/defeat.
 - Reproduce a fight exactly: add `?seed=1234` to the URL (the seed is shown when a fight ends).

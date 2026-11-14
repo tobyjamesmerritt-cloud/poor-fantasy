@@ -12,6 +12,7 @@ Record every third-party asset pack here with its source URL and licence before 
 | Asset | Source | Licence |
 |---|---|---|
 | Tiny Dungeon (`public/assets/tiles/tiny-dungeon.png`) | Kenney — https://kenney.nl/assets/tiny-dungeon | CC0 1.0 |
+| Tiny Battle (`public/assets/tiles/tiny-battle.png`) | Kenney — https://kenney.nl/assets/tiny-battle | CC0 1.0 |
 | Cursor Pack (`public/assets/ui/cursors/`) | Kenney — https://kenney.nl/assets/cursor-pack | CC0 1.0 |
 
 Thanks to Kenney (www.kenney.nl) — attribution not required by CC0 but given.

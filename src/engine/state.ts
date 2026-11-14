@@ -5,7 +5,7 @@
 import type { Mode } from './modes';
 import { assertTransition } from './modes';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2; // v2: party position on a map
 
 export interface GameState {
   version: number;
@@ -13,10 +13,11 @@ export interface GameState {
   mode: Mode;
   flags: Record<string, boolean | number | string>; // story flags set by event scripts
   partyIds: string[];
+  position: { map: string; x: number; y: number } | null; // null = not placed yet (use the map's start)
 }
 
 export function newGameState(seed: number): GameState {
-  return { version: SAVE_VERSION, seed, mode: 'party', flags: {}, partyIds: [] };
+  return { version: SAVE_VERSION, seed, mode: 'party', flags: {}, partyIds: [], position: null };
 }
 
 export function changeMode(state: GameState, to: Mode): GameState {

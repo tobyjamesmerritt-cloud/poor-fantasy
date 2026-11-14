@@ -11,6 +11,10 @@ export type Command =
   | { type: 'attack'; targetId: string }
   | { type: 'endTurn' }
   | { type: 'undo' } // rewind one player action (debug now; patron-god mechanic later, DND-27)
+  | { type: 'newFight' } // start the test fight with fresh dice
+  | { type: 'restart' } // restart the current fight with the same dice
+  | { type: 'worldMap' } // go to the world map
+  | { type: 'leavePlace' } // close the location panel on the map
   | { type: 'confirm' }
   | { type: 'cancel' }
   | { type: 'menu'; option: string }
