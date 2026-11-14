@@ -49,35 +49,46 @@ export function canStep(m: TravelMap, from: { x: number; y: number }, dir: Direc
 export function findPath(m: TravelMap, from: { x: number; y: number }, to: { x: number; y: number }): Direction[] | null {
   if (isBlocked(m, to.x, to.y)) return null;
   if (from.x === to.x && from.y === to.y) return [];
+  // Dijkstra. Every step costs the same (diagonals included), so many routes
+  // tie; a small tie-breaker for distance from the straight from→to line picks
+  // the one that looks straight instead of bowing out.
+  const STEP = 1_000_000; // far larger than any summed deviation on a map
+  const lx = to.x - from.x;
+  const ly = to.y - from.y;
+  const deviation = (x: number, y: number) => Math.abs(lx * (y - from.y) - ly * (x - from.x));
   const key = (x: number, y: number) => y * m.width + x;
+  const best = new Map<number, number>([[key(from.x, from.y), 0]]);
   const prev = new Map<number, { k: number; dir: Direction }>();
-  const seen = new Set([key(from.x, from.y)]);
-  let frontier = [{ x: from.x, y: from.y }];
+  const done = new Set<number>();
+  const open: { x: number; y: number; cost: number }[] = [{ x: from.x, y: from.y, cost: 0 }];
   const dirs = Object.keys(DIRECTION_VECTORS) as Direction[];
-  while (frontier.length) {
-    const next: { x: number; y: number }[] = [];
-    for (const p of frontier) {
-      for (const dir of dirs) {
-        if (!canStep(m, p, dir)) continue;
-        const [dx, dy] = DIRECTION_VECTORS[dir];
-        const n = { x: p.x + dx, y: p.y + dy };
-        const nk = key(n.x, n.y);
-        if (seen.has(nk)) continue;
-        seen.add(nk);
-        prev.set(nk, { k: key(p.x, p.y), dir });
-        if (n.x === to.x && n.y === to.y) {
-          const path: Direction[] = [];
-          for (let k = nk; k !== key(from.x, from.y); ) {
-            const step = prev.get(k)!;
-            path.unshift(step.dir);
-            k = step.k;
-          }
-          return path;
-        }
-        next.push(n);
+  while (open.length) {
+    let i = 0;
+    for (let j = 1; j < open.length; j++) if (open[j].cost < open[i].cost) i = j;
+    const p = open.splice(i, 1)[0];
+    const pk = key(p.x, p.y);
+    if (done.has(pk)) continue;
+    done.add(pk);
+    if (p.x === to.x && p.y === to.y) {
+      const path: Direction[] = [];
+      for (let k = pk; k !== key(from.x, from.y); ) {
+        const step = prev.get(k)!;
+        path.unshift(step.dir);
+        k = step.k;
       }
+      return path;
     }
-    frontier = next;
+    for (const dir of dirs) {
+      if (!canStep(m, p, dir)) continue;
+      const [dx, dy] = DIRECTION_VECTORS[dir];
+      const n = { x: p.x + dx, y: p.y + dy };
+      const nk = key(n.x, n.y);
+      const cost = p.cost + STEP + deviation(n.x, n.y);
+      if (done.has(nk) || cost >= (best.get(nk) ?? Infinity)) continue;
+      best.set(nk, cost);
+      prev.set(nk, { k: pk, dir });
+      open.push({ ...n, cost });
+    }
   }
   return null;
 }

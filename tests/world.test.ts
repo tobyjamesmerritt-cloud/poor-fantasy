@@ -1,3 +1,4 @@
+import { DIRECTION_VECTORS } from '../src/engine/commands';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadTravelMap, type TiledMap } from '../src/content/world';
@@ -21,6 +22,22 @@ describe('travel rules', () => {
     const m = grid(['....', '.##.', '....']);
     expect(findPath(m, { x: 0, y: 1 }, { x: 3, y: 1 })).toHaveLength(5); // no corner-cutting past the wall
     expect(findPath(m, { x: 0, y: 0 }, { x: 1, y: 1 })).toBeNull(); // target blocked
+  });
+
+  it('walks a straight-looking line on open ground instead of bowing out', () => {
+    const m = grid(Array(9).fill('.'.repeat(20)));
+    const from = { x: 0, y: 0 };
+    for (const to of [{ x: 12, y: 0 }, { x: 15, y: 5 }, { x: 4, y: 8 }, { x: 18, y: 8 }]) {
+      const path = findPath(m, from, to)!;
+      expect(path).toHaveLength(Math.max(to.x, to.y)); // still a shortest path
+      let x = 0, y = 0, worst = 0;
+      for (const d of path) {
+        const [dx, dy] = DIRECTION_VECTORS[d];
+        x += dx; y += dy;
+        worst = Math.max(worst, Math.abs(to.x * y - to.y * x) / Math.hypot(to.x, to.y));
+      }
+      expect(worst, `to (${to.x},${to.y})`).toBeLessThanOrEqual(1); // never more than a square off the line
+    }
   });
 
   it('never cuts a corner diagonally past a blocked square', () => {
