@@ -14,6 +14,7 @@ import {
   startCombat,
   reachableSquares,
   step,
+  turnExhausted,
   unitAt,
 } from '../../rules/combat';
 import { assets, cellSize, cursorCss } from '../../content/assets';
@@ -39,6 +40,7 @@ export class CombatScene extends Phaser.Scene {
   private tags = new Map<string, Phaser.GameObjects.Text>();
   private spriteKeyByUnit = new Map<string, string>();
   private cursor = '';
+  private autoEnding = false;
 
   constructor() {
     super('combat');
@@ -49,6 +51,7 @@ export class CombatScene extends Phaser.Scene {
     this.sprites.clear();
     this.tags.clear();
     this.cursor = '';
+    this.autoEnding = false;
   }
 
   preload(): void {
@@ -155,6 +158,7 @@ export class CombatScene extends Phaser.Scene {
   }
 
   private handle(cmd: Command): void {
+    if (this.autoEnding) return; // brief pause while the turn hands over
     switch (cmd.type) {
       case 'move':
         step(this.state, this.rng, cmd.dir);
@@ -176,6 +180,15 @@ export class CombatScene extends Phaser.Scene {
         break;
     }
     this.redraw();
+    if (turnExhausted(this.state)) {
+      // Nothing left to do: pause so the player can read the result, then hand over.
+      this.autoEnding = true;
+      this.time.delayedCall(600, () => {
+        this.autoEnding = false;
+        endTurn(this.state, this.rng);
+        this.redraw();
+      });
+    }
   }
 
   private redraw(): void {

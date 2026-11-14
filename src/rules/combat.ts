@@ -232,3 +232,11 @@ export function reachableSquares(state: CombatState): { x: number; y: number; co
   }
   return out;
 }
+
+/**
+ * True when the active unit has nothing meaningful left this turn, so the UI
+ * can end the turn automatically. Grows with DND-10 (bonus actions etc.).
+ */
+export function turnExhausted(state: CombatState): boolean {
+  return state.outcome === 'ongoing' && state.actionUsed && state.movesLeft <= 0;
+}

@@ -67,3 +67,19 @@ describe('reachableSquares', () => {
     expect(reachableSquares(s)).toHaveLength(8 - 1); // 1 move left: 8 neighbours minus the one occupied by 'b'
   });
 });
+
+describe('turnExhausted', () => {
+  it('is true after an attack (skeleton: attacking ends movement), false at turn start', async () => {
+    const { turnExhausted, activeUnit } = await import('../src/rules/combat');
+    const units: Unit[] = [
+      { id: 'a', name: 'A', side: 'party', x: 1, y: 1, hp: 10, maxHp: 10, ac: 10, speed: 6, initBonus: 99, attackBonus: 5, damage: '1d4' },
+      { id: 'z', name: 'Z', side: 'enemy', x: 2, y: 1, hp: 50, maxHp: 50, ac: 10, speed: 6, initBonus: -99, attackBonus: 0, damage: '1d4' },
+    ];
+    const rng = createRng(2);
+    const s = startCombat(rng, 6, 6, units);
+    expect(activeUnit(s).id).toBe('a');
+    expect(turnExhausted(s)).toBe(false);
+    step(s, rng, 'e'); // attack Z
+    expect(turnExhausted(s)).toBe(true);
+  });
+});
