@@ -40,6 +40,11 @@ Content files refer to sprites by name (e.g. `"sprite": "giant-rat"` in `skirmis
 | RPG Urban Kit | many people sprites (townsfolk/NPCs), buildings | Later: town mode; modern-looking, pick carefully |
 | Tiny Battle | grass, water, trees; heart, lock, flag, number icons | Later: wilderness terrain + UI icons; vehicles unusable |
 
+## Where to look for more assets
+- **itch.io game assets** — https://itch.io/game-assets (huge mix of free and paid packs; check each licence and record it in `NOTICE.md`; prefer CC0 or licences that allow use in any project).
+- **Kenney** — https://kenney.nl/assets (all CC0; "Tiny Town" matches our current style and fills the missing-houses gap).
+- **OpenGameArt** — https://opengameart.org (filter by licence).
+
 ## Rules of thumb
 - One art size per set; don't mix 16 px and 32 px sprites on screen.
 - Scale by whole numbers only (crisp pixels).
