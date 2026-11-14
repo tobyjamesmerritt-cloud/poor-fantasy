@@ -1,0 +1,29 @@
+{
+  "_note": "Art manifest. Swap art by changing sheets/frames here; game code never hard-codes frame numbers. All sheets in one set must share frameWidth/frameHeight.",
+  "scale": 3,
+  "sheets": {
+    "dungeon": { "url": "assets/tiles/tiny-dungeon.png", "frameWidth": 16, "frameHeight": 16 }
+  },
+  "sprites": {
+    "fighter": { "sheet": "dungeon", "frame": 87 },
+    "paladin": { "sheet": "dungeon", "frame": 96 },
+    "rogue": { "sheet": "dungeon", "frame": 112 },
+    "cleric": { "sheet": "dungeon", "frame": 100 },
+    "ranger": { "sheet": "dungeon", "frame": 88 },
+    "wizard": { "sheet": "dungeon", "frame": 84 },
+    "giant-rat": { "sheet": "dungeon", "frame": 123 },
+    "giant-spider": { "sheet": "dungeon", "frame": 122 },
+    "bat": { "sheet": "dungeon", "frame": 120 },
+    "ghost": { "sheet": "dungeon", "frame": 121 },
+    "slime": { "sheet": "dungeon", "frame": 108 },
+    "cyclops": { "sheet": "dungeon", "frame": 109 }
+  },
+  "floors": {
+    "dungeon-sand": { "sheet": "dungeon", "frames": [48] }
+  },
+  "cursors": {
+    "default": { "url": "assets/ui/cursors/gauntlet_point.png", "hotX": 6, "hotY": 2 },
+    "attack": { "url": "assets/ui/cursors/tool_sword_a.png", "hotX": 4, "hotY": 4 },
+    "move": { "url": "assets/ui/cursors/boot.png", "hotX": 8, "hotY": 8 }
+  }
+}

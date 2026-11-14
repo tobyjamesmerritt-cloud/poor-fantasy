@@ -1,35 +1,47 @@
 # Art pipeline
 
-How art gets from a file on your PC into the game. Claude will walk you through each step the first time.
+How art gets from a file on your PC into the game.
 
-## Tools
-| Tool | Use | Cost |
+## Decisions (DND-19)
+- **Art size: 16×16 pixel art**, shown at **3×** (one grid square = 48 px on screen). Set by `scale` in `src/content/assets.json`.
+- **Starter style:** Kenney "Tiny" series (CC0). A placeholder — swapping to more detailed art later means new PNGs + manifest edits, no code changes.
+- **Editor:** LibreSprite (free). Upgrade to Aseprite only if LibreSprite becomes limiting.
+
+## How art is wired in
+`src/content/assets.json` is the only place frame numbers live:
+- `sheets` — PNG sprite sheets and their frame size. All sheets in a set share one frame size.
+- `sprites` — named sprites (`"fighter"`, `"giant-rat"`) → sheet + frame number.
+- `floors` — floor tile frames per terrain type.
+- `cursors` — mouse cursors (desktop only; touch ignores them).
+
+Content files refer to sprites by name (e.g. `"sprite": "giant-rat"` in `skirmish.json`). `npm test` fails if a name, sheet or frame number is wrong.
+
+## Change a sprite (2 minutes)
+1. Open `docs/sheets/tiny-dungeon-indexed.png` — every tile is numbered.
+2. In `src/content/assets.json`, change the `frame` number for that sprite, or add a new named entry.
+3. Save — the dev server reloads. Run `npm test` before committing.
+
+## Add a new sprite sheet
+1. Put the PNG in `public/assets/tiles/` or `public/assets/sprites/` (lowercase-kebab-case name).
+2. Use a **packed** sheet (no spacing between tiles — Kenney's `tilemap_packed.png`).
+3. Add it under `sheets` with `frameWidth`/`frameHeight` 16.
+4. Record it in `NOTICE.md` (name, source URL, licence) **before committing**.
+
+## Check a sheet in LibreSprite
+- Open the PNG → **View → Grid → Grid Settings**: width 16, height 16 → **View → Show Grid**.
+- Frames are numbered left-to-right, top-to-bottom, starting at 0.
+
+## Packs on hand (Toby's downloads — only used files are committed)
+| Pack | Useful for | Status |
 |---|---|---|
-| [Tiled](https://www.mapeditor.org/) | Draw maps (wilderness, towns, combat arenas) | Free |
-| [LibreSprite](https://libresprite.github.io/) or Aseprite | Edit sprites and sprite sheets | Free / ~US$20 |
-| [Kenney.nl](https://kenney.nl/assets) | Starter tiles and sprites | Free, CC0 |
-
-## Folder layout
-```
-public/assets/
-  tiles/       tilesets (PNG) + Tiled maps (JSON)
-  sprites/     character/monster sprite sheets (PNG) + frame data
-  portraits/   character and NPC portraits
-  ui/          icons, buttons, frames
-  audio/       music and sound effects (OGG + MP3)
-```
+| Tiny Dungeon | party, monsters, dungeon floor/walls, items, chests | **In use** (combat) |
+| Cursor Pack | gauntlet / sword / boot cursors | **In use** (3 cursors) |
+| Tiny Ski | pixel font (digits, A–Z, symbols) | Later: in-canvas numbers, e.g. damage pop-ups |
+| RPG Urban Kit | many people sprites (townsfolk/NPCs), buildings | Later: town mode; modern-looking, pick carefully |
+| Tiny Battle | grass, water, trees; heart, lock, flag, number icons | Later: wilderness terrain + UI icons; vehicles unusable |
 
 ## Rules of thumb
-- **One tile size for the whole game.** Decide once (e.g. 16×16 or 32×32 pixel art, scaled up in-game). Mixing sizes is the most common source of rework.
-- **One palette / style per game.** Prefer one artist or pack family for consistency.
-- **PNG only** for images, with transparency. No JPEG for sprites.
-- **Sprite sheets:** frames in a regular grid, same frame size, no padding unless the loader is told about it.
-- **Tiled maps:** export as JSON, embed tilesets (Map → Embed Tilesets) so the map file is self-contained.
-- **File names:** lowercase-kebab-case, e.g. `kobold-idle.png`.
-- **Licences:** add every pack to `NOTICE.md` before committing. CC0 is simplest. Avoid "personal use only" packs if you may ever share the game.
-- **No assets from the original SSI games.**
-
-## Adding a sprite (outline — expanded when the first real asset lands)
-1. Put the PNG in `public/assets/sprites/`.
-2. Tell Claude the frame width/height and which frames are which animation.
-3. Claude adds the loader entry and animation definitions; you playtest.
+- One art size per set; don't mix 16 px and 32 px sprites on screen.
+- Scale by whole numbers only (crisp pixels).
+- PNG with transparency; no JPEG.
+- No assets from the original SSI games. Avoid "personal use only" licences.
