@@ -203,3 +203,32 @@ export function chebyshev(a: { x: number; y: number }, b: { x: number; y: number
 function nameOf(units: Unit[], id: string): string {
   return units.find((u) => u.id === id)?.name ?? id;
 }
+
+/**
+ * Squares the active unit can still reach this turn with its remaining
+ * movement (8-way, 1 square per step, living units block). Excludes its own square.
+ */
+export function reachableSquares(state: CombatState): { x: number; y: number; cost: number }[] {
+  if (state.outcome !== 'ongoing' || state.movesLeft <= 0) return [];
+  const start = activeUnit(state);
+  const key = (x: number, y: number) => y * state.width + x;
+  const best = new Map<number, number>([[key(start.x, start.y), 0]]);
+  const out: { x: number; y: number; cost: number }[] = [];
+  let frontier = [{ x: start.x, y: start.y }];
+  for (let cost = 1; cost <= state.movesLeft && frontier.length; cost++) {
+    const next: { x: number; y: number }[] = [];
+    for (const p of frontier) {
+      for (const [dx, dy] of Object.values(DIRECTION_VECTORS)) {
+        const nx = p.x + dx;
+        const ny = p.y + dy;
+        if (nx < 0 || ny < 0 || nx >= state.width || ny >= state.height) continue;
+        if (best.has(key(nx, ny)) || unitAt(state, nx, ny)) continue;
+        best.set(key(nx, ny), cost);
+        out.push({ x: nx, y: ny, cost });
+        next.push({ x: nx, y: ny });
+      }
+    }
+    frontier = next;
+  }
+  return out;
+}

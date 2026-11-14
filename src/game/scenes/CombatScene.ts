@@ -12,6 +12,7 @@ import {
   chebyshev,
   endTurn,
   startCombat,
+  reachableSquares,
   step,
   unitAt,
 } from '../../rules/combat';
@@ -33,6 +34,7 @@ export class CombatScene extends Phaser.Scene {
   private rng!: Rng;
   private state!: CombatState;
   private overlay!: Phaser.GameObjects.Graphics;
+  private reach!: Phaser.GameObjects.Graphics;
   private sprites = new Map<string, Phaser.GameObjects.Image>();
   private tags = new Map<string, Phaser.GameObjects.Text>();
   private spriteKeyByUnit = new Map<string, string>();
@@ -64,6 +66,7 @@ export class CombatScene extends Phaser.Scene {
     this.state = startCombat(this.rng, skirmish.width, skirmish.height, units);
 
     this.drawFloor();
+    this.reach = this.add.graphics().setDepth(0.4); // under grid lines and units
     this.drawGrid();
     this.overlay = this.add.graphics().setDepth(4); // above sprites so HP bars stay visible
     for (const u of this.state.units) this.createUnitSprite(u);
@@ -179,6 +182,13 @@ export class CombatScene extends Phaser.Scene {
     const { overlay, state } = this;
     overlay.clear();
     const active = state.outcome === 'ongoing' ? activeUnit(state) : undefined;
+
+    // Remaining movement: tint reachable squares, stronger for nearer ones.
+    this.reach.clear();
+    for (const sq of reachableSquares(state)) {
+      this.reach.fillStyle(0x3a7bd5, 0.32 - (0.14 * (sq.cost - 1)) / Math.max(1, state.movesLeft));
+      this.reach.fillRect(sq.x * TILE, sq.y * TILE, TILE, TILE);
+    }
 
     for (const u of state.units) {
       const dead = u.hp <= 0;
