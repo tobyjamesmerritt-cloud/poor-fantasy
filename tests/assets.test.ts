@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { assets, cellSize, validateManifest } from '../src/content/assets';
-import skirmish from '../src/content/skirmish.json';
+import { encounters, party } from '../src/content/encounters';
 
 /** Width/height from a PNG's IHDR chunk. */
 function pngSize(path: string): { w: number; h: number } {
@@ -27,9 +27,9 @@ describe('art manifest', () => {
     for (const c of Object.values(assets.cursors)) expect(() => readFileSync(`public/${c.url}`)).not.toThrow();
   });
 
-  it('every unit in the skirmish has a known sprite, and the floor exists', () => {
-    for (const u of skirmish.party) expect(assets.sprites[u.sprite], u.id).toBeDefined();
-    expect(assets.floors[skirmish.floor]).toBeDefined();
+  it('every party member has a known sprite, and every encounter floor exists', () => {
+    for (const u of party) expect(assets.sprites[u.sprite], u.id).toBeDefined();
+    for (const e of Object.values(encounters)) expect(assets.floors[e.floor], e.id).toBeDefined();
   });
 
   it('grid cell is a whole-number multiple of the art size', () => {

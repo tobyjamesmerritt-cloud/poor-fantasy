@@ -1,0 +1,23 @@
+{
+  "_note": "Old Keep Ruins: 3 Giant Wolf Spiders + 2 Giant Bats = 250 XP. Balance via npm run sim.",
+  "id": "ruins-crawlers",
+  "width": 12,
+  "height": 9,
+  "floor": "ruins-rubble",
+  "partyLevel": 1,
+  "partyStart": [
+    {"x": 1, "y": 2},
+    {"x": 1, "y": 4},
+    {"x": 1, "y": 6},
+    {"x": 0, "y": 3},
+    {"x": 0, "y": 5},
+    {"x": 0, "y": 4}
+  ],
+  "enemies": [
+    {"monster": "giant-wolf-spider", "x": 10, "y": 2},
+    {"monster": "giant-wolf-spider", "x": 9, "y": 5},
+    {"monster": "giant-wolf-spider", "x": 10, "y": 7},
+    {"monster": "giant-bat", "x": 11, "y": 0},
+    {"monster": "giant-bat", "x": 11, "y": 8}
+  ]
+}

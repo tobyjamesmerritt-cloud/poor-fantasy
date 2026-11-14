@@ -1,0 +1,13 @@
+{
+  "_note": "Game content per world-map location (positions live in the Tiled map). autoFight: walking onto the location starts its encounter until it is cleared.",
+  "hollow-cave": {
+    "encounter": "cave-rats",
+    "autoFight": true,
+    "intro": "Red eyes glint in the dark of the cave. Rats \u2014 big ones!"
+  },
+  "old-keep": {
+    "encounter": "ruins-crawlers",
+    "autoFight": true,
+    "intro": "Thick webs hang between the broken walls. Something skitters closer\u2026"
+  }
+}

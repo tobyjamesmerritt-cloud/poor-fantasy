@@ -8,8 +8,7 @@ import type { Command, CommandBus, Direction } from '../../engine/commands';
 import { DIRECTION_VECTORS } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
 import { assets, cursorCss } from '../../content/assets';
-import { buildUnits, type EncounterDef } from '../../content/encounters';
-import skirmishJson from '../../content/skirmish.json';
+import { locationContent, party } from '../../content/encounters';
 import { loadTravelMap, type TiledMap } from '../../content/world';
 import { canStep, findPath, isBlocked, locationAt, type MapLocation, type TravelMap } from '../../rules/world';
 import type { Hud } from '../../ui/hud';
@@ -75,11 +74,7 @@ export class WorldScene extends Phaser.Scene {
     hud.setOutcome('none');
     hud.setEndTurnHint(false);
     hud.setNames([]);
-    hud.setRoster(
-      buildUnits(skirmishJson as EncounterDef)
-        .filter((u) => u.side === 'party')
-        .map((u) => ({ name: u.name, hp: u.hp, maxHp: u.maxHp, sprite: spriteCss(this.textures, u.sprite) })),
-    );
+    hud.setRoster(party.map((p) => ({ name: p.name, hp: p.hp, maxHp: p.hp, sprite: spriteCss(this.textures, p.sprite) })));
     if (!this.log.length) {
       this.log.push('The party sets out into the Vale.', 'Click a square to travel there, or use WASD. Visit the towns, the cave and the ruins.');
     }
@@ -146,7 +141,10 @@ export class WorldScene extends Phaser.Scene {
     this.deps.game.position = { map: MAP_KEY, x: this.pos.x, y: this.pos.y };
   }
 
-  /** Update status/log for the current square and open the location panel if there is one. */
+  /**
+   * Update status/log for the current square. Walking onto a location with an
+   * uncleared autoFight encounter starts the fight; otherwise show its panel.
+   */
   private arrive(announce: boolean): void {
     const loc = locationAt(this.map, this.pos.x, this.pos.y);
     if (loc && (announce || loc !== this.here)) this.log.push(`You arrive at ${loc.name}.`);
@@ -155,13 +153,26 @@ export class WorldScene extends Phaser.Scene {
     this.deps.hud.setStatus(`World map · ${loc ? loc.name : 'Wilderness'} · (${this.pos.x}, ${this.pos.y})`);
     if (!loc) return this.deps.hud.setPlace(null);
 
-    const actions =
-      loc.kind === 'cave'
-        ? [{ label: 'Explore — test fight', command: { type: 'newFight' } as Command }]
-        : [{ label: 'Enter — not designed yet' }];
+    const content = locationContent[loc.id] ?? {};
+    const cleared = this.deps.game.flags[`cleared:${loc.id}`] === true;
+    const fight: Command | undefined = content.encounter
+      ? { type: 'fight', encounter: content.encounter, origin: loc.id }
+      : undefined;
+
+    if (fight && content.autoFight && !cleared && announce) {
+      if (content.intro) this.log.push(content.intro);
+      this.deps.hud.setLog(this.log);
+      this.busy = true; // short beat to read the intro, then into battle
+      this.time.delayedCall(900, () => this.deps.bus.dispatch(fight));
+      return;
+    }
+
+    const actions = fight
+      ? [{ label: cleared ? 'Fight again (test)' : 'Fight', command: fight }]
+      : [{ label: 'Enter — not designed yet' }];
     this.deps.hud.setPlace({
       name: loc.name,
-      kind: KIND_LABEL[loc.kind],
+      kind: KIND_LABEL[loc.kind] + (cleared ? ' · cleared ✔' : ''),
       description: loc.description,
       actions: [...actions, { label: 'Leave', command: { type: 'leavePlace' } }],
     });

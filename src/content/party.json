@@ -1,0 +1,95 @@
+{
+  "_note": "The party. Level-1 placeholders until character creation (M2). Order = start-slot order in encounters.",
+  "members": [
+    {
+      "id": "p1",
+      "name": "Fighter",
+      "sprite": "fighter",
+      "hp": 12,
+      "ac": 16,
+      "speed": 6,
+      "initBonus": 1,
+      "attackName": "Longsword",
+      "attackBonus": 5,
+      "damage": [
+        "1d8+3"
+      ],
+      "medicine": 1
+    },
+    {
+      "id": "p2",
+      "name": "Paladin",
+      "sprite": "paladin",
+      "hp": 11,
+      "ac": 18,
+      "speed": 6,
+      "initBonus": 0,
+      "attackName": "Longsword",
+      "attackBonus": 5,
+      "damage": [
+        "1d8+3"
+      ],
+      "medicine": 1
+    },
+    {
+      "id": "p3",
+      "name": "Rogue",
+      "sprite": "rogue",
+      "hp": 9,
+      "ac": 14,
+      "speed": 6,
+      "initBonus": 3,
+      "attackName": "Shortsword",
+      "attackBonus": 5,
+      "damage": [
+        "1d6+3"
+      ],
+      "medicine": 1
+    },
+    {
+      "id": "p4",
+      "name": "Cleric",
+      "sprite": "cleric",
+      "hp": 10,
+      "ac": 16,
+      "speed": 6,
+      "initBonus": 0,
+      "attackName": "Mace",
+      "attackBonus": 4,
+      "damage": [
+        "1d6+2"
+      ],
+      "medicine": 5
+    },
+    {
+      "id": "p5",
+      "name": "Ranger",
+      "sprite": "ranger",
+      "hp": 11,
+      "ac": 14,
+      "speed": 6,
+      "initBonus": 3,
+      "attackName": "Scimitar",
+      "attackBonus": 5,
+      "damage": [
+        "1d6+3"
+      ],
+      "medicine": 3
+    },
+    {
+      "id": "p6",
+      "name": "Wizard",
+      "sprite": "wizard",
+      "hp": 7,
+      "ac": 12,
+      "speed": 6,
+      "initBonus": 2,
+      "attackName": "Quarterstaff",
+      "attackBonus": 2,
+      "damage": [
+        "1d6"
+      ],
+      "medicine": 1
+    }
+  ]
+}

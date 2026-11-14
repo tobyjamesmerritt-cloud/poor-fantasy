@@ -73,6 +73,17 @@
       "frames": [
         48
       ]
+    },
+    "ruins-rubble": {
+      "sheet": "dungeon",
+      "frames": [
+        48,
+        48,
+        48,
+        48,
+        48,
+        42
+      ]
     }
   },
   "cursors": {

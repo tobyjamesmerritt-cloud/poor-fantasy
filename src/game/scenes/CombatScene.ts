@@ -21,21 +21,29 @@ import {
   unitAt,
 } from '../../rules/combat';
 import { assets, cellSize, cursorCss } from '../../content/assets';
-import { buildUnits, type EncounterDef } from '../../content/encounters';
-import skirmishJson from '../../content/skirmish.json';
+import { buildUnits, encounters, type EncounterDef } from '../../content/encounters';
 import type { ActiveCard, Hud } from '../../ui/hud';
 import type { PrefsStore } from '../../ui/prefs';
 import { commandForKey } from '../input/keyboard';
 import { preloadSheets, spriteCss } from '../spriteCss';
 
-const skirmish = skirmishJson as EncounterDef;
 export const TILE = cellSize();
+
+/** Cosmetic per-square scatter for floor variants (not game logic, so not Rng). */
+function tileHash(x: number, y: number): number {
+  let h = Math.imul(x + 1, 0x27d4eb2d) ^ Math.imul(y + 1, 0x165667b1); // murmur3 finalizer
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return (h ^ (h >>> 16)) >>> 0;
+}
 
 export interface CombatSceneDeps {
   bus: CommandBus;
   hud: Hud;
   prefs: PrefsStore;
   seed: number;
+  encounter: string; // id in content/encounters
+  onVictory?: () => void; // e.g. mark the map location cleared
 }
 
 /** One side of a grid square on the edge of the movement range: from (x1,y1) to (x2,y2) in pixels. */
@@ -48,6 +56,8 @@ interface Edge {
 
 export class CombatScene extends Phaser.Scene {
   private deps!: CombatSceneDeps;
+  private enc!: EncounterDef;
+  private victoryReported = false;
   private rng!: Rng;
   private state!: CombatState;
   private overlay!: Phaser.GameObjects.Graphics;
@@ -72,6 +82,10 @@ export class CombatScene extends Phaser.Scene {
     this.cursor = '';
     this.busy = false;
     this.history = new History();
+    this.victoryReported = false;
+    const enc = encounters[deps.encounter];
+    if (!enc) throw new Error(`Unknown encounter "${deps.encounter}"`);
+    this.enc = enc;
   }
 
   preload(): void {
@@ -80,7 +94,7 @@ export class CombatScene extends Phaser.Scene {
 
   create(): void {
     this.rng = createRng(this.deps.seed);
-    this.state = startCombat(this.rng, skirmish.width, skirmish.height, buildUnits(skirmish));
+    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc));
     this.cameras.main.setZoom(1).setScroll(0, 0);
 
     this.deps.hud.setNames(this.state.units);
@@ -138,12 +152,11 @@ export class CombatScene extends Phaser.Scene {
   }
 
   private drawFloor(): void {
-    const floor = assets.floors[skirmish.floor];
-    if (!floor) throw new Error(`Unknown floor "${skirmish.floor}" in assets.json`);
+    const floor = assets.floors[this.enc.floor];
     for (let y = 0; y < this.state.height; y++) {
       for (let x = 0; x < this.state.width; x++) {
         // Visual-only variation: deterministic hash, deliberately not the game Rng.
-        const frame = floor.frames[(x * 7 + y * 13 + x * y) % floor.frames.length];
+        const frame = floor.frames[tileHash(x, y) % floor.frames.length];
         this.add.image(x * TILE, y * TILE, floor.sheet, frame).setOrigin(0).setScale(assets.scale);
       }
     }
@@ -366,6 +379,10 @@ export class CombatScene extends Phaser.Scene {
       }
     }
 
+    if (state.outcome === 'victory' && !this.victoryReported) {
+      this.victoryReported = true;
+      this.deps.onVictory?.();
+    }
     const hud = this.deps.hud;
     hud.setLog(state.log);
     const party = state.units.filter((u) => u.side === 'party');

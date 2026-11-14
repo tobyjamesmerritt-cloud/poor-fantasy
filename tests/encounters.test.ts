@@ -1,18 +1,30 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildUnits, encounterBudget, encounterXp, type EncounterDef, monsters, validateMonsters } from '../src/content/encounters';
-import skirmishJson from '../src/content/skirmish.json';
+import {
+  buildUnits,
+  encounterBudget,
+  encounters,
+  encounterXp,
+  type EncounterDef,
+  locationContent,
+  monsters,
+  validateMonsters,
+} from '../src/content/encounters';
+import { loadTravelMap, type TiledMap } from '../src/content/world';
 
-const skirmish = skirmishJson as EncounterDef;
+const cave = encounters['cave-rats'];
 
 describe('encounters', () => {
-  it('the test skirmish stays at or below Low difficulty (SRD 5.2 XP budget) until class features exist', () => {
-    const xp = encounterXp(skirmish);
-    expect(xp).toBe(200);
-    expect(xp).toBeLessThanOrEqual(encounterBudget(skirmish).low);
+  it('every encounter stays at or below Low difficulty (SRD 5.2 XP budget) until class features exist', () => {
+    for (const e of Object.values(encounters)) {
+      expect(encounterXp(e), e.id).toBeLessThanOrEqual(encounterBudget(e).low);
+    }
+    expect(encounterXp(cave)).toBe(200);
+    expect(encounterXp(encounters['ruins-crawlers'])).toBe(250);
   });
 
   it('names duplicate monsters with letters and copies SRD stats', () => {
-    const units = buildUnits(skirmish);
+    const units = buildUnits(cave);
     const rats = units.filter((u) => u.name.startsWith('Giant Rat'));
     expect(rats.map((r) => r.name)).toEqual(['Giant Rat A', 'Giant Rat B', 'Giant Rat C', 'Giant Rat D']);
     expect(units.find((u) => u.name === 'Giant Bat')).toBeDefined(); // single monsters get no letter
@@ -20,11 +32,13 @@ describe('encounters', () => {
     expect(new Set(units.map((u) => u.id)).size).toBe(units.length);
   });
 
-  it('rejects overlapping or off-map units and unknown monsters', () => {
-    const bad = (patch: Partial<EncounterDef>) => () => buildUnits({ ...skirmish, ...patch });
+  it('rejects overlapping or off-map units, unknown monsters and wrong board sizes', () => {
+    const bad = (patch: Partial<EncounterDef>) => () => buildUnits({ ...cave, ...patch });
     expect(bad({ enemies: [{ monster: 'giant-rat', x: 1, y: 2 }] })).toThrow(/overlaps/);
     expect(bad({ enemies: [{ monster: 'giant-rat', x: 99, y: 0 }] })).toThrow(/off the map/);
     expect(bad({ enemies: [{ monster: 'dragon', x: 9, y: 0 }] })).toThrow(/unknown monster/);
+    expect(bad({ width: 10 })).toThrow(/board must be/);
+    expect(bad({ partyStart: cave.partyStart.slice(0, 2) })).toThrow(/start squares/);
   });
 
   it('validates monster definitions', () => {
@@ -32,5 +46,16 @@ describe('encounters', () => {
     expect(() => validateMonsters({ x: { ...rat, attack: { ...rat.attack, damage: ['d'] } } })).toThrow(/bad dice/);
     expect(() => validateMonsters({ x: { ...rat, traits: ['flying'] } })).toThrow(/unknown trait/);
     expect(() => validateMonsters({ x: { ...rat, sprite: 'nope' } })).toThrow(/unknown sprite/);
+  });
+
+  it('location content refers to real map locations and real encounters', () => {
+    const world = loadTravelMap(JSON.parse(readFileSync('public/assets/maps/world.json', 'utf8')) as TiledMap);
+    const ids = world.locations.map((l) => l.id);
+    for (const [id, c] of Object.entries(locationContent)) {
+      expect(ids, `locations.json "${id}"`).toContain(id);
+      if (c.encounter) expect(encounters[c.encounter], id).toBeDefined();
+    }
+    expect(locationContent['hollow-cave'].encounter).toBe('cave-rats');
+    expect(locationContent['old-keep'].encounter).toBe('ruins-crawlers');
   });
 });
