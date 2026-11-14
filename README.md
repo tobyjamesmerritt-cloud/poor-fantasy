@@ -3,6 +3,9 @@
 A personal party-based fantasy RPG in the Gold Box tradition, on modern D&D rules (SRD 5.2). Phaser 4 + TypeScript + Vite.
 
 ## Play
+**Windows:** double-click `play.bat` — it updates (git pull), installs packages, starts the game and opens your browser. Close the window to stop.
+
+Or manually:
 ```bash
 npm install
 npm run dev        # http://localhost:5173
