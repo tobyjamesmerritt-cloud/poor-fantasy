@@ -7,7 +7,7 @@ A personal party-based fantasy RPG in the Gold Box tradition, on modern D&D rule
 npm install
 npm run dev        # http://localhost:5173
 ```
-- Move: arrows, numpad, or Q W E / A D / Z X C (diagonals) — or tap an adjacent square / the on-screen buttons.
+- Move: WASD, arrows or numpad; Q E Z C for diagonals — or tap an adjacent square / the on-screen buttons.
 - Attack: move into an enemy. **Space** ends the turn. **Enter** replays after victory/defeat.
 - Reproduce a fight exactly: add `?seed=1234` to the URL (the seed is shown when a fight ends).
 - Console debug handle: `pf` (game, command bus, seed).

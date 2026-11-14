@@ -19,7 +19,8 @@ const KEY_MAP: Record<string, Command> = {
   Numpad1: { type: 'move', dir: 'sw' },
   Numpad3: { type: 'move', dir: 'se' },
   KeyW: { type: 'move', dir: 'n' },
-  KeyX: { type: 'move', dir: 's' },
+  KeyS: { type: 'move', dir: 's' },
+  KeyX: { type: 'move', dir: 's' }, // alternate, numpad-shaped layout
   KeyA: { type: 'move', dir: 'w' },
   KeyD: { type: 'move', dir: 'e' },
   KeyQ: { type: 'move', dir: 'nw' },
