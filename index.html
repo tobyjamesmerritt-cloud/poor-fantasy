@@ -14,7 +14,14 @@
         <button data-command='{"type":"endTurn"}'>End turn</button>
         <button data-command='{"type":"confirm"}'>Replay</button>
       </aside>
-      <div id="game"></div>
+      <div id="stage">
+        <div id="game"></div>
+        <div id="banner" hidden>
+          <h1 id="banner-title"></h1>
+          <p id="banner-sub"></p>
+          <button data-command='{"type":"confirm"}'>Fight again</button>
+        </div>
+      </div>
       <section id="log" aria-live="polite"></section>
     </main>
     <footer>

@@ -278,6 +278,13 @@ export class CombatScene extends Phaser.Scene {
     }
 
     this.deps.hud.setLog(state.log);
+    const survivors = state.units.filter((u) => u.side === 'party' && u.hp > 0).length;
+    this.deps.hud.setOutcome(
+      state.outcome,
+      state.outcome === 'victory'
+        ? `${survivors} of 6 standing after ${state.round} rounds · seed ${this.deps.seed}`
+        : `Slain in round ${state.round} · seed ${this.deps.seed}`,
+    );
     this.deps.hud.setActive(active && active.side === 'party' ? this.card(active) : null);
     this.deps.hud.setEndTurnHint(!!active && active.side === 'party' && (state.actionUsed || state.movesLeft <= 0));
     this.deps.hud.setStatus(

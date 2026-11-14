@@ -10,6 +10,9 @@ import './ui/style.css';
 const params = new URLSearchParams(location.search);
 const seed = params.has('seed') ? Number(params.get('seed')) : randomSeed();
 
+// Board box matches the map's aspect ratio so Phaser's FIT scaling fills it without letterboxing.
+document.documentElement.style.setProperty('--board-aspect', `${skirmish.width} / ${skirmish.height}`);
+
 const bus = new CommandBus();
 const hud = new Hud(bus);
 

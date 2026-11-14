@@ -57,6 +57,20 @@ export class Hud {
     this.logEl.scrollTop = this.logEl.scrollHeight;
   }
 
+  /** Full-board victory/defeat banner; hidden while combat is ongoing. */
+  setOutcome(outcome: 'ongoing' | 'victory' | 'defeat', detail: string): void {
+    const banner = must('banner');
+    if (outcome === 'ongoing') {
+      banner.hidden = true;
+      return;
+    }
+    if (!banner.hidden && banner.className === outcome) return; // keep the animation from replaying
+    banner.className = outcome;
+    must('banner-title').textContent = outcome === 'victory' ? 'Victory!' : 'The party has fallen';
+    must('banner-sub').textContent = detail;
+    banner.hidden = false;
+  }
+
   setStatus(text: string): void {
     this.statusEl.textContent = text;
   }
