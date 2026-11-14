@@ -183,6 +183,12 @@ main {
   color: #c39bff;
   font-style: italic;
 }
+#log .down {
+  color: #e8a0a0;
+}
+#log .saved {
+  color: #2ecc71;
+}
 #log .round {
   color: #888;
 }

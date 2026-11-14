@@ -1,21 +1,24 @@
 {
-  "_note": "Placeholder test encounter. Stats are rough tuning values, not yet checked against SRD 5.2 stat blocks (DND-18).",
+  "_note": "Test encounter: 200 XP, below SRD Low (300 for 6) on purpose until class features exist; ~88% win for the simple bot (npm run sim). Monsters are SRD 5.2 stat blocks. Party stats are level-1 placeholders until M2.",
   "id": "test-skirmish",
   "width": 12,
   "height": 9,
   "floor": "dungeon-sand",
-  "units": [
-    {"id": "p1", "name": "Fighter", "side": "party", "x": 1, "y": 2, "hp": 13, "ac": 16, "speed": 6, "initBonus": 1, "attackBonus": 5, "damage": "1d8+3", "sprite": "fighter"},
-    {"id": "p2", "name": "Paladin", "side": "party", "x": 1, "y": 4, "hp": 12, "ac": 18, "speed": 6, "initBonus": 0, "attackBonus": 5, "damage": "1d8+3", "sprite": "paladin"},
-    {"id": "p3", "name": "Rogue", "side": "party", "x": 1, "y": 6, "hp": 10, "ac": 14, "speed": 6, "initBonus": 3, "attackBonus": 5, "damage": "1d6+3", "sprite": "rogue"},
-    {"id": "p4", "name": "Cleric", "side": "party", "x": 0, "y": 3, "hp": 10, "ac": 16, "speed": 6, "initBonus": 0, "attackBonus": 4, "damage": "1d6+2", "sprite": "cleric"},
-    {"id": "p5", "name": "Ranger", "side": "party", "x": 0, "y": 5, "hp": 11, "ac": 14, "speed": 6, "initBonus": 3, "attackBonus": 5, "damage": "1d8+3", "sprite": "ranger"},
-    {"id": "p6", "name": "Wizard", "side": "party", "x": 0, "y": 4, "hp": 7, "ac": 12, "speed": 6, "initBonus": 2, "attackBonus": 4, "damage": "1d6+2", "sprite": "wizard"},
-    {"id": "e1", "name": "Rat A", "side": "enemy", "x": 10, "y": 2, "hp": 7, "ac": 13, "speed": 6, "initBonus": 2, "attackBonus": 4, "damage": "1d4+2", "sprite": "giant-rat"},
-    {"id": "e2", "name": "Rat B", "side": "enemy", "x": 10, "y": 4, "hp": 7, "ac": 13, "speed": 6, "initBonus": 2, "attackBonus": 4, "damage": "1d4+2", "sprite": "giant-rat"},
-    {"id": "e3", "name": "Rat C", "side": "enemy", "x": 10, "y": 6, "hp": 7, "ac": 13, "speed": 6, "initBonus": 2, "attackBonus": 4, "damage": "1d4+2", "sprite": "giant-rat"},
-    {"id": "e4", "name": "Rat D", "side": "enemy", "x": 11, "y": 3, "hp": 7, "ac": 13, "speed": 6, "initBonus": 2, "attackBonus": 4, "damage": "1d4+2", "sprite": "giant-rat"},
-    {"id": "e5", "name": "Spider A", "side": "enemy", "x": 11, "y": 5, "hp": 11, "ac": 13, "speed": 6, "initBonus": 2, "attackBonus": 5, "damage": "1d6+2", "sprite": "giant-spider"},
-    {"id": "e6", "name": "Spider B", "side": "enemy", "x": 11, "y": 7, "hp": 11, "ac": 13, "speed": 6, "initBonus": 2, "attackBonus": 5, "damage": "1d6+2", "sprite": "giant-spider"}
+  "partyLevel": 1,
+  "party": [
+    {"id": "p1", "name": "Fighter", "sprite": "fighter", "x": 1, "y": 2, "hp": 12, "ac": 16, "speed": 6, "initBonus": 1, "attackName": "Longsword", "attackBonus": 5, "damage": ["1d8+3"], "medicine": 1},
+    {"id": "p2", "name": "Paladin", "sprite": "paladin", "x": 1, "y": 4, "hp": 11, "ac": 18, "speed": 6, "initBonus": 0, "attackName": "Longsword", "attackBonus": 5, "damage": ["1d8+3"], "medicine": 1},
+    {"id": "p3", "name": "Rogue", "sprite": "rogue", "x": 1, "y": 6, "hp": 9, "ac": 14, "speed": 6, "initBonus": 3, "attackName": "Shortsword", "attackBonus": 5, "damage": ["1d6+3"], "medicine": 1},
+    {"id": "p4", "name": "Cleric", "sprite": "cleric", "x": 0, "y": 3, "hp": 10, "ac": 16, "speed": 6, "initBonus": 0, "attackName": "Mace", "attackBonus": 4, "damage": ["1d6+2"], "medicine": 5},
+    {"id": "p5", "name": "Ranger", "sprite": "ranger", "x": 0, "y": 5, "hp": 11, "ac": 14, "speed": 6, "initBonus": 3, "attackName": "Scimitar", "attackBonus": 5, "damage": ["1d6+3"], "medicine": 3},
+    {"id": "p6", "name": "Wizard", "sprite": "wizard", "x": 0, "y": 4, "hp": 7, "ac": 12, "speed": 6, "initBonus": 2, "attackName": "Quarterstaff", "attackBonus": 2, "damage": ["1d6"], "medicine": 1}
+  ],
+  "enemies": [
+    {"monster": "giant-rat", "x": 10, "y": 2},
+    {"monster": "giant-rat", "x": 10, "y": 3},
+    {"monster": "giant-rat", "x": 10, "y": 5},
+    {"monster": "giant-rat", "x": 10, "y": 6},
+    {"monster": "giant-wolf-spider", "x": 11, "y": 4},
+    {"monster": "giant-bat", "x": 11, "y": 1}
   ]
 }

@@ -1,33 +1,43 @@
 /**
- * Tactical combat state machine (walking skeleton). Pure TypeScript — the
- * Phaser CombatScene only renders this state and forwards commands.
+ * Tactical combat state machine. Pure TypeScript — the Phaser CombatScene
+ * only renders this state and forwards commands.
  *
- * Implemented: initiative order, 30 ft (6 squares) movement per turn,
- * one attack action per turn by moving into an adjacent enemy, death at 0 HP,
- * simple enemy AI (approach nearest, attack when adjacent), victory/defeat.
+ * Implemented (SRD 5.2): initiative, movement in 5-ft squares, one attack per
+ * turn (move into an adjacent enemy), multi-part damage, Pack Tactics,
+ * 0 HP rules for characters (Unconscious, Death Saving Throws, Instant Death,
+ * Stable), stabilising an ally with the Help action (DC 10 Wisdom (Medicine)).
+ * Monsters die at 0 HP. Simple enemy AI. Victory/defeat.
  * Not yet: opportunity attacks, bonus actions, reactions, spells, conditions.
  */
 import type { Direction } from '../engine/commands';
 import { DIRECTION_VECTORS } from '../engine/commands';
-import { rollD20 } from '../engine/dice';
+import { resolveRollMode, rollD20 } from '../engine/dice';
 import type { Rng } from '../engine/rng';
 import { resolveAttack } from './attack';
 
 export type Side = 'party' | 'enemy';
+export type Trait = 'pack-tactics';
 
 export interface Unit {
   id: string;
   name: string;
   side: Side;
+  sprite: string; // art key (content/assets.json); ignored by the rules
   x: number;
   y: number;
   hp: number;
   maxHp: number;
   ac: number;
-  speed: number; // squares per turn
+  speed: number; // squares per turn (5 ft each)
   initBonus: number;
+  attackName: string;
   attackBonus: number;
-  damage: string;
+  damage: string[]; // summed; e.g. ["1d4+3", "2d4"]
+  traits: Trait[];
+  medicine: number; // Wisdom (Medicine) bonus, for stabilising allies
+  deathSaves: { successes: number; failures: number };
+  stable: boolean;
+  dead: boolean;
 }
 
 export interface CombatState {
@@ -43,13 +53,18 @@ export interface CombatState {
   log: string[];
 }
 
+/** Conscious and able to act. */
+export const isUp = (u: Unit): boolean => u.hp > 0 && !u.dead;
+/** A character at 0 HP who is not dead (Unconscious, possibly Stable). */
+export const isDown = (u: Unit): boolean => u.side === 'party' && u.hp <= 0 && !u.dead;
+
 export function startCombat(rng: Rng, width: number, height: number, units: Unit[]): CombatState {
   const rolled = units.map((u) => ({ id: u.id, init: rollD20(rng).kept + u.initBonus, tie: u.initBonus }));
   rolled.sort((a, b) => b.init - a.init || b.tie - a.tie);
   const state: CombatState = {
     width,
     height,
-    units: units.map((u) => ({ ...u })),
+    units: units.map((u) => structuredClone(u)),
     order: rolled.map((r) => r.id),
     turnIndex: 0,
     round: 1,
@@ -73,12 +88,14 @@ export function unitById(state: CombatState, id: string): Unit {
   return u;
 }
 
+/** The unit occupying a square. Unconscious characters still occupy theirs; corpses do not. */
 export function unitAt(state: CombatState, x: number, y: number): Unit | undefined {
-  return state.units.find((u) => u.hp > 0 && u.x === x && u.y === y);
+  return state.units.find((u) => (isUp(u) || isDown(u)) && u.x === x && u.y === y);
 }
 
 /**
- * Move the active unit one square, or attack if an enemy occupies it.
+ * Move the active unit one square. Moving into an enemy attacks it; moving
+ * into an unconscious ally tries to stabilise them (Help action).
  * Returns false when the step is not allowed.
  */
 export function step(state: CombatState, rng: Rng, dir: Direction): boolean {
@@ -91,9 +108,16 @@ export function step(state: CombatState, rng: Rng, dir: Direction): boolean {
 
   const occupant = unitAt(state, nx, ny);
   if (occupant) {
-    if (occupant.side === u.side || state.actionUsed) return false;
-    attack(state, rng, u, occupant);
-    return true;
+    if (state.actionUsed) return false;
+    if (occupant.side !== u.side) {
+      attack(state, rng, u, occupant);
+      return true;
+    }
+    if (isDown(occupant) && !occupant.stable) {
+      helpStabilise(state, rng, u, occupant);
+      return true;
+    }
+    return false;
   }
   if (state.movesLeft <= 0) return false;
   u.x = nx;
@@ -104,20 +128,33 @@ export function step(state: CombatState, rng: Rng, dir: Direction): boolean {
 
 export function endTurn(state: CombatState, rng: Rng): void {
   if (state.outcome !== 'ongoing') return;
-  advance(state);
+  advance(state, rng);
   runEnemyTurn(state, rng);
 }
 
-function advance(state: CombatState): void {
-  do {
+/**
+ * Move to the next creature that can take a turn. Characters at 0 HP make
+ * their Death Saving Throw at the start of their turn (SRD 5.2 "Death Saving
+ * Throws"); unless that restores them, their turn passes.
+ */
+function advance(state: CombatState, rng: Rng): void {
+  for (let guard = 0; guard < state.order.length * 3; guard++) {
     state.turnIndex += 1;
     if (state.turnIndex >= state.order.length) {
       state.turnIndex = 0;
       state.round += 1;
       state.log.push(`— Round ${state.round} —`);
     }
-  } while (activeUnit(state).hp <= 0);
-  beginTurn(state);
+    const u = activeUnit(state);
+    if (u.dead || (u.side === 'enemy' && u.hp <= 0)) continue;
+    if (isDown(u)) {
+      if (!u.stable) deathSave(state, rng, u);
+      if (state.outcome !== 'ongoing') return;
+      if (!isUp(u)) continue;
+    }
+    beginTurn(state);
+    return;
+  }
 }
 
 function beginTurn(state: CombatState): void {
@@ -127,38 +164,114 @@ function beginTurn(state: CombatState): void {
   if (u.side === 'party') state.log.push(`▶ ${u.name}'s turn.`);
 }
 
-function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit): void {
-  const r = resolveAttack(rng, { attackBonus: attacker.attackBonus, targetAc: target.ac, damage: attacker.damage });
-  state.actionUsed = true;
-  state.movesLeft = 0; // skeleton simplification: attacking ends movement
-  if (!r.hit) {
-    state.log.push(`${attacker.name} misses ${target.name} (${r.attackTotal} vs AC ${target.ac}).`);
+/** d20: 10+ success, 1 = two failures, 20 = regain 1 HP. Three successes: Stable; three failures: dead. */
+export function deathSave(state: CombatState, rng: Rng, u: Unit): void {
+  const roll = rng.int(1, 20);
+  const ds = u.deathSaves;
+  if (roll === 20) {
+    u.hp = 1;
+    u.deathSaves = { successes: 0, failures: 0 };
+    state.log.push(`${u.name} rolls a 20 on a death save and regains consciousness!`);
     return;
   }
-  target.hp = Math.max(0, target.hp - r.damage);
-  state.log.push(
-    `${attacker.name} ${r.critical ? 'CRITS' : 'hits'} ${target.name} for ${r.damage}` +
-      (target.hp === 0 ? ` — ${target.name} falls!` : ` (${target.hp}/${target.maxHp}).`),
-  );
+  if (roll >= 10) ds.successes += 1;
+  else ds.failures += roll === 1 ? 2 : 1;
+  if (ds.failures >= 3) {
+    u.dead = true;
+    state.log.push(`${u.name} fails a death save (${roll}) — ${u.name} dies.`);
+    checkOutcome(state);
+  } else if (ds.successes >= 3) {
+    u.stable = true;
+    state.log.push(`${u.name} succeeds a death save (${roll}) and is stable.`);
+  } else {
+    state.log.push(
+      `${u.name} ${roll >= 10 ? 'succeeds' : 'fails'} a death save (${roll}) — ✔${ds.successes} ✖${ds.failures}.`,
+    );
+  }
+}
+
+/** Apply damage with the SRD 5.2 rules for dropping to and taking damage at 0 HP. */
+export function applyDamage(target: Unit, amount: number): string {
+  if (target.side === 'party' && isDown(target)) {
+    // "Damage at 0 Hit Points": one failure, or death if it equals/exceeds HP max.
+    if (amount >= target.maxHp) {
+      target.dead = true;
+      return ` — ${target.name} is slain!`;
+    }
+    target.stable = false;
+    target.deathSaves.failures += 1;
+    if (target.deathSaves.failures >= 3) {
+      target.dead = true;
+      return ` — ${target.name} dies.`;
+    }
+    return ` — ${target.name} suffers a death save failure (✖${target.deathSaves.failures}).`;
+  }
+  const remainder = amount - target.hp;
+  target.hp = Math.max(0, target.hp - amount);
+  if (target.hp > 0) return ` (${target.hp}/${target.maxHp}).`;
+  if (target.side === 'enemy') {
+    target.dead = true;
+    return ` — ${target.name} falls!`;
+  }
+  // Instant Death: the remainder after reaching 0 HP equals or exceeds HP maximum.
+  if (remainder >= target.maxHp) {
+    target.dead = true;
+    return ` — ${target.name} is killed outright!`;
+  }
+  target.deathSaves = { successes: 0, failures: 0 };
+  target.stable = false;
+  return ` — ${target.name} falls unconscious!`;
+}
+
+function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit): void {
+  // Pack Tactics: Advantage if an ally of the attacker within 5 ft of the target isn't Incapacitated.
+  const packAdvantage =
+    attacker.traits.includes('pack-tactics') &&
+    state.units.some((o) => o !== attacker && o.side === attacker.side && isUp(o) && chebyshev(o, target) === 1);
+  const mode = resolveRollMode(packAdvantage ? 1 : 0, 0);
+  const r = resolveAttack(rng, { attackBonus: attacker.attackBonus, targetAc: target.ac, damage: attacker.damage, mode });
+  state.actionUsed = true;
+  state.movesLeft = 0; // simplification until DND-10: attacking ends movement
+  const adv = mode === 'advantage' ? ' [pack tactics]' : '';
+  if (!r.hit) {
+    state.log.push(`${attacker.name} misses ${target.name} (${r.attackTotal} vs AC ${target.ac})${adv}.`);
+    return;
+  }
+  const verb = r.critical ? 'CRITS' : 'hits';
+  state.log.push(`${attacker.name} ${verb} ${target.name} for ${r.damage}${adv}` + applyDamage(target, r.damage));
   checkOutcome(state);
 }
 
+/** Help action to stabilise: DC 10 Wisdom (Medicine) check. */
+function helpStabilise(state: CombatState, rng: Rng, helper: Unit, target: Unit): void {
+  const roll = rng.int(1, 20);
+  const total = roll + helper.medicine;
+  state.actionUsed = true;
+  state.movesLeft = 0; // simplification until DND-10
+  if (total >= 10) {
+    target.stable = true;
+    state.log.push(`${helper.name} tends to ${target.name} (Medicine ${total} vs DC 10) — ${target.name} is stable.`);
+  } else {
+    state.log.push(`${helper.name} tries to stabilise ${target.name} (Medicine ${total} vs DC 10) but fails.`);
+  }
+}
+
 function checkOutcome(state: CombatState): void {
-  const alive = (side: Side) => state.units.some((u) => u.side === side && u.hp > 0);
-  if (!alive('enemy')) {
+  if (state.outcome !== 'ongoing') return;
+  if (!state.units.some((u) => u.side === 'enemy' && isUp(u))) {
     state.outcome = 'victory';
     state.log.push('Victory!');
-  } else if (!alive('party')) {
+  } else if (!state.units.some((u) => u.side === 'party' && isUp(u))) {
     state.outcome = 'defeat';
     state.log.push('The party has fallen…');
   }
 }
 
-/** Enemy AI: step toward the nearest living party member, attack when adjacent. */
+/** Enemy AI: step toward the nearest conscious party member, attack when adjacent. */
 export function runEnemyTurn(state: CombatState, rng: Rng): void {
   while (state.outcome === 'ongoing' && activeUnit(state).side === 'enemy') {
     const u = activeUnit(state);
-    for (let guard = 0; guard < 20 && state.outcome === 'ongoing'; guard++) {
+    for (let guard = 0; guard < 30 && state.outcome === 'ongoing'; guard++) {
       const target = nearest(state, u, 'party');
       if (!target) break;
       if (chebyshev(u, target) === 1) {
@@ -170,13 +283,13 @@ export function runEnemyTurn(state: CombatState, rng: Rng): void {
       if (!dir || !step(state, rng, dir)) break;
     }
     if (state.outcome !== 'ongoing') return;
-    advance(state);
+    advance(state, rng);
   }
 }
 
 function nearest(state: CombatState, from: Unit, side: Side): Unit | undefined {
   return state.units
-    .filter((u) => u.side === side && u.hp > 0)
+    .filter((u) => u.side === side && isUp(u))
     .sort((a, b) => chebyshev(from, a) - chebyshev(from, b))[0];
 }
 
@@ -248,7 +361,7 @@ function pathFrom(nodes: Map<number, PathNode>, endKey: number): Direction[] {
 
 /**
  * Squares the active unit can still reach this turn with its remaining
- * movement (8-way, 1 square per step, living units block). Excludes its own square.
+ * movement (8-way, 1 square per step, occupied squares block). Excludes its own square.
  */
 export function reachableSquares(state: CombatState): { x: number; y: number; cost: number }[] {
   return [...searchMoves(state).values()].filter((n) => n.cost > 0).map(({ x, y, cost }) => ({ x, y, cost }));
@@ -256,8 +369,9 @@ export function reachableSquares(state: CombatState): { x: number; y: number; co
 
 /**
  * Steps for "go here" from a click/tap. Empty square: shortest path within
- * remaining movement. Enemy: walk to the nearest square next to it, then step
- * into it (= attack), if the action is still available. Null if impossible.
+ * remaining movement. Enemy: walk next to it, then step into it (= attack).
+ * Unconscious ally: walk next to them, then step in (= try to stabilise).
+ * Needs the action for the last two. Null if impossible.
  */
 export function planMoveTo(state: CombatState, x: number, y: number): Direction[] | null {
   if (state.outcome !== 'ongoing') return null;
@@ -268,7 +382,8 @@ export function planMoveTo(state: CombatState, x: number, y: number): Direction[
     const n = nodes.get(y * state.width + x);
     return n && n.cost > 0 ? pathFrom(nodes, y * state.width + x) : null;
   }
-  if (target.side === u.side || state.actionUsed) return null;
+  const canTarget = target.side !== u.side || (isDown(target) && !target.stable);
+  if (!canTarget || state.actionUsed) return null;
   let best: PathNode | undefined;
   for (const n of nodes.values()) {
     if (chebyshev(n, target) === 1 && (!best || n.cost < best.cost)) best = n;

@@ -26,7 +26,7 @@ SRD 5.2 (2024 rules), CC-BY-4.0. Implement from the SRD, cite the section in cod
 Official Phaser 4 skills are in `.claude/skills/` (copied from the pinned `phaser` npm package). **Read `v3-to-v4-migration` before writing Phaser code** — avoid v3 idioms (pipelines, FX/masks → filters, tint changes).
 
 ## Workflow
-- `npm run dev` — play at http://localhost:5173 (hot reload). `npm test` — rules tests. `npm run build` — typecheck + production build.
+- `npm run dev` — play at http://localhost:5173 (hot reload). `npm test` — rules tests. `npm run build` — typecheck + production build. `npm run sim` — balance simulator (bot win rate for the test encounter); rerun after changing monsters, encounters or combat rules.
 - Before committing: `npm run build && npm test` must pass.
 - Work items live in Jira project **DND** (tobyjamesmerritt.atlassian.net). Reference the key in commit messages, e.g. `DND-12: add opportunity attacks`.
 - Keep changes small and playable. Prefer a rough playable feature over a polished unplayable one.
@@ -34,4 +34,5 @@ Official Phaser 4 skills are in `.claude/skills/` (copied from the pinned `phase
 ## Conventions
 - New rule → pure function in `src/rules/` + tests with a scripted or seeded `Rng`.
 - New content type → JSON file in `src/content/` + a TypeScript type; validate at load.
+- Monsters: SRD 5.2 stat blocks only, in `src/content/monsters.json`; encounters reference them by id. Check difficulty against the SRD XP budget (`encounterBudget`).
 - Art goes in `public/assets/<tiles|sprites|portraits|ui|audio>/`; see `docs/art-pipeline.md`.

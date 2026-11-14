@@ -1,0 +1,55 @@
+{
+  "_note": "Stat blocks from SRD 5.2 (CC-BY-4.0). Speeds in 5-ft squares; flying treated as walking until flight rules exist. hp = the stat block's fixed average.",
+  "giant-rat": {
+    "name": "Giant Rat",
+    "sprite": "giant-rat",
+    "cr": "1/8",
+    "xp": 25,
+    "ac": 13,
+    "hp": 7,
+    "hpDice": "2d6",
+    "speed": 6,
+    "initBonus": 3,
+    "attack": { "name": "Bite", "bonus": 5, "damage": ["1d4+3"] },
+    "traits": ["pack-tactics"]
+  },
+  "giant-wolf-spider": {
+    "name": "Giant Wolf Spider",
+    "sprite": "giant-spider",
+    "cr": "1/4",
+    "xp": 50,
+    "ac": 13,
+    "hp": 11,
+    "hpDice": "2d8+2",
+    "speed": 8,
+    "initBonus": 3,
+    "attack": { "name": "Bite", "bonus": 5, "damage": ["1d4+3", "2d4"] },
+    "traits": []
+  },
+  "giant-bat": {
+    "name": "Giant Bat",
+    "sprite": "bat",
+    "cr": "1/4",
+    "xp": 50,
+    "ac": 13,
+    "hp": 22,
+    "hpDice": "4d10",
+    "speed": 12,
+    "initBonus": 3,
+    "attack": { "name": "Bite", "bonus": 5, "damage": ["1d6+3"] },
+    "traits": []
+  },
+  "giant-spider": {
+    "name": "Giant Spider",
+    "sprite": "giant-spider",
+    "cr": "1",
+    "xp": 200,
+    "ac": 14,
+    "hp": 26,
+    "hpDice": "4d10+4",
+    "speed": 6,
+    "initBonus": 3,
+    "attack": { "name": "Bite", "bonus": 5, "damage": ["1d8+3", "2d6"] },
+    "traits": []
+  }
+}

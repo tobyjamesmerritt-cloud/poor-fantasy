@@ -28,7 +28,7 @@ describe('art manifest', () => {
   });
 
   it('every unit in the skirmish has a known sprite, and the floor exists', () => {
-    for (const u of skirmish.units) expect(assets.sprites[u.sprite], u.id).toBeDefined();
+    for (const u of skirmish.party) expect(assets.sprites[u.sprite], u.id).toBeDefined();
     expect(assets.floors[skirmish.floor]).toBeDefined();
   });
 

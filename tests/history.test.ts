@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { History } from '../src/engine/history';
 import { createRng } from '../src/engine/rng';
-import { type Unit, endTurn, startCombat, step } from '../src/rules/combat';
-import skirmish from '../src/content/skirmish.json';
-
-const units = (): Unit[] => skirmish.units.map((u) => ({ ...u, side: u.side as Unit['side'], maxHp: u.hp }));
+import { endTurn, startCombat, step } from '../src/rules/combat';
+import { skirmishUnits as units } from './helpers';
 
 describe('History (rewind)', () => {
   it('stores deep copies, so later mutation does not leak into snapshots', () => {

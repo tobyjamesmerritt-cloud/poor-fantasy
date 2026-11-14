@@ -24,6 +24,7 @@
   "cursors": {
     "default": { "url": "assets/ui/cursors/gauntlet_point.png", "hotX": 6, "hotY": 2 },
     "attack": { "url": "assets/ui/cursors/tool_sword_a.png", "hotX": 4, "hotY": 4 },
-    "move": { "url": "assets/ui/cursors/boot.png", "hotX": 8, "hotY": 8 }
+    "move": { "url": "assets/ui/cursors/boot.png", "hotX": 8, "hotY": 8 },
+    "help": { "url": "assets/ui/cursors/gauntlet_open.png", "hotX": 8, "hotY": 4 }
   }
 }

@@ -5,7 +5,7 @@ import type { Rng } from '../engine/rng';
 export interface AttackInput {
   attackBonus: number; // ability modifier + proficiency + other bonuses
   targetAc: number;
-  damage: string | DiceExpr; // e.g. "1d8+3"
+  damage: string | DiceExpr | (string | DiceExpr)[]; // e.g. "1d8+3" or ["1d4+3", "2d4"] (bite + poison)
   mode?: RollMode;
 }
 
@@ -30,9 +30,12 @@ export function resolveAttack(rng: Rng, input: AttackInput): AttackResult {
 
   let damage = 0;
   if (hit) {
-    const expr = typeof input.damage === 'string' ? parseDice(input.damage) : input.damage;
-    const diceExpr: DiceExpr = { ...expr, count: critical ? expr.count * 2 : expr.count };
-    damage = Math.max(0, roll(rng, diceExpr).total);
+    const parts = Array.isArray(input.damage) ? input.damage : [input.damage];
+    for (const part of parts) {
+      const expr = typeof part === 'string' ? parseDice(part) : part;
+      const diceExpr: DiceExpr = { ...expr, count: critical ? expr.count * 2 : expr.count };
+      damage += Math.max(0, roll(rng, diceExpr).total);
+    }
   }
   return { d20: kept, d20Dice: dice, attackTotal, hit, critical, damage };
 }

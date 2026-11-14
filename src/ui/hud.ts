@@ -22,6 +22,7 @@ export interface ActiveCard {
   hp: number;
   maxHp: number;
   ac: number;
+  attackName: string;
   attackBonus: number;
   damage: string;
   movesLeft: number;
@@ -110,8 +111,8 @@ export class Hud {
       el(
         'div',
         card.actionUsed ? 'action used' : 'action',
-        el('span', '', `⚔ Attack  +${card.attackBonus}  ${card.damage}`),
-        el('small', '', card.actionUsed ? 'used this turn' : 'walk into an adjacent enemy'),
+        el('span', '', `⚔ ${card.attackName}  +${card.attackBonus}  ${card.damage}`),
+        el('small', '', card.actionUsed ? 'used this turn' : 'click an enemy · or a fallen ally to stabilise'),
       ),
       el('div', 'action disabled', el('span', '', '✦ Spells'), el('small', '', 'coming — DND-23')),
       el('div', 'action disabled', el('span', '', '⚗ Items'), el('small', '', 'coming — DND-24')),
@@ -127,11 +128,15 @@ export class Hud {
         ? 'round'
         : /Victory!/.test(text)
           ? 'win'
-          : /fallen/.test(text)
+          : /fallen…|dies\.|slain|killed outright/.test(text)
             ? 'lose'
-            : /CRITS/.test(text)
-              ? 'crit'
-              : '';
+            : /unconscious|death save/.test(text)
+              ? 'down'
+              : /CRITS/.test(text)
+                ? 'crit'
+                : /stable|regains consciousness/.test(text)
+                  ? 'saved'
+                  : '';
     const p = el('p', cls);
     if (!this.namePattern) {
       p.textContent = text;
