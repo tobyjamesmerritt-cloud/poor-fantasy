@@ -124,6 +124,7 @@ function beginTurn(state: CombatState): void {
   const u = activeUnit(state);
   state.movesLeft = u.speed;
   state.actionUsed = false;
+  if (u.side === 'party') state.log.push(`▶ ${u.name}'s turn.`);
 }
 
 function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit): void {

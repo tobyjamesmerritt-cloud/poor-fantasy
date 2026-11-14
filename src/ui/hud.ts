@@ -28,6 +28,11 @@ export class Hud {
   setStatus(text: string): void {
     this.statusEl.textContent = text;
   }
+
+  /** Highlight the End turn button when the active unit has used its action or movement. */
+  setEndTurnHint(on: boolean): void {
+    document.querySelector('[data-command=\'{"type":"endTurn"}\']')?.classList.toggle('suggest', on);
+  }
 }
 
 function must(id: string): HTMLElement {

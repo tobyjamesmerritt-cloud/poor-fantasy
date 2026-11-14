@@ -232,6 +232,7 @@ export class CombatScene extends Phaser.Scene {
     }
 
     this.deps.hud.setLog(state.log);
+    this.deps.hud.setEndTurnHint(!!active && active.side === 'party' && (state.actionUsed || state.movesLeft <= 0));
     this.deps.hud.setStatus(
       state.outcome !== 'ongoing'
         ? `${state.outcome.toUpperCase()} — press Enter to replay (seed ${this.deps.seed})`

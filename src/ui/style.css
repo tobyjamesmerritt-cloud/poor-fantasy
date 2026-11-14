@@ -65,3 +65,14 @@ footer .hint {
     max-height: 25dvh;
   }
 }
+
+footer button.suggest {
+  border-color: #f1c40f;
+  color: #f1c40f;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0.6rem #f1c40f;
+  }
+}
