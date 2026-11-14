@@ -64,6 +64,7 @@ export class CombatScene extends Phaser.Scene {
     this.state = startCombat(this.rng, skirmish.width, skirmish.height, units);
 
     this.drawFloor();
+    this.drawGrid();
     this.overlay = this.add.graphics().setDepth(4); // above sprites so HP bars stay visible
     for (const u of this.state.units) this.createUnitSprite(u);
     this.setCursor('default');
@@ -97,6 +98,16 @@ export class CombatScene extends Phaser.Scene {
         this.add.image(x * TILE, y * TILE, floor.sheet, frame).setOrigin(0).setScale(assets.scale);
       }
     }
+  }
+
+  /** Faint square outlines between floor and units, so the grid reads without clutter. */
+  private drawGrid(): void {
+    const g = this.add.graphics().setDepth(0.5);
+    const w = this.state.width * TILE;
+    const h = this.state.height * TILE;
+    g.lineStyle(1, 0x000000, 0.22);
+    for (let x = 0; x <= this.state.width; x++) g.lineBetween(x * TILE + 0.5, 0, x * TILE + 0.5, h);
+    for (let y = 0; y <= this.state.height; y++) g.lineBetween(0, y * TILE + 0.5, w, y * TILE + 0.5);
   }
 
   private createUnitSprite(u: Unit): void {
