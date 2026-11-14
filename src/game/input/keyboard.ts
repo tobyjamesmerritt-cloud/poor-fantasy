@@ -1,0 +1,36 @@
+/**
+ * Keyboard → Command mapping. The only place key codes appear; gameplay code
+ * reacts to Commands so touch/on-screen buttons can reuse it unchanged.
+ */
+import type { Command } from '../../engine/commands';
+
+const KEY_MAP: Record<string, Command> = {
+  ArrowUp: { type: 'move', dir: 'n' },
+  ArrowDown: { type: 'move', dir: 's' },
+  ArrowLeft: { type: 'move', dir: 'w' },
+  ArrowRight: { type: 'move', dir: 'e' },
+  // numpad / QWEASDZXC style diagonals
+  Numpad8: { type: 'move', dir: 'n' },
+  Numpad2: { type: 'move', dir: 's' },
+  Numpad4: { type: 'move', dir: 'w' },
+  Numpad6: { type: 'move', dir: 'e' },
+  Numpad7: { type: 'move', dir: 'nw' },
+  Numpad9: { type: 'move', dir: 'ne' },
+  Numpad1: { type: 'move', dir: 'sw' },
+  Numpad3: { type: 'move', dir: 'se' },
+  KeyW: { type: 'move', dir: 'n' },
+  KeyX: { type: 'move', dir: 's' },
+  KeyA: { type: 'move', dir: 'w' },
+  KeyD: { type: 'move', dir: 'e' },
+  KeyQ: { type: 'move', dir: 'nw' },
+  KeyE: { type: 'move', dir: 'ne' },
+  KeyZ: { type: 'move', dir: 'sw' },
+  KeyC: { type: 'move', dir: 'se' },
+  Space: { type: 'endTurn' },
+  Enter: { type: 'confirm' },
+  Escape: { type: 'cancel' },
+};
+
+export function commandForKey(code: string): Command | undefined {
+  return KEY_MAP[code];
+}

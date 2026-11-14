@@ -1,0 +1,67 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace;
+  background: #0b0b0b;
+  color: #e8e2c8;
+}
+body {
+  margin: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100dvh;
+}
+header {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #333;
+}
+#status {
+  color: #f1c40f;
+}
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(16rem, 1fr);
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+#game {
+  min-width: 0;
+}
+#log {
+  overflow-y: auto;
+  max-height: 70dvh;
+  border: 1px solid #333;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+}
+#log p {
+  margin: 0.15rem 0;
+}
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-top: 1px solid #333;
+}
+footer button {
+  min-width: 3rem;
+  min-height: 3rem; /* touch-friendly targets */
+  font: inherit;
+  background: #222;
+  color: inherit;
+  border: 1px solid #555;
+  border-radius: 6px;
+}
+footer .hint {
+  align-self: center;
+  opacity: 0.7;
+  font-size: 0.8rem;
+}
+@media (max-width: 800px) {
+  main {
+    grid-template-columns: 1fr;
+  }
+  #log {
+    max-height: 25dvh;
+  }
+}

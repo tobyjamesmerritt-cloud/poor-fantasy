@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Poor Fantasy</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <header><span id="status">Loading…</span></header>
+    <main>
+      <div id="game"></div>
+      <section id="log" aria-live="polite"></section>
+    </main>
+    <footer>
+      <button data-command='{"type":"move","dir":"nw"}' aria-label="Move north-west">↖</button>
+      <button data-command='{"type":"move","dir":"n"}' aria-label="Move north">↑</button>
+      <button data-command='{"type":"move","dir":"ne"}' aria-label="Move north-east">↗</button>
+      <button data-command='{"type":"move","dir":"w"}' aria-label="Move west">←</button>
+      <button data-command='{"type":"move","dir":"e"}' aria-label="Move east">→</button>
+      <button data-command='{"type":"move","dir":"sw"}' aria-label="Move south-west">↙</button>
+      <button data-command='{"type":"move","dir":"s"}' aria-label="Move south">↓</button>
+      <button data-command='{"type":"move","dir":"se"}' aria-label="Move south-east">↘</button>
+      <button data-command='{"type":"endTurn"}'>End turn</button>
+      <button data-command='{"type":"confirm"}'>Replay</button>
+      <span class="hint">Arrows / numpad / QWEADZXC move · walk into an enemy to attack · Space ends turn · tap an adjacent square</span>
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
