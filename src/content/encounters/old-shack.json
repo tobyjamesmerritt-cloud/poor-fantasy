@@ -1,5 +1,5 @@
 {
-  "_note": "The run-down shack (quest: Dry Taps): Giant Bats and Giant Rats, Moderate budget.",
+  "_note": "The run-down shack (quest: Dry Taps): a Giant Bat plus bats and rats, Low budget, at most 4 more.",
   "id": "old-shack",
   "width": 12,
   "height": 9,
@@ -33,7 +33,7 @@
   ],
   "enemies": [],
   "scaling": {
-    "difficulty": "moderate",
+    "difficulty": "low",
     "fixed": [
       {
         "monster": "giant-bat",
@@ -46,8 +46,8 @@
         "giant-rat",
         "giant-bat"
       ],
-      "min": 2,
-      "max": 6
+      "min": 1,
+      "max": 4
     }
   }
 }

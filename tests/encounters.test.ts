@@ -17,23 +17,27 @@ const cave = encounters['cave-rats'];
 
 describe('encounters', () => {
   it('scales to the party: an XP budget for one character fewer, fixed monsters kept, filler clamped', () => {
-    // 6 at level 1, Moderate: 5 × 75 = 375; spider 50 + bat 50 fixed → (375 − 100) / 25 = 11 rats, max 8
+    // 6 at level 1, Moderate: 5 × 75 = 375; spider 50 + bat 50 fixed → 11 rats by budget, max 8,
+    // and never more monsters than characters: 6 − 2 fixed = 4 rats
     const six = resolveEncounter(cave, { partySize: 6, level: 1 });
-    expect(six.enemies.filter((e) => e.monster === 'giant-rat')).toHaveLength(8);
-    // 3 at level 1: 2 × 75 = 150 → 2 rats
+    expect(six.enemies.filter((e) => e.monster === 'giant-rat')).toHaveLength(4);
+    expect(six.enemies).toHaveLength(6);
+    // 3 at level 1: 2 × 75 = 150 → 2 by budget, capped at 3 − 2 = 1
     const three = resolveEncounter(cave, { partySize: 3, level: 1 });
-    expect(three.enemies.map((e) => e.monster).sort()).toEqual(['giant-bat', 'giant-rat', 'giant-rat', 'giant-wolf-spider']);
-    // the quest designer can make one fight harder
-    expect(encounterXp(resolveEncounter(cave, { partySize: 3, level: 1, difficulty: 'high' }))).toBeGreaterThan(encounterXp(three));
-    // a lone character still gets a fight (budget for 1)
-    expect(resolveEncounter(encounters['ambush-dark'], { partySize: 1, level: 1 }).enemies).toHaveLength(2);
+    expect(three.enemies.map((e) => e.monster).sort()).toEqual(['giant-bat', 'giant-rat', 'giant-wolf-spider']);
+    // the quest designer can make one fight harder (within the cap)
+    const spiders: EncounterDef = { ...cave, scaling: { difficulty: 'low', filler: { monsters: ['giant-wolf-spider'], min: 1, max: 8 } } };
+    expect(resolveEncounter(spiders, { partySize: 6, level: 1 }).enemies).toHaveLength(5); // 250 / 50
+    expect(resolveEncounter(spiders, { partySize: 6, level: 1, difficulty: 'high' }).enemies).toHaveLength(6); // 500 / 50 = 10, capped at 6
+    // a lone character still gets a fight (budget for 1, capped at 1)
+    expect(resolveEncounter(encounters['ambush-dark'], { partySize: 1, level: 1 }).enemies).toHaveLength(1);
     expect(encounterXp(resolveEncounter(encounters['troll-bridge'], { partySize: 6, level: 3 }))).toBe(1800 + 4 * 25);
   });
 
   it('names duplicate monsters with letters and copies SRD stats', () => {
-    const units = buildUnits(resolveEncounter(cave, { partySize: 4, level: 1 })); // 3 × 75 − 100 = 125 → 5 rats
+    const units = buildUnits(resolveEncounter(cave, { partySize: 6, level: 1 }));
     const rats = units.filter((u) => u.name.startsWith('Giant Rat'));
-    expect(rats.map((r) => r.name)).toEqual(['Giant Rat A', 'Giant Rat B', 'Giant Rat C', 'Giant Rat D', 'Giant Rat E']);
+    expect(rats.map((r) => r.name)).toEqual(['Giant Rat A', 'Giant Rat B', 'Giant Rat C', 'Giant Rat D']);
     expect(units.find((u) => u.name === 'Giant Bat')).toBeDefined(); // single monsters get no letter
     expect(rats[0]).toMatchObject({ ac: 13, hp: 7, attackBonus: 5, damage: ['1d4+3'], traits: ['pack-tactics'] });
     expect(new Set(units.map((u) => u.id)).size).toBe(units.length);

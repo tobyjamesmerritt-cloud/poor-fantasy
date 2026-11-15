@@ -1,5 +1,5 @@
 {
-  "_note": "Shrine of the Dawn, the crypt: the rats' nest — a Giant Wolf Spider has moved in with them. Moderate budget.",
+  "_note": "Shrine of the Dawn, the crypt: the rats' nest with a Giant Wolf Spider. Low budget (an easy quest), at most 5 rats.",
   "id": "shrine-crypt",
   "width": 12,
   "height": 9,
@@ -33,7 +33,7 @@
   ],
   "enemies": [],
   "scaling": {
-    "difficulty": "moderate",
+    "difficulty": "low",
     "fixed": [
       {
         "monster": "giant-wolf-spider",
@@ -45,8 +45,8 @@
       "monsters": [
         "giant-rat"
       ],
-      "min": 3,
-      "max": 8
+      "min": 2,
+      "max": 5
     }
   }
 }

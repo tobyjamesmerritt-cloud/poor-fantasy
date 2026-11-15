@@ -83,7 +83,8 @@ export function resolveEncounter(e: EncounterDef, ctx: FightContext = { partySiz
   const fixedXp = fixed.reduce((sum, f) => sum + xpOf(f.monster), 0);
   const avg = s.filler.monsters.reduce((sum, id) => sum + xpOf(id), 0) / Math.max(1, s.filler.monsters.length);
   const budget = fightBudget(ctx.partySize, ctx.level, ctx.difficulty ?? s.difficulty);
-  const n = fillerCount(budget, fixedXp, avg, s.filler.min, s.filler.max);
+  // House rule: never more monsters than the party has characters (action economy hurts most at low levels).
+  const n = Math.min(fillerCount(budget, fixedXp, avg, s.filler.min, s.filler.max), Math.max(0, ctx.partySize - fixed.length));
   const spots = fillerSquares(e.width, e.height, [...fixed, ...e.partyStart], n);
   return { ...e, enemies: [...fixed, ...spots.map((p, i) => ({ monster: s.filler.monsters[i % s.filler.monsters.length], ...p }))] };
 }
