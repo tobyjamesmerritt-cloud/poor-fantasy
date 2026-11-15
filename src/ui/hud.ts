@@ -72,6 +72,7 @@ export interface PartyRow {
 
 export interface ExplorePanel {
   title: string; // location name
+  partyName?: string;
   party: readonly RosterEntry[];
   where: string; // "13,7 W"
   clock: string; // "Day 1 · 16:07"
@@ -81,6 +82,7 @@ export interface ExplorePanel {
 export interface CampPanel {
   title: string;
   subtitle: string;
+  partyName?: string;
   party: readonly RosterEntry[];
   purse: string;
   clock: string;
@@ -281,7 +283,7 @@ export class Hud {
     };
     this.cardEl.replaceChildren(
       el('div', 'explore-title', panel.title),
-      rosterList(panel.party, this.bus),
+      rosterList(panel.party, this.bus, panel.partyName),
       el('div', 'explore-where', el('span', '', panel.where), el('span', '', panel.clock), el('span', 'purse', panel.purse)),
       el(
         'div',
@@ -308,7 +310,7 @@ export class Hud {
     this.cardEl.replaceChildren(
       el('div', 'explore-title', panel.title),
       el('div', 'muted small', panel.subtitle),
-      rosterList(panel.party, this.bus),
+      rosterList(panel.party, this.bus, panel.partyName),
       el('div', 'explore-where', el('span', '', panel.clock), el('span', 'purse', panel.purse)),
       el(
         'div',
@@ -354,7 +356,7 @@ export class Hud {
   }
 
   /** Party list for the world map. */
-  setRoster(entries: readonly RosterEntry[], footer?: { purse: string; clock: string; encamp: Command }, partyName = 'The party'): void {
+  setRoster(entries: readonly RosterEntry[], footer?: { purse: string; clock: string; encamp: Command }, partyName?: string): void {
     const extra: HTMLElement[] = [];
     if (footer) {
       const camp = el('button', '', 'Encamp') as HTMLButtonElement;
@@ -363,8 +365,7 @@ export class Hud {
       extra.push(el('div', 'explore-where', el('span', '', footer.clock), el('span', 'purse', footer.purse)), el('div', 'explore-actions', camp));
     }
     this.cardEl.replaceChildren(
-      el('div', 'name party', partyName),
-      rosterList(entries, this.bus),
+      rosterList(entries, this.bus, partyName),
       ...extra,
     );
   }
@@ -400,19 +401,23 @@ export class Hud {
   }
 }
 
-/** Click a name: that character in the pack (equipment, potions). */
+/** Click a name: that character's sheet (stats, gear, spells). */
 function nameButton(name: string, id: string, bus: CommandBus): HTMLElement {
   const b = el('button', 'name-link', name) as HTMLButtonElement;
-  b.title = `${name}: equipment and pack`;
-  b.addEventListener('click', () => bus.dispatch({ type: 'openPack', characterId: id }));
+  b.title = `${name}: character sheet`;
+  b.addEventListener('click', () => bus.dispatch({ type: 'openCharacter', characterId: id }));
   return b;
 }
 
 /** The party as the world map shows it: portrait, name (class), HP and a bar — the same in every panel. */
-function rosterList(entries: readonly RosterEntry[], bus: CommandBus): HTMLElement {
+function rosterList(entries: readonly RosterEntry[], bus: CommandBus, partyName?: string): HTMLElement {
+  const head = el('button', 'roster-head', `${partyName || 'Party'} ▸`) as HTMLButtonElement;
+  head.title = 'The party: levels, spells, pack and each character’s sheet';
+  head.addEventListener('click', () => bus.dispatch({ type: 'openParty' }));
   return el(
     'div',
     'roster',
+    head,
     ...entries.map((e) => {
       const pct = Math.max(0, Math.round((e.hp / e.maxHp) * 100));
       const fill = el('div', pct > 50 ? 'fill ok' : pct > 25 ? 'fill warn' : 'fill bad');

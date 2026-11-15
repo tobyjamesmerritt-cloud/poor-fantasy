@@ -29,6 +29,7 @@ import { describeTreasure, treasure } from './content/treasure';
 import { addCharacter, benchMember, deleteCharacter, joinParty, restoreAll, useReadyMade } from './rules/roster';
 import { SpellsDialog } from './ui/spellsDialog';
 import { PackDialog } from './ui/packDialog';
+import { PartyDialog } from './ui/partyDialog';
 import { castOutside } from './rules/spells';
 import { spendHitDice } from './rules/rest';
 import { TalkDialog, type TalkView } from './ui/talkDialog';
@@ -185,6 +186,7 @@ document.getElementById('menu-new-game')!.addEventListener('click', () => {
 const shopScreen = new ShopScreen(bus);
 const spellsDialog = new SpellsDialog(bus);
 const packDialog = new PackDialog(bus);
+const partyDialog = new PartyDialog({ bus, spriteCss: (key) => spriteCssFromSizes(sheetSizes, key) });
 
 // ---------------------------------------------------------------------------
 // Quests (rules/quests.ts + content/quests.json): conversations, hooks, quest fights
@@ -441,7 +443,7 @@ function onFightEnd(state: CombatState): void {
   }
   for (const r of gameState.roster) {
     if (canLevelUp(r) && !couldLevel.has(r.id)) {
-      notices.push(`${r.name} can reach level ${r.level + 1}! Open Game → Party roster to level up.`);
+      notices.push(`${r.name} can reach level ${r.level + 1}! Click Party (above the names) to level up.`);
     }
   }
   persistLibrary(); // XP lives on the character sheets
@@ -678,12 +680,26 @@ bus.subscribe((cmd) => {
       notices.push(...r.log);
       refreshScreen();
       spellsDialog.refresh(r.log.join(' '));
+      partyDialog.refresh();
       break;
     }
     case 'partyScreen':
-      newGameMode = false;
-      partyReturn = returnTo;
-      show('party');
+      partyDialog.close();
+      if (document.body.dataset.mode !== 'party') {
+        newGameMode = false;
+        partyReturn = returnTo;
+        show('party');
+      }
+      if (cmd.levelUp) partyScreen.levelUpFor(cmd.levelUp);
+      break;
+    case 'openParty':
+    case 'openCharacter':
+      if (document.body.dataset.mode === 'combat') {
+        hud.setStatus('Not during a fight — each character’s card shows their numbers.');
+        break;
+      }
+      if (cmd.type === 'openParty') partyDialog.showGroup(gameState);
+      else partyDialog.showCharacter(gameState, cmd.characterId);
       break;
     case 'newGame': {
       newGameMode = true;
@@ -779,6 +795,7 @@ bus.subscribe((cmd) => {
       persistLibrary(); // gear lives on the character sheet
       if (packDialog.open) {
         packDialog.refresh(err ?? `${sheet.name}: ${cmd.type === 'equipItem' ? 'equipped' : 'removed'}.`);
+        partyDialog.refresh();
         refreshScreen();
       } else shopScreen.refresh(err ?? '');
       break;
@@ -808,6 +825,7 @@ bus.subscribe((cmd) => {
       notices.push(...r.log);
       refreshScreen();
       packDialog.refresh(r.log.join(' '));
+      partyDialog.refresh();
       break;
     }
     case 'debug': {
@@ -826,7 +844,7 @@ bus.subscribe((cmd) => {
         for (const r of gameState.roster) r.xp = (r.xp ?? 0) + 300;
         persistLibrary();
         debugNote(`+300 XP each — ${gameState.roster.map((r) => `${r.name} ${r.xp}`).join(', ')}.`);
-        notices.push('Debug: +300 XP for everyone in the party. Level up from Game → Party roster.');
+        notices.push('Debug: +300 XP for everyone in the party. Level up from Party (above the names).');
       } else break;
       if (mode === 'shop') shopScreen.refresh(notices.pop());
       else if (mode === 'party') partyScreen.refresh(undefined, notices.pop());

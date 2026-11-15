@@ -157,6 +157,7 @@ export class CampScene extends Phaser.Scene {
     this.deps.hud.setCamp({
       title: isInn(site) ? site.name : SITE_TITLE[site.kind],
       subtitle: isInn(site) ? 'Safe — no ambushes in town' : `Free, but risky (${Math.round(site.risk * 100)}% ambush chance overnight)`,
+      partyName: g.partyName,
       party: rosterEntries(this.textures, g),
       purse: formatCoins(g.coins),
       clock: formatClock(g.time),

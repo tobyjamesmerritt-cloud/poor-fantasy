@@ -224,6 +224,12 @@ export class PartyScreen {
     );
   }
 
+  /** Open straight on a character's level-up panel (from the party dialog). */
+  levelUpFor(id: string): void {
+    const s = this.findSheet(id);
+    if (s && canLevelUp(s)) this.startLevelUp(s);
+  }
+
   private startLevelUp(s: CharacterSheet): void {
     this.draft = null;
     const sc = characterData.classes[s.classId].spellcasting;

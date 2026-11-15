@@ -13,6 +13,7 @@
           <button class="menu-btn">Game</button>
           <div class="menu-panel">
             <button id="menu-new-game">New game…</button>
+            <button data-command='{"type":"openParty"}'>Party…</button>
             <button data-command='{"type":"partyScreen"}'>Party roster…</button>
             <button data-command='{"type":"openPack"}'>Pack…</button>
             <button id="menu-journal">Quest journal…</button>
@@ -185,6 +186,7 @@
     <dialog id="talk-dialog" class="talk-dialog"></dialog>
     <dialog id="journal-dialog" class="journal-dialog"></dialog>
     <dialog id="pack-dialog" class="pack-dialog"></dialog>
+    <dialog id="party-dialog" class="party-dialog"></dialog>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

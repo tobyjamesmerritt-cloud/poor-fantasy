@@ -1067,3 +1067,75 @@ button.danger {
   padding: 0.4rem 0.6rem;
   margin-bottom: 0.4rem;
 }
+
+/* Party dialog (group + character sheet) */
+#party-dialog {
+  width: min(44rem, 94vw);
+  max-width: none;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.roster-head {
+  all: unset;
+  cursor: pointer;
+  color: var(--gold);
+  font-weight: bold;
+  font-size: 1rem;
+}
+.roster-head:hover,
+.roster-head:focus-visible {
+  text-decoration: underline;
+}
+.pd-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pd-table td,
+.pd-table th {
+  padding: 0.2rem 0.4rem;
+  text-align: left;
+  vertical-align: middle;
+}
+.pd-table .num {
+  text-align: right;
+}
+.pd-table tr + tr {
+  border-top: 1px solid #333;
+}
+.pd-nav {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+.pd-head {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.pd-name {
+  font-size: 1.3rem;
+}
+.pd-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+.pd-stats td {
+  padding: 0.1rem 0.6rem 0.1rem 0;
+}
+.pd-stats .num,
+.pd-stats th.num {
+  text-align: right;
+}
+#party-dialog .ok {
+  color: #2ecc71;
+}
+#party-dialog .warn {
+  color: #f39c12;
+}
+#party-dialog .bad {
+  color: #e74c3c;
+}

@@ -29,7 +29,7 @@ export type Command =
   | { type: 'camp'; site: CampSiteRef } // open the camp screen (validated by the scene that sends it)
   | { type: 'rest'; kind: 'short' | 'long' }
   | { type: 'breakCamp' }
-  | { type: 'partyScreen' } // open the party roster (menu, inn)
+  | { type: 'partyScreen'; levelUp?: string } // open the party roster (menu, inn); levelUp = straight to that character's level-up panel
   | { type: 'newGame' } // start over: empty party screen
   | { type: 'readyMadeParty' } // fill the party with the pregenerated six (current members go to the bench)
   | { type: 'saveCharacter'; sheet: CharacterSheet } // create or update (validated by main.ts)
@@ -57,6 +57,8 @@ export type Command =
   | { type: 'confirm' }
   | { type: 'aimSpell'; spellId: string; slot: number } // combat: pick targets on the grid next (cantrips: slot 0)
   | { type: 'openSpells' } // spells dialog (camp, party screen)
+  | { type: 'openParty' } // the party at a glance (group view)
+  | { type: 'openCharacter'; characterId: string } // one character's sheet
   | { type: 'openPack'; characterId?: string } // the party pack (anywhere outside a fight), opened on one character
   | { type: 'setPartyName'; name: string }
   | { type: 'useItem'; ref: string; targetId?: string } // drink a potion / ale from the pack

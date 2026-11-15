@@ -394,6 +394,7 @@ export class LocationScene extends Phaser.Scene {
     this.deps.hud.setStatus(`${this.name} · ${where} · ${clock}`);
     this.deps.hud.setExplore({
       title: this.name,
+      partyName: game.partyName,
       party: rosterEntries(this.textures, game),
       where,
       clock,
