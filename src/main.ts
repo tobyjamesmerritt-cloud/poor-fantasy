@@ -18,9 +18,13 @@ import { BOARD, DEFAULT_ENCOUNTER } from './content/encounters';
 import { characterData, checkSheet, derive, membersOf, pregens, startingCoins, statsOf } from './content/characters';
 import { roll4d6DropLowest, startingCopper } from './rules/character';
 import { PartyScreen } from './ui/partyScreen';
+import { ShopScreen } from './ui/shopScreen';
+import { buy, equip, sell, unequip } from './rules/items';
 import { loadSheetSizes, spriteCssFromSizes } from './game/spriteCss';
 import type { CombatState } from './rules/combat';
 import { afterCombat, afterDefeat, combatMinutes, freshParty, isConscious } from './rules/party';
+import { awardXp, nextLevelXp, takeTreasure } from './rules/rewards';
+import { describeTreasure, treasure } from './content/treasure';
 import { addCharacter, benchMember, deleteCharacter, joinParty, restoreAll, useReadyMade } from './rules/roster';
 import './ui/style.css';
 
@@ -29,7 +33,7 @@ const params = new URLSearchParams(location.search);
 let seed = params.has('seed') ? Number(params.get('seed')) : randomSeed();
 let encounter = params.get('encounter') ?? DEFAULT_ENCOUNTER; // ?encounter=ruins-crawlers for testing
 let origin: string | undefined; // what the current fight belongs to (location:spot), for the cleared flag
-type SceneKey = 'world' | 'combat' | 'location' | 'camp' | 'party';
+type SceneKey = 'world' | 'combat' | 'location' | 'camp' | 'party' | 'shop';
 type ReturnScene = 'world' | 'location' | 'camp';
 let returnTo: ReturnScene = 'world'; // where "Continue" goes after a fight
 let campReturn: 'world' | 'location' = 'world'; // where "Break camp" goes
@@ -46,6 +50,8 @@ const prefs = new PrefsStore();
 const gameState = newGameState(seed);
 let newGameMode = true; // party screen: building a new party (full editing) vs. managing during play
 let partyReturn: ReturnScene = 'world';
+let shopReturn: ReturnScene = 'location';
+let shopName = 'Shop';
 let exploreRng = createRng(gameState.seed ^ 0x5eed); // rests, ambushes, ability rolls (combat has its own seeded Rng); saved with the game
 initMenu(prefs);
 
@@ -148,6 +154,8 @@ document.getElementById('menu-new-game')!.addEventListener('click', () => {
   }).then((yes) => yes && bus.dispatch({ type: 'newGame' }));
 });
 
+const shopScreen = new ShopScreen(bus);
+
 const saveDialog = new SaveDialog({
   summaries: () => SLOTS.map((slot) => store.summary(slot)),
   canSave: saveBlocked,
@@ -191,9 +199,9 @@ game.scene.add('camp', CampScene, false);
 
 /** Canvas size + page layout for a scene (combat, world, camp 4:3; locations two square panes). */
 function layoutFor(key: SceneKey): void {
-  if (key === 'party') {
+  if (key === 'party' || key === 'shop') {
     document.body.dataset.mode = key;
-    hud.setStatus(newGameMode ? 'New game · create your party' : 'Party roster');
+    hud.setStatus(key === 'shop' ? shopName : newGameMode ? 'New game · create your party' : 'Party roster');
     return;
   }
   const { width, height } = key === 'location' ? LOCATION_VIEW : { width: BOARD.width * TILE, height: BOARD.height * TILE };
@@ -209,8 +217,28 @@ new ResizeObserver(() => {
 }).observe(document.getElementById('game')!);
 
 /** Fight results go back onto the persistent party. */
+const POTION = 'consumable:potion-of-healing';
+
 function onFightEnd(state: CombatState): void {
   gameState.time += combatMinutes(state.round);
+  // potions drunk in the fight leave the pack
+  if (state.potions > 0) gameState.inventory[POTION] = state.potions;
+  else delete gameState.inventory[POTION];
+  const before = new Map(gameState.party.map((p) => [p.id, p.xp]));
+  const xp = awardXp(gameState.party, state);
+  if (xp.each) notices.push(`Each survivor earns ${xp.each} XP (${xp.total} XP in all).`);
+  if (state.outcome === 'victory' && origin && treasure[origin] && !gameState.flags[`looted:${origin}`]) {
+    gameState.flags[`looted:${origin}`] = true;
+    takeTreasure(gameState, treasure[origin]);
+    notices.push(`You search the area and find: ${describeTreasure(treasure[origin])}.`);
+  }
+  for (const p of gameState.party) {
+    const next = nextLevelXp(1);
+    if (next && p.xp >= next && (before.get(p.id) ?? 0) < next && !p.dead) {
+      const name = gameState.roster.find((r) => r.id === p.id)?.name;
+      notices.push(`${name} has ${p.xp} XP — enough for level 2 (levelling up comes in a later update).`);
+    }
+  }
   notices.push(...afterCombat(gameState.party, statsOf(gameState.roster), state, gameState.time, exploreRng));
   if (state.outcome === 'defeat') {
     defeat = afterDefeat(gameState.party, gameState.coins, prefs.get().difficulty);
@@ -225,10 +253,11 @@ function show(key: SceneKey): void {
     notices = [];
     return n;
   };
-  if (key === 'party') {
+  if (key === 'party' || key === 'shop') {
     for (const sc of game.scene.getScenes(true)) sc.scene.stop();
-    layoutFor('party');
-    partyScreen.show(gameState, newGameMode);
+    layoutFor(key);
+    if (key === 'party') partyScreen.show(gameState, newGameMode);
+    else shopScreen.show(gameState, shopName);
     return;
   }
   let data: object;
@@ -237,7 +266,18 @@ function show(key: SceneKey): void {
     const onVictory = () => {
       if (from) gameState.flags[`cleared:${from}`] = true;
     };
-    data = { bus, hud, prefs, seed, encounter, onVictory, members: membersOf(gameState.roster), party: gameState.party, onEnd: onFightEnd };
+    data = {
+      bus,
+      hud,
+      prefs,
+      seed,
+      encounter,
+      onVictory,
+      members: membersOf(gameState.roster),
+      party: gameState.party,
+      potions: gameState.inventory[POTION] ?? 0,
+      onEnd: onFightEnd,
+    };
   } else {
     returnTo = key;
     if (key === 'location') data = { bus, hud, game: gameState, locationId, notices: take() };
@@ -386,6 +426,36 @@ bus.subscribe((cmd) => {
       if (i < 0 || j < 0 || j >= gameState.roster.length) break;
       [gameState.roster[i], gameState.roster[j]] = [gameState.roster[j], gameState.roster[i]];
       partyScreen.refresh();
+      break;
+    }
+    case 'openShop':
+      shopName = cmd.name;
+      shopReturn = returnTo;
+      show('shop');
+      break;
+    case 'closeShop':
+      persistLibrary(); // equipment lives on the character sheets
+      show(shopReturn);
+      break;
+    case 'shopBuy':
+      shopScreen.refresh(buy(gameState, cmd.ref, characterData) ?? '');
+      break;
+    case 'shopSell':
+      shopScreen.refresh(sell(gameState, cmd.ref, characterData) ?? '');
+      break;
+    case 'equipItem':
+    case 'unequipItem': {
+      const sheet = gameState.roster.find((r) => r.id === cmd.characterId);
+      if (!sheet) break;
+      const before = derive(sheet).hp;
+      const err =
+        cmd.type === 'equipItem'
+          ? equip(sheet, gameState, cmd.ref, characterData)
+          : unequip(sheet, gameState, cmd.slot, characterData);
+      // HP max doesn't depend on gear today, but keep current HP within the maximum if it ever does
+      const st = gameState.party.find((p) => p.id === sheet.id);
+      if (st) st.hp = Math.min(st.hp, derive(sheet).hp || before);
+      shopScreen.refresh(err ?? '');
       break;
     }
     case 'closePartyScreen':

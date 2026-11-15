@@ -137,7 +137,7 @@ export class PartyScreen {
       'ps-who',
       h('div', 'name party', s.name),
       h('div', 'small', `${characterData.species[s.speciesId].name} ${className(s)} · ${characterData.backgrounds[s.backgroundId].name}`),
-      h('div', 'small muted', `HP ${now ? now.hp : d.hp}/${d.hp} · AC ${d.ac} · ${d.attackName} ${signed(d.attackBonus)}${status}`),
+      h('div', 'small muted', `HP ${now ? now.hp : d.hp}/${d.hp} · AC ${d.ac} · ${d.attackName} ${signed(d.attackBonus)} · XP ${now?.xp ?? 0}${status}`),
     );
   }
 

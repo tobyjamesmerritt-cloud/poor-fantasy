@@ -15,6 +15,7 @@ export type Command =
   | { type: 'attack'; targetId: string }
   | { type: 'endTurn' }
   | { type: 'flee' } // leave the battle from a map-edge square
+  | { type: 'usePotion'; targetId: string } // Potion of Healing: drink or give (Bonus Action)
   | { type: 'undo' } // rewind one player action (debug now; patron-god mechanic later, DND-27)
   | { type: 'fight'; encounter: string; origin?: string } // start an encounter (origin = map location id)
   | { type: 'newFight' } // rerun the current encounter with fresh dice
@@ -35,7 +36,15 @@ export type Command =
   | { type: 'joinParty'; id: string } // bench → party
   | { type: 'deleteCharacter'; id: string } // bench → gone
   | { type: 'moveCharacter'; id: string; by: -1 | 1 }
-  | { type: 'closePartyScreen' } // begin the adventure / back to the game // after a fight: back to where it started (location or world map)
+  | { type: 'closePartyScreen' } // begin the adventure / back to the game
+  | { type: 'openShop'; name: string }
+  | { type: 'closeShop' }
+  | { type: 'shopBuy'; ref: string } // item ref, see rules/items.ts
+  | { type: 'shopSell'; ref: string }
+  | { type: 'equipItem'; characterId: string; ref: string }
+  | { type: 'unequipItem'; characterId: string; slot: 'armor' | 'shield' }
+  | { type: 'templeHeal' }
+  | { type: 'templeRaise'; characterId: string } // after a fight: back to where it started (location or world map)
   | { type: 'leavePlace' } // close the location panel on the map
   | { type: 'confirm' }
   | { type: 'cancel' }

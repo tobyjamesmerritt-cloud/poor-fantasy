@@ -1,71 +1,217 @@
 {
-  "_note": "SRD 5.2 armor and weapons used by starting kits. dexMax null = full Dex modifier.",
+  "_note": "SRD 5.2 equipment (Equipment chapter). cost in copper (100 cp = 1 gp). Weapons: category simple|martial; melee only for now (ranged weapons come with DND-13). Armor: category light|medium|heavy; dexMax null = full Dex. Selling = half cost.",
   "armor": {
+    "padded": {
+      "name": "Padded Armor",
+      "category": "light",
+      "base": 11,
+      "dexMax": null,
+      "cost": 500
+    },
     "leather": {
       "name": "Leather Armor",
+      "category": "light",
       "base": 11,
-      "dexMax": null
+      "dexMax": null,
+      "cost": 1000
     },
     "studded-leather": {
       "name": "Studded Leather Armor",
+      "category": "light",
       "base": 12,
-      "dexMax": null
+      "dexMax": null,
+      "cost": 4500
+    },
+    "hide": {
+      "name": "Hide Armor",
+      "category": "medium",
+      "base": 12,
+      "dexMax": 2,
+      "cost": 1000
     },
     "chain-shirt": {
       "name": "Chain Shirt",
+      "category": "medium",
       "base": 13,
-      "dexMax": 2
+      "dexMax": 2,
+      "cost": 5000
+    },
+    "scale-mail": {
+      "name": "Scale Mail",
+      "category": "medium",
+      "base": 14,
+      "dexMax": 2,
+      "cost": 5000
+    },
+    "breastplate": {
+      "name": "Breastplate",
+      "category": "medium",
+      "base": 14,
+      "dexMax": 2,
+      "cost": 40000
+    },
+    "half-plate": {
+      "name": "Half Plate Armor",
+      "category": "medium",
+      "base": 15,
+      "dexMax": 2,
+      "cost": 75000
+    },
+    "ring-mail": {
+      "name": "Ring Mail",
+      "category": "heavy",
+      "base": 14,
+      "dexMax": 0,
+      "cost": 3000
     },
     "chain-mail": {
       "name": "Chain Mail",
+      "category": "heavy",
       "base": 16,
       "dexMax": 0,
-      "strength": 13
+      "strength": 13,
+      "cost": 7500
+    },
+    "splint": {
+      "name": "Splint Armor",
+      "category": "heavy",
+      "base": 17,
+      "dexMax": 0,
+      "strength": 15,
+      "cost": 20000
+    },
+    "plate": {
+      "name": "Plate Armor",
+      "category": "heavy",
+      "base": 18,
+      "dexMax": 0,
+      "strength": 15,
+      "cost": 150000
     }
   },
+  "shield": {
+    "name": "Shield",
+    "cost": 1000
+  },
   "weapons": {
-    "greatsword": {
-      "name": "Greatsword",
-      "damage": "2d6"
-    },
-    "longsword": {
-      "name": "Longsword",
-      "damage": "1d8"
-    },
-    "mace": {
-      "name": "Mace",
-      "damage": "1d6"
-    },
-    "scimitar": {
-      "name": "Scimitar",
-      "damage": "1d6",
-      "finesse": true
-    },
-    "shortsword": {
-      "name": "Shortsword",
-      "damage": "1d6",
-      "finesse": true
-    },
-    "quarterstaff": {
-      "name": "Quarterstaff",
-      "damage": "1d6"
+    "club": {
+      "name": "Club",
+      "category": "simple",
+      "damage": "1d4",
+      "cost": 10,
+      "light": true
     },
     "dagger": {
       "name": "Dagger",
+      "category": "simple",
       "damage": "1d4",
-      "finesse": true
+      "finesse": true,
+      "light": true,
+      "cost": 200
     },
-    "greataxe": {
-      "name": "Greataxe",
-      "damage": "1d12"
+    "handaxe": {
+      "name": "Handaxe",
+      "category": "simple",
+      "damage": "1d6",
+      "light": true,
+      "cost": 500
+    },
+    "mace": {
+      "name": "Mace",
+      "category": "simple",
+      "damage": "1d6",
+      "cost": 500
+    },
+    "quarterstaff": {
+      "name": "Quarterstaff",
+      "category": "simple",
+      "damage": "1d6",
+      "cost": 20
     },
     "sickle": {
       "name": "Sickle",
-      "damage": "1d4"
+      "category": "simple",
+      "damage": "1d4",
+      "light": true,
+      "cost": 100
     },
     "spear": {
       "name": "Spear",
-      "damage": "1d6"
+      "category": "simple",
+      "damage": "1d6",
+      "cost": 100
+    },
+    "battleaxe": {
+      "name": "Battleaxe",
+      "category": "martial",
+      "damage": "1d8",
+      "cost": 1000
+    },
+    "flail": {
+      "name": "Flail",
+      "category": "martial",
+      "damage": "1d8",
+      "cost": 1000
+    },
+    "greataxe": {
+      "name": "Greataxe",
+      "category": "martial",
+      "damage": "1d12",
+      "cost": 3000
+    },
+    "greatsword": {
+      "name": "Greatsword",
+      "category": "martial",
+      "damage": "2d6",
+      "cost": 5000
+    },
+    "longsword": {
+      "name": "Longsword",
+      "category": "martial",
+      "damage": "1d8",
+      "cost": 1500
+    },
+    "morningstar": {
+      "name": "Morningstar",
+      "category": "martial",
+      "damage": "1d8",
+      "cost": 1500
+    },
+    "rapier": {
+      "name": "Rapier",
+      "category": "martial",
+      "damage": "1d8",
+      "finesse": true,
+      "cost": 2500
+    },
+    "scimitar": {
+      "name": "Scimitar",
+      "category": "martial",
+      "damage": "1d6",
+      "finesse": true,
+      "light": true,
+      "cost": 2500
+    },
+    "shortsword": {
+      "name": "Shortsword",
+      "category": "martial",
+      "damage": "1d6",
+      "finesse": true,
+      "light": true,
+      "cost": 1000
+    },
+    "warhammer": {
+      "name": "Warhammer",
+      "category": "martial",
+      "damage": "1d8",
+      "cost": 1500
+    }
+  },
+  "consumables": {
+    "potion-of-healing": {
+      "name": "Potion of Healing",
+      "heal": "2d4+2",
+      "cost": 5000
     }
   }
 }

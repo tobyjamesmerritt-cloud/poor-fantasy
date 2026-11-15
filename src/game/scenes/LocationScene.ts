@@ -32,6 +32,10 @@ import {
 } from '../../rules/location';
 import { formatClock, MINUTES } from '../../rules/time';
 import { formatCoins, passTime } from '../../rules/party';
+import { healCost, templeHeal, templeRaise, type TemplePrices } from '../../rules/services';
+import servicesRaw from '../../content/services.json';
+
+const templePrices = servicesRaw as unknown as TemplePrices;
 import { SITE_RISK } from '../../rules/rest';
 import { partyRows } from '../partyView';
 import type { Hud } from '../../ui/hud';
@@ -188,6 +192,19 @@ export class LocationScene extends Phaser.Scene {
       case 'encamp':
         this.encamp();
         break;
+      case 'templeHeal':
+      case 'templeRaise': {
+        const g = this.deps.game;
+        const err =
+          cmd.type === 'templeHeal'
+            ? templeHeal(g, g.party, statsOf(g.roster), templePrices)
+            : templeRaise(g, g.party.find((p) => p.id === cmd.characterId)!, templePrices);
+        if (err) this.say(err);
+        else this.say(cmd.type === 'templeHeal' ? 'The priests lay hands on the wounded. Everyone is whole again.' : 'Candles flare. A gasp, a cough — they live again (1 HP).');
+        this.render();
+        this.showSpotPanel(spotAt(this.map, this.pose.x, this.pose.y));
+        break;
+      }
       case 'moveTo': {
         const path = findPath4(this.map, this.pose, cmd);
         if (path?.length) this.walk(path);
@@ -300,12 +317,7 @@ export class LocationScene extends Phaser.Scene {
         kind: BUILDING_LABEL[spot.building!] ?? 'Building',
         description: spot.description,
         actions: [
-          ...(spot.building === 'inn'
-            ? [
-                { label: 'Take rooms and rest', command: { type: 'camp', site: { kind: 'inn', name: spot.name, risk: 0 } } as Command },
-                { label: 'Party roster (recruit, dismiss)', command: { type: 'partyScreen' } as Command },
-              ]
-            : [{ label: 'Trade, heal — coming in M4' }]),
+          ...this.buildingActions(spot),
           { label: 'Leave', command: { type: 'leavePlace' } },
         ],
       });
@@ -317,6 +329,33 @@ export class LocationScene extends Phaser.Scene {
         actions: [{ label: 'Fight', command: this.fightCommand(spot) }, { label: 'Back away', command: { type: 'leavePlace' } }],
       });
     }
+  }
+
+  /** What you can do in a building: rest at inns, trade at shops, healing at temples. */
+  private buildingActions(spot: Spot): { label: string; command?: Command }[] {
+    const g = this.deps.game;
+    if (spot.building === 'inn') {
+      return [
+        { label: 'Take rooms and rest', command: { type: 'camp', site: { kind: 'inn', name: spot.name, risk: 0 } } },
+        { label: 'Party roster (recruit, dismiss)', command: { type: 'partyScreen' } },
+      ];
+    }
+    if (spot.building === 'shop') return [{ label: 'Browse the wares', command: { type: 'openShop', name: spot.name } }];
+    if (spot.building === 'temple') {
+      const stats = statsOf(g.roster);
+      const cost = healCost(g.party, stats, templePrices);
+      const actions: { label: string; command?: Command }[] = [
+        cost
+          ? { label: `Heal the wounded (${formatCoins(cost)})`, command: { type: 'templeHeal' } }
+          : { label: 'Nobody needs healing' },
+      ];
+      for (const p of g.party.filter((m) => m.dead)) {
+        const name = g.roster.find((r) => r.id === p.id)?.name ?? p.id;
+        actions.push({ label: `Raise ${name} from the dead (${formatCoins(templePrices.raiseDead)})`, command: { type: 'templeRaise', characterId: p.id } });
+      }
+      return actions;
+    }
+    return [{ label: 'Nothing to do here yet' }];
   }
 
   private say(line: string): void {

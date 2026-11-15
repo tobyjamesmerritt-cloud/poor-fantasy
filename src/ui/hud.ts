@@ -29,6 +29,9 @@ export interface ActiveCard {
   speed: number;
   actionUsed: boolean;
   sprite: SpriteCss;
+  potions: number;
+  bonusUsed: boolean;
+  potionTargets: { id: string; name: string; self: boolean }[];
 }
 
 export interface RosterEntry {
@@ -188,7 +191,7 @@ export class Hud {
           el('small', '', card.actionUsed ? 'used this turn' : 'click an enemy · or a fallen ally'),
         ),
         el('div', 'action disabled', '✦ Spells', el('small', '', 'coming — DND-23')),
-        el('div', 'action disabled', '⚗ Items', el('small', '', 'coming — DND-24')),
+        this.potionAction(card),
       ),
     );
   }
@@ -251,6 +254,32 @@ export class Hud {
         }),
       ),
     );
+  }
+
+  /** Potion of Healing buttons: drink, or give to an adjacent ally (Bonus Action). */
+  private potionAction(card: ActiveCard): HTMLElement {
+    const box = el('div', card.potions && card.potionTargets.length ? 'action' : 'action disabled', `⚗ Potion of Healing ×${card.potions}`);
+    if (!card.potions) {
+      box.append(el('small', '', 'none in the pack — buy them at a shop'));
+      return box;
+    }
+    if (card.bonusUsed) {
+      box.append(el('small', '', 'Bonus Action used this turn'));
+      return box;
+    }
+    if (!card.potionTargets.length) {
+      box.append(el('small', '', 'nobody hurt within reach'));
+      return box;
+    }
+    const row = el('div', 'potion-row');
+    for (const t of card.potionTargets) {
+      const b = el('button', '', t.self ? 'Drink' : `Give ${t.name}`) as HTMLButtonElement;
+      b.title = 'Bonus Action: 2d4 + 2 HP — you can still attack this turn';
+      b.addEventListener('click', () => this.bus.dispatch({ type: 'usePotion', targetId: t.id }));
+      row.append(b);
+    }
+    box.append(row);
+    return box;
   }
 
   /** Party list for the world map. */

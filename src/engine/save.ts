@@ -17,10 +17,21 @@ export interface SaveEnvelope {
   state: GameState;
 }
 
-/** version n → n+1. Empty until the first format change after saves shipped (v6). */
-const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {};
+/** version n → n+1. Saves shipped at v6. */
+const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {
+  // v7: party pack + experience points
+  6: (s) => ({
+    ...s,
+    inventory: {},
+    party: (s.party as Record<string, unknown>[]).map((p) => ({ xp: 0, ...p })),
+    bench: (s.bench as { sheet: unknown; state: Record<string, unknown> | null }[]).map((b) => ({
+      ...b,
+      state: b.state ? { xp: 0, ...b.state } : null,
+    })),
+  }),
+};
 
-const REQUIRED: (keyof GameState)[] = ['version', 'seed', 'flags', 'time', 'roster', 'party', 'bench', 'coins'];
+const REQUIRED: (keyof GameState)[] = ['version', 'seed', 'flags', 'time', 'roster', 'party', 'bench', 'coins', 'inventory'];
 
 export function makeSave(state: GameState, exploreRng: number, savedAt: string, label: string): SaveEnvelope {
   return { format: 'poor-fantasy-save', version: state.version, savedAt, label, exploreRng, state: structuredClone(state) };

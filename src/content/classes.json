@@ -1,5 +1,5 @@
 {
-  "_note": "SRD 5.2 classes, level 1. kit = combat-relevant part of starting equipment option A (+ its GP). playable=false entries are data for later (DND backlog: remaining classes); verify their kits against the SRD before enabling.",
+  "_note": "SRD 5.2 classes, level 1. kit = combat-relevant part of starting equipment option A (+ its GP). playable=false entries are data for later (DND backlog: remaining classes); verify their kits against the SRD before enabling. weaponTraining: simple | martial | martial-finesse-light (Rogue: Martial weapons with the Finesse or Light property).",
   "barbarian": {
     "name": "Barbarian",
     "hitDie": 12,
@@ -26,6 +26,10 @@
       "Rage",
       "Unarmored Defense",
       "Weapon Mastery"
+    ],
+    "weaponTraining": [
+      "simple",
+      "martial"
     ]
   },
   "bard": {
@@ -51,6 +55,9 @@
     "features": [
       "Bardic Inspiration",
       "Spellcasting"
+    ],
+    "weaponTraining": [
+      "simple"
     ]
   },
   "cleric": {
@@ -78,6 +85,9 @@
     "features": [
       "Spellcasting",
       "Divine Order"
+    ],
+    "weaponTraining": [
+      "simple"
     ]
   },
   "druid": {
@@ -105,6 +115,9 @@
       "Spellcasting",
       "Druidic",
       "Primal Order"
+    ],
+    "weaponTraining": [
+      "simple"
     ]
   },
   "fighter": {
@@ -135,6 +148,10 @@
       "Fighting Style",
       "Second Wind",
       "Weapon Mastery"
+    ],
+    "weaponTraining": [
+      "simple",
+      "martial"
     ]
   },
   "monk": {
@@ -159,6 +176,9 @@
     "features": [
       "Martial Arts",
       "Unarmored Defense"
+    ],
+    "weaponTraining": [
+      "simple"
     ]
   },
   "paladin": {
@@ -189,6 +209,10 @@
       "Lay On Hands",
       "Spellcasting",
       "Weapon Mastery"
+    ],
+    "weaponTraining": [
+      "simple",
+      "martial"
     ]
   },
   "ranger": {
@@ -218,6 +242,10 @@
       "Spellcasting",
       "Favored Enemy",
       "Weapon Mastery"
+    ],
+    "weaponTraining": [
+      "simple",
+      "martial"
     ]
   },
   "rogue": {
@@ -245,6 +273,10 @@
       "Sneak Attack",
       "Thieves' Cant",
       "Weapon Mastery"
+    ],
+    "weaponTraining": [
+      "simple",
+      "martial-finesse-light"
     ]
   },
   "sorcerer": {
@@ -268,6 +300,9 @@
     "features": [
       "Spellcasting",
       "Innate Sorcery"
+    ],
+    "weaponTraining": [
+      "simple"
     ]
   },
   "warlock": {
@@ -293,6 +328,9 @@
     "features": [
       "Eldritch Invocations",
       "Pact Magic"
+    ],
+    "weaponTraining": [
+      "simple"
     ]
   },
   "wizard": {
@@ -317,6 +355,9 @@
       "Spellcasting",
       "Ritual Adept",
       "Arcane Recovery"
+    ],
+    "weaponTraining": [
+      "simple"
     ]
   }
 }

@@ -178,6 +178,7 @@ export function buildUnits(
       attackBonus: m.attack.bonus,
       damage: m.attack.damage,
       traits: m.traits as Trait[],
+      xp: m.xp,
       medicine: 0,
       deathSaves: { successes: 0, failures: 0 },
       stable: false,

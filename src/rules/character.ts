@@ -8,7 +8,7 @@
  * its full SRD facts even where the game doesn't use them yet.
  */
 import type { Rng } from '../engine/rng';
-import type { Ability, AbilityScores, CharacterSheet } from '../engine/state';
+import type { Ability, AbilityScores, CharacterSheet, Gear } from '../engine/state';
 
 export const ABILITIES: readonly Ability[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 export const ABILITY_NAMES: Record<Ability, string> = {
@@ -31,6 +31,7 @@ export interface ClassDef {
   saves: Ability[]; // saving throw proficiencies (not used yet)
   armorTraining: string[]; // light | medium | heavy | shields
   kit: { armor: string | null; shield: boolean; weapon: string; gp: number }; // starting equipment option A (combat-relevant part)
+  weaponTraining: ('simple' | 'martial' | 'martial-finesse-light')[];
   playable: boolean; // false = data only, not offered yet
   features?: string[]; // level-1 features by name (not in effect yet unless noted in rules)
 }
@@ -52,6 +53,8 @@ export interface BackgroundDef {
 
 export interface ArmorDef {
   name: string;
+  category: 'light' | 'medium' | 'heavy';
+  cost: number; // copper
   base: number;
   dexMax: number | null; // null = full Dex modifier; 0 = none
   strength?: number; // heavy armor: Speed −10 ft if Strength is lower
@@ -59,8 +62,17 @@ export interface ArmorDef {
 
 export interface WeaponDef {
   name: string;
+  category: 'simple' | 'martial';
+  cost: number; // copper
   damage: string; // e.g. "1d8"
   finesse?: boolean;
+  light?: boolean;
+}
+
+export interface ConsumableDef {
+  name: string;
+  heal: string; // dice, e.g. "2d4+2"
+  cost: number;
 }
 
 export interface CharacterData {
@@ -68,7 +80,26 @@ export interface CharacterData {
   species: Record<string, SpeciesDef>;
   backgrounds: Record<string, BackgroundDef>;
   armor: Record<string, ArmorDef>;
+  shield: { name: string; cost: number };
   weapons: Record<string, WeaponDef>;
+  consumables: Record<string, ConsumableDef>;
+}
+
+/** What a character has equipped: their own choice, or the class kit until they change it. */
+export function equipped(sheet: CharacterSheet, data: CharacterData): Gear {
+  const kit = data.classes[sheet.classId].kit;
+  return sheet.gear ?? { armor: kit.armor, shield: kit.shield, weapon: kit.weapon };
+}
+
+/** SRD 5.2 armor training (light / medium / heavy / shields). */
+export function trainedWithArmor(cls: ClassDef, armor: ArmorDef | 'shield'): boolean {
+  return cls.armorTraining.includes(armor === 'shield' ? 'shields' : armor.category);
+}
+
+/** SRD 5.2 weapon proficiency: Simple, Martial, or (Rogue) Martial with Finesse or Light. */
+export function trainedWithWeapon(cls: ClassDef, w: WeaponDef): boolean {
+  if (w.category === 'simple') return cls.weaponTraining.includes('simple');
+  return cls.weaponTraining.includes('martial') || (cls.weaponTraining.includes('martial-finesse-light') && !!(w.finesse || w.light));
 }
 
 // ---------------------------------------------------------------------------
@@ -180,10 +211,11 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
   if (species.traits.includes('Dwarven Toughness')) hp += sheet.level; // +1 HP per level
 
   // Armor Class: armor base + Dex (capped by armor), +2 shield; unarmored 10 + Dex.
-  const armor = cls.kit.armor ? data.armor[cls.kit.armor] : null;
+  const gear = equipped(sheet, data);
+  const armor = gear.armor ? data.armor[gear.armor] : null;
   let ac = 10 + mod('dex');
   if (armor) ac = armor.base + (armor.dexMax === null ? mod('dex') : Math.min(armor.dexMax, mod('dex')));
-  if (cls.kit.shield) ac += 2;
+  if (gear.shield && trainedWithArmor(cls, 'shield')) ac += 2; // SRD 5.2: shield AC only with training
 
   // Speed: species; heavy armor without the Strength it needs costs 10 ft.
   let speedFt = species.speed;
@@ -193,9 +225,11 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
   }
 
   // Weapon attack: Strength, or Dexterity for a Finesse weapon if better; proficient with class kit.
-  const weapon = data.weapons[cls.kit.weapon];
+  const weapon = data.weapons[gear.weapon];
   const useDex = !!weapon.finesse && mod('dex') > mod('str');
   const atkMod = useDex ? mod('dex') : mod('str');
+  const proficient = trainedWithWeapon(cls, weapon);
+  if (!proficient) notes.push(`${weapon.name}: not trained — no proficiency bonus to hit.`);
   const damage = [`${weapon.damage}${atkMod ? signed(atkMod) : ''}`];
 
   // Initiative: Dex modifier; the Alert origin feat adds the Proficiency Bonus.
@@ -208,7 +242,7 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
     speed: Math.floor(speedFt / 5),
     initBonus,
     attackName: weapon.name,
-    attackBonus: atkMod + PROFICIENCY_BONUS_L1,
+    attackBonus: atkMod + (proficient ? PROFICIENCY_BONUS_L1 : 0),
     damage,
     medicine: mod('wis'),
     hitDie: cls.hitDie,

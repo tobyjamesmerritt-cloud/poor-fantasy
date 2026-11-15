@@ -19,6 +19,8 @@ import {
   startCombat,
   step,
   turnExhausted,
+  potionTargets,
+  usePotion,
   canFlee,
   flee,
   onField,
@@ -51,6 +53,7 @@ export interface CombatSceneDeps {
   members?: PartyMemberDef[]; // who fights (default: the quick-start party)
   party?: PartyMemberState[]; // persistent party: current HP, who is dead (omit = everyone fresh)
   onEnd?: (state: CombatState) => void; // once, when the fight is won, lost or fled
+  potions?: number; // Potions of Healing in the party pack
 }
 
 /** One side of a grid square on the edge of the movement range: from (x1,y1) to (x2,y2) in pixels. */
@@ -101,7 +104,7 @@ export class CombatScene extends Phaser.Scene {
 
   create(): void {
     this.rng = createRng(this.deps.seed);
-    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, this.deps.members, this.deps.party), this.deps.prefs.get().difficulty);
+    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, this.deps.members, this.deps.party), this.deps.prefs.get().difficulty, this.deps.potions ?? 0);
     this.cameras.main.setZoom(1).setScroll(0, 0);
 
     this.deps.hud.setNames(this.state.units);
@@ -232,6 +235,9 @@ export class CombatScene extends Phaser.Scene {
       speed: u.speed,
       actionUsed: this.state.actionUsed,
       sprite: spriteCss(this.textures, u.sprite),
+      potions: this.state.potions,
+      bonusUsed: this.state.bonusUsed,
+      potionTargets: potionTargets(this.state).map((t) => ({ id: t.id, name: t.name, self: t.id === u.id })),
     };
   }
 
@@ -259,7 +265,7 @@ export class CombatScene extends Phaser.Scene {
   private handle(cmd: Command): void {
     if (this.busy) return; // walking or handing over the turn
     let before: string | null = null;
-    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee') && this.state.outcome === 'ongoing') {
+    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee' || cmd.type === 'usePotion') && this.state.outcome === 'ongoing') {
       before = JSON.stringify(this.state);
       this.history.push({ state: this.state, rng: this.rng.state });
     }
@@ -280,6 +286,9 @@ export class CombatScene extends Phaser.Scene {
         break;
       case 'flee':
         if (activeUnit(this.state).side === 'party') flee(this.state, this.rng);
+        break;
+      case 'usePotion':
+        usePotion(this.state, this.rng, cmd.targetId);
         break;
       default:
         return; // navigation commands are handled in main.ts

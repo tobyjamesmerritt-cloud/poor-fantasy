@@ -7,7 +7,7 @@ import { assertTransition } from './modes';
 
 const START_TIME = 8 * 60; // day 1, 08:00
 
-export const SAVE_VERSION = 6; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench)
+export const SAVE_VERSION = 7; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench) · v7 inventory, XP
 
 export interface GameState {
   version: number;
@@ -22,6 +22,7 @@ export interface GameState {
   party: PartyMemberState[]; // current condition of each member (same ids as the roster)
   bench: BenchEntry[]; // created characters not in the party (any number)
   coins: number; // party purse in copper pieces (100 cp = 1 gp)
+  inventory: Record<string, number>; // the party pack: item ref → count (see rules/items.ts)
   lastLongRest: number | null; // game time a Long Rest finished (16-hour wait before the next)
 }
 
@@ -42,6 +43,14 @@ export interface CharacterSheet {
   scores: AbilityScores; // before background increases
   increases: Partial<AbilityScores>; // background: +2/+1 or +1/+1/+1 among its three abilities
   level: number;
+  gear?: Gear; // equipped items; absent = the class's starting kit
+}
+
+/** Equipped items (ids in content/gear.json). */
+export interface Gear {
+  armor: string | null;
+  shield: boolean;
+  weapon: string;
 }
 
 /** A character waiting outside the party; `state` null = never adventured (fresh when they join). */
@@ -57,6 +66,7 @@ export interface PartyMemberState {
   hitDice: number; // unspent Hit Point Dice (level 1: max 1)
   dead: boolean;
   wakesAt: number | null; // unconscious + stable: game time they regain 1 HP (SRD: after 1d4 hours)
+  xp: number; // experience points earned in this game
 }
 
 export function newGameState(seed: number): GameState {
@@ -72,6 +82,7 @@ export function newGameState(seed: number): GameState {
     roster: [], // filled at startup (quick start) or on the party screen
     party: [],
     bench: [],
+    inventory: {},
     coins: 60 * 100, // 60 gp to start (placeholder until character creation, M2)
     lastLongRest: null,
   };

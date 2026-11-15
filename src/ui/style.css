@@ -534,8 +534,75 @@ body[data-mode='location'] #touchpad {
 }
 
 /* ---------- Party screen (create / edit characters) ---------- */
-#party-screen {
+#party-screen,
+#shop-screen {
   display: none;
+}
+body[data-mode='shop'] main {
+  grid-template-columns: minmax(0, 1fr);
+}
+body[data-mode='shop'] main > :not(#shop-screen),
+body[data-mode='shop'] #touchpad {
+  display: none;
+}
+body[data-mode='shop'] #shop-screen {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 1rem;
+  min-height: 0;
+  overflow: auto;
+}
+#shop-screen h2 {
+  margin: 0 0 0.4rem;
+  color: var(--gold);
+}
+#shop-screen h3 {
+  margin: 0.8rem 0 0.3rem;
+}
+.sh-col {
+  border: 1px solid var(--line);
+  padding: 0.7rem;
+  min-height: 0;
+  overflow: auto;
+}
+.sh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.sh-table td {
+  padding: 0.15rem 0.4rem;
+  border-bottom: 1px solid #222;
+}
+.sh-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.sh-purse {
+  color: var(--gold);
+  margin-bottom: 0.4rem;
+}
+.sh-msg {
+  color: #ff8a7d;
+  margin-bottom: 0.4rem;
+}
+.sh-member {
+  border-bottom: 1px solid #2a2a2a;
+  padding: 0.4rem 0;
+}
+.sh-member-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+.sh-member-buttons select {
+  font: inherit;
+  background: #1b1b1b;
+  color: inherit;
+  border: 1px solid #555;
+  border-radius: 4px;
+  max-width: 100%;
 }
 body[data-mode='party'] main {
   grid-template-columns: minmax(0, 1fr);
@@ -743,4 +810,15 @@ button.danger {
 .slot .buttons {
   display: flex;
   gap: 0.3rem;
+}
+
+.potion-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+.potion-row button {
+  padding: 0.15rem 0.45rem;
+  font-size: 0.8rem;
 }

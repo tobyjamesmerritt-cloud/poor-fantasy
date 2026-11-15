@@ -1,0 +1,5 @@
+{
+  "_note": "Treasure found when a location fight is won, keyed by '<locationId>:<spotId>'. coins in copper (100 = 1 gp); items by ref (armor:<id>, weapon:<id>, shield, consumable:<id>). Wild-beast ambushes carry nothing (house rule).",
+  "hollow-cave:rat-nest": { "coins": 2400, "items": { "consumable:potion-of-healing": 1, "weapon:handaxe": 1 } },
+  "old-keep:great-hall": { "coins": 6500, "items": { "consumable:potion-of-healing": 2, "weapon:rapier": 1, "armor:scale-mail": 1 } }
+}

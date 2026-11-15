@@ -49,6 +49,7 @@ export interface Unit {
   deathSaves: { successes: number; failures: number };
   stable: boolean;
   dead: boolean;
+  xp?: number; // monsters: experience points for defeating it
   fled?: boolean; // left the battle over a map edge
   carrying?: string; // id of the fallen ally this unit carries
   carriedBy?: string; // id of the unit carrying this one (off the grid while carried)
@@ -65,6 +66,8 @@ export interface CombatState {
   actionUsed: boolean;
   outcome: 'ongoing' | 'victory' | 'defeat' | 'fled';
   retreat: RetreatRule;
+  bonusUsed: boolean; // this turn's Bonus Action (only potions use it so far; DND-10)
+  potions: number; // Potions of Healing in the party pack
   log: string[];
 }
 
@@ -88,6 +91,7 @@ export function startCombat(
   height: number,
   units: Unit[],
   retreat: RetreatRule = 'normal',
+  potions = 0,
 ): CombatState {
   const rolled = units.map((u) => ({ id: u.id, init: rollD20(rng).kept + u.initBonus, tie: u.initBonus }));
   rolled.sort((a, b) => b.init - a.init || b.tie - a.tie);
@@ -102,6 +106,8 @@ export function startCombat(
     actionUsed: false,
     outcome: 'ongoing',
     retreat,
+    bonusUsed: false,
+    potions,
     log: ['Roll for initiative! ' + rolled.map((r) => `${nameOf(units, r.id)} ${r.init}`).join(', ')],
   };
   beginTurn(state);
@@ -282,6 +288,7 @@ function beginTurn(state: CombatState): void {
   const u = activeUnit(state);
   state.movesLeft = u.speed;
   state.actionUsed = false;
+  state.bonusUsed = false;
   if (u.side === 'party') state.log.push(`▶ ${u.name}'s turn.`);
 }
 
@@ -549,4 +556,36 @@ function hasTargetInReach(state: CombatState): boolean {
       onField(t) &&
       ((t.side !== u.side && isUp(t)) || (t.side === u.side && isDown(t) && (!t.stable || !u.carrying))),
   );
+}
+
+/**
+ * Potion of Healing (SRD 5.2): as a Bonus Action, drink it or administer it
+ * to a creature within 5 feet; it regains 2d4 + 2 HP. A character at 0 HP who
+ * regains any HP wakes up (death saves reset).
+ */
+export function potionTargets(state: CombatState): Unit[] {
+  if (state.outcome !== 'ongoing' || state.bonusUsed || state.potions <= 0) return [];
+  const u = activeUnit(state);
+  if (u.side !== 'party' || !isUp(u)) return [];
+  return state.units.filter(
+    (t) => t.side === 'party' && !t.dead && onField(t) && t.hp < t.maxHp && (t === u || chebyshev(t, u) === 1),
+  );
+}
+
+export function usePotion(state: CombatState, rng: Rng, targetId: string): boolean {
+  const target = potionTargets(state).find((t) => t.id === targetId);
+  if (!target) return false;
+  const u = activeUnit(state);
+  const heal = rng.int(1, 4) + rng.int(1, 4) + 2;
+  const wasDown = target.hp <= 0;
+  target.hp = Math.min(target.maxHp, Math.max(0, target.hp) + heal);
+  if (wasDown) {
+    target.deathSaves = { successes: 0, failures: 0 };
+    target.stable = false;
+  }
+  state.potions -= 1;
+  state.bonusUsed = true;
+  const who = target === u ? `${u.name} drinks a Potion of Healing` : `${u.name} gives ${target.name} a Potion of Healing`;
+  state.log.push(`${who}: +${heal} HP (${target.hp}/${target.maxHp})${wasDown ? ` — ${target.name} is back on their feet!` : '.'}`);
+  return true;
 }

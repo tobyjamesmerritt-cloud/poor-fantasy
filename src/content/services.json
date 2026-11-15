@@ -1,0 +1,5 @@
+{
+  "_note": "Temple prices in copper. House rules for now: the SRD has no fixed temple price list, and Raise Dead's real cost (a 500 GP diamond) is out of reach for level-1 parties. Tune after playtesting.",
+  "healPerCharacter": 1000,
+  "raiseDead": 25000
+}

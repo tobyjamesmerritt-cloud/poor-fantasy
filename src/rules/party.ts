@@ -19,7 +19,7 @@ export interface MemberStats {
 export const levelOf = (m: MemberStats): number => m.level ?? 1;
 
 export function freshParty(stats: readonly MemberStats[]): PartyMemberState[] {
-  return stats.map((m) => ({ id: m.id, hp: m.hp, hitDice: levelOf(m), dead: false, wakesAt: null }));
+  return stats.map((m) => ({ id: m.id, hp: m.hp, hitDice: levelOf(m), dead: false, wakesAt: null, xp: 0 }));
 }
 
 /** Can act: alive and at least 1 HP. */
