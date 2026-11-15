@@ -717,15 +717,19 @@ button.danger {
   border-color: #e74c3c;
   color: #ff8a7d;
 }
+#save-dialog {
+  width: min(42rem, 94vw);
+  max-width: none;
+  overflow-x: hidden;
+}
 #save-slots {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  min-width: min(34rem, 80vw);
 }
 .slot {
   display: grid;
-  grid-template-columns: 6rem 1fr auto;
+  grid-template-columns: 5.5rem minmax(0, 1fr) auto;
   gap: 0.6rem;
   align-items: center;
   padding: 0.4rem;
