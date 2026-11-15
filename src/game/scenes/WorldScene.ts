@@ -15,7 +15,9 @@ import { SITE_RISK } from '../../rules/rest';
 import { rosterEntries } from '../partyView';
 import { loadTravelMap, type TiledMap } from '../../content/world';
 import { canStep, findPath, isBlocked, locationAt, type MapLocation, siteAt, type TravelMap, worldCampSite } from '../../rules/world';
-import { questData } from '../../content/quests';
+import { questData, wandering } from '../../content/quests';
+import { wanderingCheck, zoneAt } from '../../rules/wandering';
+import type { Rng } from '../../engine/rng';
 import { hooksAt, siteBlocks, siteIcon, siteVisible } from '../../rules/quests';
 import { formatClock, MINUTES } from '../../rules/time';
 import type { Hud } from '../../ui/hud';
@@ -32,6 +34,7 @@ export interface WorldSceneDeps {
   hud: Hud;
   game: GameState; // shared; the party's position lives here
   notices: string[]; // messages to show on arrival (fight results, rescues)
+  rng: Rng; // exploration dice (random encounters)
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -43,6 +46,7 @@ export class WorldScene extends Phaser.Scene {
   private log: string[] = [];
   private here: MapLocation | undefined;
   private cursor = '';
+  private zone = '';
 
   constructor() {
     super('world');
@@ -164,6 +168,14 @@ export class WorldScene extends Phaser.Scene {
       for (const name of passTime(this.deps.game.party, statsOf(this.deps.game.roster), this.deps.game.time)) this.log.push(`${name} comes round (1 HP).`);
       this.placeToken();
       this.showRoster();
+      // something out here may have noticed the party
+      const met = wanderingCheck(this.deps.game, this.map, this.pos.x, this.pos.y, wandering, this.deps.rng);
+      if (met) {
+        this.busy = false;
+        this.arrive(false);
+        this.deps.bus.dispatch({ type: 'wander', dialog: met.dialog, difficulty: met.difficulty, share: met.share });
+        return;
+      }
       // stop early when walking onto a location, or a site that does something
       if (i < path.length - 1 && (locationAt(this.map, this.pos.x, this.pos.y) || this.siteHere())) return next(path.length);
       this.time.delayedCall(90, () => next(i + 1));
@@ -233,10 +245,11 @@ export class WorldScene extends Phaser.Scene {
     }
     const loc = locationAt(this.map, this.pos.x, this.pos.y);
     if (loc && (announce || loc !== this.here)) this.log.push(`You arrive at ${loc.name}.`);
+    this.zone = zoneAt(this.map, this.pos.x, this.pos.y, wandering).name;
     this.here = loc;
     this.deps.hud.setLog(this.log);
     this.deps.hud.setStatus(
-      `World map · ${loc ? loc.name : 'Wilderness'} · (${this.pos.x}, ${this.pos.y}) · ${formatClock(this.deps.game.time)}`,
+      `World map · ${loc ? loc.name : `Wilderness — ${this.zone}`} · (${this.pos.x}, ${this.pos.y}) · ${formatClock(this.deps.game.time)}`,
     );
     if (!loc) return this.deps.hud.setPlace(null);
 

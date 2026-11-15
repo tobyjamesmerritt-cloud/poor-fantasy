@@ -17,7 +17,8 @@ export type Command =
   | { type: 'flee' } // leave the battle from a map-edge square
   | { type: 'usePotion'; targetId: string } // Potion of Healing: drink or give (Bonus Action)
   | { type: 'undo' } // rewind one player action (debug now; patron-god mechanic later, DND-27)
-  | { type: 'fight'; encounter: string; origin?: string } // start an encounter (origin = map location id)
+  | { type: 'fight'; encounter: string; origin?: string; confirmed?: boolean } // start an encounter (origin = map location id; confirmed = past the wounded warning)
+  | { type: 'wander'; dialog: string; difficulty: 'low' | 'moderate' | 'high'; share: number } // a random encounter found the party on the world map
   | { type: 'newFight' } // rerun the current encounter with fresh dice
   | { type: 'restart' } // restart the current fight with the same dice
   | { type: 'worldMap' } // go to the world map

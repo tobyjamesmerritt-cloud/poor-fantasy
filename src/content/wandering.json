@@ -1,0 +1,38 @@
+{
+  "_note": "Random encounters on the world map (rules/wandering.ts, house rules). chance = per step off the road, roadChance = on roads and bridges, grace = quiet steps after an encounter. Zones by distance (squares) to the nearest town, cave, ruin or quest site, hidden ones included; the first zone that fits wins. Each zone picks one of its dialogs (quests.json) and sets the fight's difficulty. share = most monsters as a share of the party size (1 = one per character).",
+  "chance": 0.08,
+  "roadChance": 0.03,
+  "grace": 6,
+  "zones": [
+    {
+      "name": "near a settlement",
+      "within": 4,
+      "difficulty": "low",
+      "dialogs": [
+        "wander-rats",
+        "wander-bats"
+      ],
+      "share": 0.5
+    },
+    {
+      "name": "the wilds",
+      "within": 9,
+      "difficulty": "moderate",
+      "dialogs": [
+        "wander-rats",
+        "wander-bats",
+        "wander-spiders"
+      ],
+      "share": 0.75
+    },
+    {
+      "name": "the deep wilds",
+      "difficulty": "high",
+      "dialogs": [
+        "wander-bats",
+        "wander-spiders"
+      ],
+      "share": 1
+    }
+  ]
+}

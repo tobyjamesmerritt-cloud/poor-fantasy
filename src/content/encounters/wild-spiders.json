@@ -1,0 +1,45 @@
+{
+  "_note": "Random encounter: Giant Wolf Spiders. Difficulty comes from the zone.",
+  "id": "wild-spiders",
+  "width": 12,
+  "height": 9,
+  "floor": "meadow-grass",
+  "partyLevel": 1,
+  "partyStart": [
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 4
+    },
+    {
+      "x": 1,
+      "y": 6
+    },
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 0,
+      "y": 4
+    }
+  ],
+  "enemies": [],
+  "scaling": {
+    "difficulty": "low",
+    "filler": {
+      "monsters": [
+        "giant-wolf-spider"
+      ],
+      "min": 1,
+      "max": 4
+    }
+  }
+}

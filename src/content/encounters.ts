@@ -24,6 +24,9 @@ import shrineCrypt from './encounters/shrine-crypt.json';
 import oldShack from './encounters/old-shack.json';
 import trollBridge from './encounters/troll-bridge.json';
 import trollRats from './encounters/troll-rats.json';
+import wildRats from './encounters/wild-rats.json';
+import wildBats from './encounters/wild-bats.json';
+import wildSpiders from './encounters/wild-spiders.json';
 import locationsRaw from './locations.json';
 import monstersRaw from './monsters.json';
 
@@ -72,6 +75,7 @@ export interface FightContext {
   partySize: number;
   level: number;
   difficulty?: Difficulty;
+  share?: number; // most monsters as a share of the party size (random encounters near towns: fewer)
 }
 
 /** The concrete monsters for this party. Fixed encounters come back unchanged. */
@@ -84,7 +88,8 @@ export function resolveEncounter(e: EncounterDef, ctx: FightContext = { partySiz
   const avg = s.filler.monsters.reduce((sum, id) => sum + xpOf(id), 0) / Math.max(1, s.filler.monsters.length);
   const budget = fightBudget(ctx.partySize, ctx.level, ctx.difficulty ?? s.difficulty);
   // House rule: never more monsters than the party has characters (action economy hurts most at low levels).
-  const n = Math.min(fillerCount(budget, fixedXp, avg, s.filler.min, s.filler.max), Math.max(0, ctx.partySize - fixed.length));
+  const cap = Math.max(1, Math.round(ctx.partySize * Math.min(1, ctx.share ?? 1)));
+  const n = Math.min(fillerCount(budget, fixedXp, avg, s.filler.min, s.filler.max), Math.max(0, cap - fixed.length));
   const spots = fillerSquares(e.width, e.height, [...fixed, ...e.partyStart], n);
   return { ...e, enemies: [...fixed, ...spots.map((p, i) => ({ monster: s.filler.monsters[i % s.filler.monsters.length], ...p }))] };
 }
@@ -247,7 +252,7 @@ export function buildUnits(
 
 /** All encounters by id; each is built once at load so mistakes fail at startup. */
 export const encounters: Record<string, EncounterDef> = Object.fromEntries(
-  [caveRats, ruinsCrawlers, ambushWilds, ambushDark, shrineNave, shrineCrypt, oldShack, trollBridge, trollRats].map((raw) => {
+  [caveRats, ruinsCrawlers, ambushWilds, ambushDark, shrineNave, shrineCrypt, oldShack, trollBridge, trollRats, wildRats, wildBats, wildSpiders].map((raw) => {
     const e = strip<EncounterDef>(raw);
     buildUnits(resolveEncounter(e)); // the default party…
     if (e.scaling) buildUnits(resolveEncounter(e, { partySize: 6, level: 7, difficulty: 'high' })); // …and the most monsters it can get

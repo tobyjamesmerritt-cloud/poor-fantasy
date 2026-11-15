@@ -20,14 +20,18 @@ const partyAt = (level: number) =>
   membersOf(pregens.map((p) => ({ ...p, level, hpGains: Array.from({ length: level - 1 }, () => averageHitDie(characterData.classes[p.classId].hitDie)) })));
 
 // Every encounter at level 1 and level 3 (scaled to the party: 6 characters → budget for 5), plus the drunk troll.
-const runs: { id: string; level: number; tweaks?: FightTweaks; label?: string }[] = [
+const runs: { id: string; level: number; tweaks?: FightTweaks; label?: string; difficulty?: 'low' | 'moderate' | 'high'; share?: number }[] = [
   ...Object.keys(encounters).flatMap((id) => [1, 3].map((level) => ({ id, level }))),
   { id: 'troll-bridge', level: 3, tweaks: { troll: { fumble: 0.75 } }, label: 'troll (ale)' },
+  // random encounters at the zone difficulties a level-1 party meets (wandering.json)
+  ...(['wild-rats', 'wild-bats', 'wild-spiders'] as const).flatMap((id) =>
+    ([['low', 0.5], ['moderate', 0.75], ['high', 1]] as const).map(([difficulty, share]) => ({ id, level: 1, difficulty, share, label: `${id} ${difficulty}` })),
+  ),
 ];
 
 for (const r of runs) it(`balance: ${r.label ?? r.id} L${r.level}`, () => {
   const N = 300;
-  const def = resolveEncounter(encounters[r.id], { partySize: 6, level: r.level });
+  const def = resolveEncounter(encounters[r.id], { partySize: 6, level: r.level, difficulty: r.difficulty, share: r.share });
   const members = partyAt(r.level);
   let wins = 0, dead = 0, down = 0, rounds = 0;
   for (let seed = 0; seed < N; seed++) {
@@ -53,7 +57,7 @@ for (const r of runs) it(`balance: ${r.label ?? r.id} L${r.level}`, () => {
     down += party.filter(isDown).length;
   }
   console.log(
-    `${(r.label ?? r.id).padEnd(15)} L${r.level} XP ${String(encounterXp(def)).padStart(4)} · bot win ${((100 * wins) / N).toFixed(0)}% · ` +
+    `${(r.label ?? r.id).padEnd(21)} L${r.level} XP ${String(encounterXp(def)).padStart(4)} · bot win ${((100 * wins) / N).toFixed(0)}% · ` +
       `avg rounds ${(rounds / N).toFixed(1)} · avg dead ${(dead / N).toFixed(2)} · avg down at end ${(down / N).toFixed(2)}`,
   );
 });

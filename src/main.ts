@@ -197,13 +197,48 @@ let talkNotes: string[] = []; // what happened in it, for the log afterwards
 let questFight: { onWin: Action[]; onLose: Action[]; onFlee: Action[] } | null = null; // what the current fight decides
 let fightDifficulty: Difficulty | undefined; // a quest's override of the encounter's difficulty
 let fightTweaks: FightTweaks | undefined;
+let wanderDifficulty: Difficulty | undefined; // a random encounter's zone difficulty, while its dialog is open
+let wanderShare = 1; // …and how many monsters it may bring, as a share of the party
+let fightShare: number | undefined;
+
+/** Why the party shouldn't pick a fight right now (null = they're fit): anyone down or dead, or under half HP. */
+function partyHurt(): string | null {
+  const stats = statsOf(gameState.roster);
+  let hp = 0;
+  let max = 0;
+  let down = 0;
+  let dead = 0;
+  for (const p of gameState.party) {
+    const s = stats.find((x) => x.id === p.id);
+    if (!s) continue;
+    if (p.dead) dead++;
+    else if (p.hp <= 0) down++;
+    hp += Math.max(0, p.dead ? 0 : p.hp);
+    max += s.hp;
+  }
+  if (!down && !dead && hp >= max / 2) return null;
+  const parts = [`${hp}/${max} HP`, down && `${down} unconscious`, dead && `${dead} dead`].filter(Boolean).join(', ');
+  return `Your party is in poor shape (${parts}). A long rest at an inn — or the temple — would help before this fight.`;
+}
+
+/** Ask before a fight when the party is hurt; `go` runs if they fight anyway. */
+function warnIfHurt(go: () => void, onBackOff: () => void): void {
+  const why = partyHurt();
+  if (!why) return go();
+  void confirmDialog({ title: 'Fight now?', text: why, ok: 'Fight anyway', cancel: 'Not yet' }).then((yes) => (yes ? go() : onBackOff()));
+}
 const qctx = () => questContext(exploreRng);
 
 /** Who fights: party members who aren't dead, and their average level (rules/scaling.ts). */
 function fightContext() {
   const alive = gameState.party.filter((p) => !p.dead);
   const levels = alive.map((p) => gameState.roster.find((r) => r.id === p.id)?.level ?? 1);
-  return { partySize: alive.length, level: levels.reduce((a, b) => a + b, 0) / Math.max(1, levels.length), difficulty: fightDifficulty };
+  return {
+    partySize: alive.length,
+    level: levels.reduce((a, b) => a + b, 0) / Math.max(1, levels.length),
+    difficulty: fightDifficulty,
+    share: fightShare,
+  };
 }
 
 function talkView(results: string[]): TalkView {
@@ -266,6 +301,7 @@ function questOutcome(r: ActionResult): void {
 /** Close the conversation; its results go to the log of the place you're in. */
 function endTalk(redraw: boolean): void {
   talk = null;
+  if (redraw) wanderDifficulty = undefined; // closed without a fight (slipped away)
   talkDialog.close();
   notices.push(...talkNotes);
   talkNotes = [];
@@ -290,16 +326,30 @@ function runHook(index: number, at?: string): void {
   }
 }
 
-function startQuestFight(f: Extract<Request, { kind: 'fight' }>): void {
+function startQuestFight(f: Extract<Request, { kind: 'fight' }>, confirmed = false): void {
   if (!gameState.party.some(isConscious)) {
     notices.push('Nobody in the party can fight right now — rest first.');
     refreshScreen();
     return;
   }
+  const zone = wanderDifficulty;
+  // a random encounter can't be put off; a quest fight can
+  if (!zone && !confirmed) {
+    warnIfHurt(
+      () => startQuestFight(f, true),
+      () => {
+        notices.push('You decide to come back when the party is fit to fight.');
+        refreshScreen();
+      },
+    );
+    return;
+  }
+  wanderDifficulty = undefined;
   questFight = { onWin: f.onWin, onLose: f.onLose, onFlee: f.onFlee };
   encounter = f.encounter;
   origin = undefined;
-  fightDifficulty = f.difficulty;
+  fightDifficulty = f.difficulty ?? zone;
+  fightShare = zone ? wanderShare : undefined;
   fightTweaks = f.tweaks;
   seed = randomSeed();
   show('combat');
@@ -458,7 +508,7 @@ function show(key: SceneKey): void {
     notices.push(...runTriggers(gameState, qctx()).log); // e.g. the last shrine fight just won
     if (key === 'location') data = { bus, hud, game: gameState, locationId, notices: take() };
     else if (key === 'camp') data = { bus, hud, game: gameState, site: campSite!, rng: exploreRng, notices: take() };
-    else data = { bus, hud, game: gameState, notices: take() };
+    else data = { bus, hud, game: gameState, rng: exploreRng, notices: take() };
   }
   layoutFor(key);
   let running = false;
@@ -500,12 +550,22 @@ bus.subscribe((cmd) => {
         hud.setStatus('Nobody in the party can fight right now — rest first.');
         break;
       }
+      // a dungeon fight (it has an origin) can wait if the party is hurt; ambushes can't
+      if (cmd.type === 'fight' && cmd.origin && !cmd.confirmed && partyHurt()) {
+        const again = { ...cmd, confirmed: true };
+        warnIfHurt(
+          () => bus.dispatch(again),
+          () => hud.setStatus('You hold back. Rest, then come back to fight.'),
+        );
+        break;
+      }
       if (cmd.type === 'fight') {
         encounter = cmd.encounter;
         origin = cmd.origin;
         questFight = null;
         fightDifficulty = undefined;
         fightTweaks = undefined;
+        fightShare = undefined;
       }
       seed = randomSeed();
       delete gameState.flags[PREPARE_FLAG];
@@ -538,6 +598,12 @@ bus.subscribe((cmd) => {
     }
     case 'hook':
       runHook(cmd.index);
+      break;
+    case 'wander':
+      if (talk) break;
+      wanderDifficulty = cmd.difficulty;
+      wanderShare = cmd.share;
+      startDialog(cmd.dialog);
       break;
     case 'atSite': {
       const h = hooksAt(gameState, questData, `site:${cmd.site}`)[0];

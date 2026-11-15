@@ -45,3 +45,14 @@ export function checkRoller(sheet: CharacterSheet, ability: Ability, skill?: str
   const proficient = !!skill && characterData.backgrounds[sheet.backgroundId].skills.includes(skill);
   return { name: sheet.name, bonus: Math.floor((d.scores[ability] - 10) / 2) + (proficient ? proficiencyBonus(sheet.level) : 0), proficient };
 }
+
+// Random encounters on the world map (rules/wandering.ts)
+import wanderingRaw from './wandering.json';
+import type { WanderingConfig } from '../rules/wandering';
+
+export const wandering: WanderingConfig = strip<WanderingConfig>(wanderingRaw);
+{
+  const bad = wandering.zones.flatMap((z) => z.dialogs.filter((d) => !questData.dialogs[d]).map((d) => `zone "${z.name}": unknown dialog "${d}"`));
+  if (!wandering.zones.length || wandering.zones[wandering.zones.length - 1].within !== undefined) bad.push('the last zone must have no "within" (it covers the rest of the map)');
+  if (bad.length) throw new Error('Invalid wandering.json:\n- ' + bad.join('\n- '));
+}

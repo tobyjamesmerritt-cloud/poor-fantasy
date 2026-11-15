@@ -35,6 +35,57 @@
   },
 
   "dialogs": {
+    "wander-rats": {
+      "entry": [{ "node": "meet" }],
+      "nodes": {
+        "meet": {
+          "text": "Squealing erupts from the long grass. A pack of giant rats, mangy and bold, comes boiling toward you.",
+          "choices": [
+            { "text": "Fight!", "do": [{ "fight": "wild-rats" }] },
+            { "text": "Try to slip away.", "check": { "ability": "dex", "skill": "Stealth", "dc": 12, "pass": "slipped", "fail": "caught" } }
+          ]
+        },
+        "slipped": { "text": "You melt back into cover and wait. After a while they lose interest and move on." },
+        "caught": {
+          "text": "A twig snaps underfoot. They've seen you — no way out now.",
+          "choices": [{ "text": "Fight!", "do": [{ "fight": "wild-rats" }] }]
+        }
+      }
+    },
+    "wander-bats": {
+      "entry": [{ "node": "meet" }],
+      "nodes": {
+        "meet": {
+          "text": "Leathery wings beat overhead. Giant bats swoop down out of the trees, and something scurries in the undergrowth below.",
+          "choices": [
+            { "text": "Fight!", "do": [{ "fight": "wild-bats" }] },
+            { "text": "Try to slip away.", "check": { "ability": "dex", "skill": "Stealth", "dc": 12, "pass": "slipped", "fail": "caught" } }
+          ]
+        },
+        "slipped": { "text": "You melt back into cover and wait. After a while they lose interest and move on." },
+        "caught": {
+          "text": "A twig snaps underfoot. They've seen you — no way out now.",
+          "choices": [{ "text": "Fight!", "do": [{ "fight": "wild-bats" }] }]
+        }
+      }
+    },
+    "wander-spiders": {
+      "entry": [{ "node": "meet" }],
+      "nodes": {
+        "meet": {
+          "text": "A web glistens between two trunks — and then its owners move. Giant wolf spiders, big as dogs, come skittering out.",
+          "choices": [
+            { "text": "Fight!", "do": [{ "fight": "wild-spiders" }] },
+            { "text": "Try to slip away.", "check": { "ability": "dex", "skill": "Stealth", "dc": 12, "pass": "slipped", "fail": "caught" } }
+          ]
+        },
+        "slipped": { "text": "You melt back into cover and wait. After a while they lose interest and move on." },
+        "caught": {
+          "text": "A twig snaps underfoot. They've seen you — no way out now.",
+          "choices": [{ "text": "Fight!", "do": [{ "fight": "wild-spiders" }] }]
+        }
+      }
+    },
     "reeve": {
       "entry": [
         { "when": { "quest": "rats", "stage": "none" }, "node": "hello" },
