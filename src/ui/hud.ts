@@ -72,7 +72,7 @@ export interface PartyRow {
 
 export interface ExplorePanel {
   title: string; // location name
-  party: readonly PartyRow[];
+  party: readonly RosterEntry[];
   where: string; // "13,7 W"
   clock: string; // "Day 1 · 16:07"
   purse: string; // "60 gp"
@@ -81,7 +81,7 @@ export interface ExplorePanel {
 export interface CampPanel {
   title: string;
   subtitle: string;
-  party: readonly PartyRow[];
+  party: readonly RosterEntry[];
   purse: string;
   clock: string;
   actions: { label: string; command: Command; disabledReason?: string }[];
@@ -281,7 +281,7 @@ export class Hud {
     };
     this.cardEl.replaceChildren(
       el('div', 'explore-title', panel.title),
-      partyTable(panel.party, 'ac', this.bus),
+      rosterList(panel.party, this.bus),
       el('div', 'explore-where', el('span', '', panel.where), el('span', '', panel.clock), el('span', 'purse', panel.purse)),
       el(
         'div',
@@ -308,7 +308,7 @@ export class Hud {
     this.cardEl.replaceChildren(
       el('div', 'explore-title', panel.title),
       el('div', 'muted small', panel.subtitle),
-      partyTable(panel.party, 'hd', this.bus),
+      rosterList(panel.party, this.bus),
       el('div', 'explore-where', el('span', '', panel.clock), el('span', 'purse', panel.purse)),
       el(
         'div',
@@ -364,27 +364,7 @@ export class Hud {
     }
     this.cardEl.replaceChildren(
       el('div', 'name party', partyName),
-      el(
-        'div',
-        'roster',
-        ...entries.map((e) => {
-          const pct = Math.round((e.hp / e.maxHp) * 100);
-          const fill = el('div', pct > 50 ? 'fill ok' : pct > 25 ? 'fill warn' : 'fill bad');
-          fill.style.width = `${pct}%`;
-          return el(
-            'div',
-            'roster-row',
-            portrait(e.sprite, 32),
-            el(
-              'div',
-              e.state === 'dead' ? 'muted' : '',
-              nameButton(e.name, e.id, this.bus),
-              `${e.cls ? ` (${e.cls})` : ''}  ${e.state === 'dead' ? 'dead' : e.state === 'out' ? `${e.hp}/${e.maxHp} · unconscious` : `${e.hp}/${e.maxHp}`}`,
-              el('div', 'bar', fill),
-            ),
-          );
-        }),
-      ),
+      rosterList(entries, this.bus),
       ...extra,
     );
   }
@@ -428,20 +408,27 @@ function nameButton(name: string, id: string, bus: CommandBus): HTMLElement {
   return b;
 }
 
-function partyTable(rows: readonly PartyRow[], extra: 'ac' | 'hd', bus: CommandBus): HTMLElement {
+/** The party as the world map shows it: portrait, name (class), HP and a bar — the same in every panel. */
+function rosterList(entries: readonly RosterEntry[], bus: CommandBus): HTMLElement {
   return el(
-    'table',
-    'party-table',
-    el('tr', '', el('th', '', 'Name'), el('th', 'num', extra === 'ac' ? 'AC' : 'HD'), el('th', 'num', 'HP')),
-    ...rows.map((p) => {
-      const pct = Math.round((p.hp / p.maxHp) * 100);
-      const hpText = p.state === 'dead' ? 'dead' : p.state === 'out' ? `${p.hp} ✚` : String(p.hp);
+    'div',
+    'roster',
+    ...entries.map((e) => {
+      const pct = Math.max(0, Math.round((e.hp / e.maxHp) * 100));
+      const fill = el('div', pct > 50 ? 'fill ok' : pct > 25 ? 'fill warn' : 'fill bad');
+      fill.style.width = `${pct}%`;
+      const hp = e.state === 'dead' ? 'dead' : e.state === 'out' ? `${e.hp}/${e.maxHp} · unconscious` : `${e.hp}/${e.maxHp}`;
       return el(
-        'tr',
-        p.state === 'dead' ? 'muted' : '',
-        el('td', 'name party', nameButton(p.name, p.id, bus)),
-        el('td', 'num', extra === 'ac' ? String(p.ac ?? '') : (p.hitDice ?? '')),
-        el('td', `num ${p.state !== 'ok' ? 'bad' : pct > 50 ? 'ok' : pct > 25 ? 'warn' : 'bad'}`, hpText),
+        'div',
+        'roster-row',
+        portrait(e.sprite, 32),
+        el(
+          'div',
+          e.state === 'dead' ? 'muted' : '',
+          nameButton(e.name, e.id, bus),
+          `${e.cls ? ` (${e.cls})` : ''}  ${hp}`,
+          el('div', 'bar', fill),
+        ),
       );
     }),
   );

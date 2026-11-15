@@ -21,7 +21,7 @@ export function partyRows(game: GameState): PartyRow[] {
   });
 }
 
-export function rosterEntries(textures: Phaser.Textures.TextureManager, game: GameState): RosterEntry[] {
+export function rosterEntries(textures: Phaser.Textures.TextureManager, game: GameState): (RosterEntry & PartyRow)[] {
   const rows = partyRows(game);
   return game.roster.map((p, i) => ({ ...rows[i], sprite: spriteCss(textures, p.sprite), cls: className(p) }));
 }

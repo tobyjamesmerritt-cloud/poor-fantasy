@@ -40,7 +40,7 @@ import servicesRaw from '../../content/services.json';
 
 const templePrices = servicesRaw as unknown as TemplePrices;
 import { SITE_RISK } from '../../rules/rest';
-import { partyRows } from '../partyView';
+import { rosterEntries } from '../partyView';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
 import { preloadSheets } from '../spriteCss';
@@ -394,7 +394,7 @@ export class LocationScene extends Phaser.Scene {
     this.deps.hud.setStatus(`${this.name} · ${where} · ${clock}`);
     this.deps.hud.setExplore({
       title: this.name,
-      party: partyRows(game),
+      party: rosterEntries(this.textures, game),
       where,
       clock,
       purse: formatCoins(game.coins),

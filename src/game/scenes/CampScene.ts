@@ -9,7 +9,7 @@ import type { Rng } from '../../engine/rng';
 import type { GameState } from '../../engine/state';
 import { assets } from '../../content/assets';
 import { characterData, membersOf, statsOf } from '../../content/characters';
-import { partyRows } from '../partyView';
+import { rosterEntries } from '../partyView';
 import { formatCoins } from '../../rules/party';
 import { type CampSite, canRest, innCost, isInn, rest, type RestKind } from '../../rules/rest';
 import { formatClock } from '../../rules/time';
@@ -157,7 +157,7 @@ export class CampScene extends Phaser.Scene {
     this.deps.hud.setCamp({
       title: isInn(site) ? site.name : SITE_TITLE[site.kind],
       subtitle: isInn(site) ? 'Safe — no ambushes in town' : `Free, but risky (${Math.round(site.risk * 100)}% ambush chance overnight)`,
-      party: partyRows(g),
+      party: rosterEntries(this.textures, g),
       purse: formatCoins(g.coins),
       clock: formatClock(g.time),
       actions: [
