@@ -77,6 +77,27 @@ describe('movement', () => {
     expect(s.actionUsed).toBe(true);
     expect(turnExhausted(s)).toBe(true);
   });
+
+  it('auto end turn: after acting even with movement left; without moves only if nothing is in reach', () => {
+    const rng = createRng(9);
+    const s = startCombat(rng, 10, 10, [
+      makeUnit({ id: 'a', side: 'party', x: 0, y: 0, speed: 6, initBonus: 99 }),
+      makeUnit({ id: 'z', side: 'enemy', x: 2, y: 0, ac: 1, hp: 50, initBonus: -99 }),
+    ]);
+    expect(turnExhausted(s)).toBe(false); // fresh turn
+    step(s, rng, 'e'); // move next to the enemy
+    expect(turnExhausted(s)).toBe(false); // can still attack
+    s.movesLeft = 0;
+    expect(turnExhausted(s)).toBe(false); // no moves, but an enemy is in reach
+    step(s, rng, 'e'); // attack
+    expect(s.actionUsed).toBe(true);
+    s.movesLeft = 4;
+    expect(turnExhausted(s)).toBe(true); // acted: movement left is given up
+    s.actionUsed = false;
+    s.movesLeft = 0;
+    s.units.find((u) => u.id === 'z')!.x = 6; // enemy out of reach
+    expect(turnExhausted(s)).toBe(true);
+  });
 });
 
 describe('Pack Tactics (SRD 5.2)', () => {

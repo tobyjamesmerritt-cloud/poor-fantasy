@@ -396,9 +396,25 @@ export function planMoveTo(state: CombatState, x: number, y: number): Direction[
 }
 
 /**
- * True when the active unit has nothing meaningful left this turn, so the UI
- * can end the turn automatically. Grows with DND-10 (bonus actions etc.).
+ * True when the active unit's turn should hand over automatically (the
+ * "End turn automatically" preference): it has used its action — Gold Box
+ * style, acting ends the turn and any movement left is given up — or it has
+ * no movement left and nothing in reach to act on. Grows with DND-10
+ * (bonus actions etc.).
  */
 export function turnExhausted(state: CombatState): boolean {
-  return state.outcome === 'ongoing' && state.actionUsed && state.movesLeft <= 0;
+  if (state.outcome !== 'ongoing') return false;
+  if (state.actionUsed) return true;
+  return state.movesLeft <= 0 && !hasTargetInReach(state);
+}
+
+/** Something the active unit could use its action on right now: an adjacent enemy, or a dying ally to stabilise. */
+function hasTargetInReach(state: CombatState): boolean {
+  const u = activeUnit(state);
+  return state.units.some(
+    (t) =>
+      t !== u &&
+      chebyshev(t, u) === 1 &&
+      ((t.side !== u.side && isUp(t)) || (t.side === u.side && isDown(t) && !t.stable && !t.dead)),
+  );
 }
