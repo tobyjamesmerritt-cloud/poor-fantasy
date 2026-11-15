@@ -19,7 +19,7 @@ import { characterData, checkSheet, derive, membersOf, pregens, startingCoins, s
 import { roll4d6DropLowest, startingCopper } from './rules/character';
 import { PartyScreen } from './ui/partyScreen';
 import { ShopScreen } from './ui/shopScreen';
-import { buy, equip, sell, unequip } from './rules/items';
+import { buy, equip, sell, unequip, useItem } from './rules/items';
 import { loadSheetSizes, spriteCssFromSizes } from './game/spriteCss';
 import type { CombatState } from './rules/combat';
 import { afterCombat, afterDefeat, combatMinutes, formatCoins, freshParty, isConscious } from './rules/party';
@@ -28,6 +28,7 @@ import { canLevelUp, levelUp } from './rules/levelling';
 import { describeTreasure, treasure } from './content/treasure';
 import { addCharacter, benchMember, deleteCharacter, joinParty, restoreAll, useReadyMade } from './rules/roster';
 import { SpellsDialog } from './ui/spellsDialog';
+import { PackDialog } from './ui/packDialog';
 import { castOutside } from './rules/spells';
 import { spendHitDice } from './rules/rest';
 import { TalkDialog, type TalkView } from './ui/talkDialog';
@@ -183,6 +184,7 @@ document.getElementById('menu-new-game')!.addEventListener('click', () => {
 
 const shopScreen = new ShopScreen(bus);
 const spellsDialog = new SpellsDialog(bus);
+const packDialog = new PackDialog(bus);
 
 // ---------------------------------------------------------------------------
 // Quests (rules/quests.ts + content/quests.json): conversations, hooks, quest fights
@@ -708,7 +710,33 @@ bus.subscribe((cmd) => {
       // HP max doesn't depend on gear today, but keep current HP within the maximum if it ever does
       const st = gameState.party.find((p) => p.id === sheet.id);
       if (st) st.hp = Math.min(st.hp, derive(sheet).hp || before);
-      shopScreen.refresh(err ?? '');
+      persistLibrary(); // gear lives on the character sheet
+      if (packDialog.open) {
+        packDialog.refresh(err ?? `${sheet.name}: ${cmd.type === 'equipItem' ? 'equipped' : 'removed'}.`);
+        refreshScreen();
+      } else shopScreen.refresh(err ?? '');
+      break;
+    }
+    case 'openPack':
+      if (document.body.dataset.mode === 'combat') {
+        hud.setStatus('In a fight, potions are on each character’s card (Bonus Action).');
+        break;
+      }
+      packDialog.show(gameState);
+      break;
+    case 'useItem': {
+      if (document.body.dataset.mode === 'combat') break;
+      const stats = statsOf(gameState.roster);
+      const target = cmd.targetId ? gameState.party.find((p) => p.id === cmd.targetId) : undefined;
+      const r = useItem(gameState.inventory, cmd.ref, target, stats.find((s) => s.id === cmd.targetId), exploreRng, characterData);
+      if (typeof r === 'string') {
+        packDialog.refresh(r);
+        break;
+      }
+      gameState.time += 1;
+      notices.push(...r.log);
+      refreshScreen();
+      packDialog.refresh(r.log.join(' '));
       break;
     }
     case 'debug': {

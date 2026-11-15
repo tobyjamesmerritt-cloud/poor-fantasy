@@ -4,10 +4,10 @@ import { createRng } from '../src/engine/rng';
 import { makeSave, parseSave } from '../src/engine/save';
 import { newGameState, SAVE_VERSION } from '../src/engine/state';
 import { startCombat } from '../src/rules/combat';
-import { buy, equip, equipProblem, type Purse, sell, sellPrice, unequip } from '../src/rules/items';
+import { buy, equip, equipProblem, type Purse, sell, sellPrice, unequip, useItem } from '../src/rules/items';
 import { freshParty } from '../src/rules/party';
 import { awardXp, nextLevelXp, takeTreasure } from '../src/rules/rewards';
-import { makeUnit } from './helpers';
+import { makeUnit, scripted } from './helpers';
 
 const purse = (coins = 10000): Purse => ({ coins, inventory: {} });
 
@@ -144,5 +144,27 @@ describe('temple (house prices)', () => {
     expect(party[2]).toMatchObject({ dead: false, hp: 1 });
     expect(purse.coins).toBe(4000);
     expect(templeRaise({ coins: 10 }, { ...party[2], dead: true }, prices)).toMatch(/afford/);
+  });
+});
+
+describe('using items outside a fight', () => {
+  it('a Potion of Healing heals 2d4 + 2 and wakes the unconscious; it is used up', () => {
+    const inv: Record<string, number> = { 'consumable:potion-of-healing': 1, 'consumable:ale': 1 };
+    const p = { id: 'a', hp: 0, hitDice: 1, dead: false, wakesAt: 120 };
+    const r = useItem(inv, 'consumable:potion-of-healing', p, { name: 'Aldric', hp: 12 }, scripted([2, 3]), characterData);
+    expect(r).toEqual({ log: ['Aldric drinks Potion of Healing and regains 7 HP (7/12) — back on their feet!'] });
+    expect(p).toMatchObject({ hp: 7, wakesAt: null });
+    expect(inv['consumable:potion-of-healing']).toBeUndefined();
+    expect(useItem(inv, 'consumable:potion-of-healing', p, { name: 'Aldric', hp: 12 }, scripted([]), characterData)).toMatch(/isn’t in the pack/);
+  });
+
+  it('refuses the dead and the unhurt; ale is just drunk', () => {
+    const inv: Record<string, number> = { 'consumable:potion-of-healing': 2, 'consumable:ale': 1 };
+    const full = { id: 'a', hp: 12, hitDice: 1, dead: false, wakesAt: null };
+    expect(useItem(inv, 'consumable:potion-of-healing', full, { name: 'A', hp: 12 }, scripted([]), characterData)).toMatch(/isn’t hurt/);
+    expect(useItem(inv, 'consumable:potion-of-healing', { ...full, dead: true, hp: 0 }, { name: 'A', hp: 12 }, scripted([]), characterData)).toMatch(/beyond/);
+    expect(inv['consumable:potion-of-healing']).toBe(2);
+    expect(useItem(inv, 'consumable:ale', undefined, undefined, scripted([]), characterData)).toMatchObject({ log: [expect.stringMatching(/The party drinks/)] });
+    expect(inv['consumable:ale']).toBeUndefined();
   });
 });

@@ -56,6 +56,8 @@ export type Command =
   | { type: 'confirm' }
   | { type: 'aimSpell'; spellId: string; slot: number } // combat: pick targets on the grid next (cantrips: slot 0)
   | { type: 'openSpells' } // spells dialog (camp, party screen)
+  | { type: 'openPack' } // the party pack (anywhere outside a fight)
+  | { type: 'useItem'; ref: string; targetId?: string } // drink a potion / ale from the pack
   | { type: 'hook'; index: number } // a quest hook's button (index into quests.json hooks)
   | { type: 'atSite'; site: string } // the party reached (or bumped into) a world-map site
   | { type: 'talkChoice'; index: number; characterId?: string } // a conversation choice (skill checks: who tries)

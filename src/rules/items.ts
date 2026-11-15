@@ -5,8 +5,9 @@
  * "misc:<id>" (quest items). Equipment sells for half its cost (SRD 5.2
  * "Selling Equipment"); quest items can't be sold.
  */
+import { roll } from '../engine/dice';
 import type { Rng } from '../engine/rng';
-import type { CharacterSheet } from '../engine/state';
+import type { CharacterSheet, PartyMemberState } from '../engine/state';
 import { type CharacterData, equipped, trainedWithArmor, trainedWithWeapon, weaponDef } from './character';
 
 /** Spell Scroll value (SRD 5.2): twice the scribing cost — cantrip 30 GP, 1st 50, 2nd 200, 3rd 300. */
@@ -151,3 +152,40 @@ export function unequip(sheet: CharacterSheet, p: Purse, slot: 'armor' | 'shield
 /** The weapon ids a character could carry (for the trained check in the shop). */
 export const weaponTrained = (sheet: CharacterSheet, id: string, data: CharacterData): boolean =>
   trainedWithWeapon(data.classes[sheet.classId], weaponDef(data, id)!);
+
+/**
+ * Use a consumable from the pack outside a fight. A Potion of Healing (SRD 5.2:
+ * regain 2d4 + 2 HP) can be drunk by a conscious character or given to an
+ * unconscious one, who wakes up; ale is drunk for the pleasure of it.
+ * Returns log lines, or an error string.
+ */
+export function useItem(
+  inventory: Inventory,
+  ref: ItemRef,
+  target: PartyMemberState | undefined,
+  targetStats: { name: string; hp: number } | undefined,
+  rng: Rng,
+  data: CharacterData,
+): { log: string[] } | string {
+  if (!inventory[ref]) return 'That isn’t in the pack.';
+  const [kind, id] = ref.split(':');
+  const def = kind === 'consumable' ? data.consumables[id] : undefined;
+  if (!def) return 'That can’t be used here.';
+  if (def.heal) {
+    if (!target || !targetStats) return 'Choose who drinks it.';
+    if (target.dead) return `${targetStats.name} is beyond a potion’s help.`;
+    if (target.hp >= targetStats.hp) return `${targetStats.name} isn’t hurt.`;
+    const amount = Math.max(0, roll(rng, def.heal).total);
+    const before = Math.max(0, target.hp);
+    target.hp = Math.min(targetStats.hp, before + amount);
+    if (before <= 0 && target.hp > 0) target.wakesAt = null;
+    add(inventory, ref, -1);
+    return { log: [`${targetStats.name} drinks ${def.name} and regains ${target.hp - before} HP (${target.hp}/${targetStats.hp})${before <= 0 ? ' — back on their feet!' : '.'}`] };
+  }
+  if (def.drink) {
+    add(inventory, ref, -1);
+    const what = def.name.replace(/\s*\(.*\)/, '').toLowerCase(); // "Ale (mug)" → "ale"
+    return { log: [`${targetStats ? targetStats.name : 'The party'} drinks some ${what}. ${def.drink}`] };
+  }
+  return 'That can’t be used here.';
+}

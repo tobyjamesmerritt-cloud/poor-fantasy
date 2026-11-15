@@ -146,6 +146,7 @@ export class PartyScreen {
                 .then((yes) => yes && this.send({ type: 'readyMadeParty' }));
             })
           : null,
+        !this.newGame ? button('Pack…', () => this.send({ type: 'openPack' })) : null,
         !this.newGame && roster.some((s) => characterData.classes[s.classId]?.spellcasting)
           ? button('✦ Spells…', () => this.send({ type: 'openSpells' }))
           : null,

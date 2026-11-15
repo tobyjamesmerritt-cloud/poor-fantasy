@@ -166,6 +166,7 @@ export class CampScene extends Phaser.Scene {
         ...(g.roster.some((r) => characterData.classes[r.classId]?.spellcasting)
           ? [{ label: g.flags['spells:prepare'] ? 'Spells — prepare & cast…' : 'Spells — cast…', command: { type: 'openSpells' } as Command }]
           : []),
+        { label: 'Pack…', command: { type: 'openPack' } },
         { label: isInn(site) ? 'Leave the inn' : 'Break camp', command: { type: 'breakCamp' } },
       ],
     });

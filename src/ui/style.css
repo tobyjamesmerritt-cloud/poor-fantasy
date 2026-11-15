@@ -1027,3 +1027,28 @@ button.danger {
 .journal-head small {
   color: #aaa;
 }
+
+/* Pack dialog */
+#pack-dialog {
+  width: min(48rem, 94vw);
+  max-width: none;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.pk-table td {
+  vertical-align: middle;
+}
+.pk-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.pk-member {
+  border-top: 1px solid #333;
+  padding: 0.35rem 0;
+}
+#pack-dialog select {
+  font: inherit;
+  font-size: 0.85rem;
+}
