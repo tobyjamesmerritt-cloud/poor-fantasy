@@ -222,8 +222,8 @@
 
     "shack": {
       "entry": [
-        { "when": { "all": [{ "quest": "ale", "stage": "find-parts" }, { "not": { "flag": "shack:searched" } }] }, "node": "found" },
         { "when": { "flag": "troll:moved" }, "node": "troll-home" },
+        { "when": { "all": [{ "quest": "ale", "stage": "find-parts" }, { "not": { "flag": "shack:searched" } }] }, "node": "found" },
         { "node": "empty" }
       ],
       "nodes": {
@@ -257,9 +257,27 @@
           "text": "The troll sits in the shack's doorway, crunching something that squeaked not long ago. It sees you and waves a huge claw. \"Friend! Shack dry. Rats tasty. Troll happy.\"",
           "choices": [
             { "text": "Ask if it has found anything around here.", "when": { "not": { "flag": "troll:gift" } }, "next": "gift" },
+            {
+              "text": "Ask about the old brewing gear inside.",
+              "when": { "all": [{ "quest": "ale", "stage": "find-parts" }, { "not": { "flag": "shack:searched" } }] },
+              "next": "troll-gear"
+            },
             { "text": "Share a mug of ale with it.", "when": { "item": "consumable:ale" }, "do": [{ "take": "consumable:ale" }], "next": "cheers" },
             { "text": "Wave goodbye." }
           ]
+        },
+        "troll-gear": {
+          "speaker": "The troll",
+          "text": "\"Rats in shack. Bats in shack. Troll eat.\" It pats its belly, then shoves a crate of junk out of the door with one foot. \"Not food. Friend take.\" Among the junk: old brewing gear and a few things somebody left behind.",
+          "do": [
+            { "set": "shack:searched" },
+            { "give": "random:weapon+1", "count": 2 },
+            { "give": "random:scroll:cleric:1" },
+            { "give": "random:scroll:wizard:1" },
+            { "give": "misc:spigot-parts" },
+            { "quest": "ale", "stage": "return-parts" }
+          ],
+          "choices": [{ "text": "Thank it and go." }]
         },
         "gift": {
           "speaker": "The troll",
@@ -285,7 +303,7 @@
           "choices": [
             {
               "text": "Tell it about the old shack by the river — dry, quiet, plenty of rats to eat.",
-              "when": { "all": [{ "quest": "ale", "stage": "done" }, { "not": { "flag": "troll:refused" } }] },
+              "when": { "all": [{ "flag": "found:shack" }, { "not": { "flag": "troll:refused" } }] },
               "check": { "ability": "cha", "skill": "Persuasion", "dc": 15, "pass": "persuaded", "fail": "refused" }
             },
             {
@@ -325,7 +343,7 @@
           "choices": [
             {
               "text": "While it's merry, tell it about the old shack by the river — dry, quiet, plenty of rats.",
-              "when": { "all": [{ "quest": "ale", "stage": "done" }, { "not": { "flag": "troll:merry-refused" } }] },
+              "when": { "all": [{ "flag": "found:shack" }, { "not": { "flag": "troll:merry-refused" } }] },
               "check": { "ability": "cha", "skill": "Persuasion", "dc": 10, "pass": "persuaded", "fail": "merry-refused" }
             },
             {

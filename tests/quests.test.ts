@@ -8,6 +8,7 @@ import {
   choose,
   type ChoiceResult,
   hooksAt,
+  nodeOf,
   openTalk,
   questStage,
   type Request,
@@ -71,13 +72,13 @@ describe('quest engine', () => {
 
   it('a skill check uses the chosen character and branches on DC', () => {
     const g = fresh();
-    g.flags['quest:ale'] = 'done';
+    g.flags['found:shack'] = true; // knowing the shack is enough
     const t = startTalk(g, questData, 'troll')!;
     const pass = pick(g, t, 'old shack', scripted([12]), { name: 'Ysolde', bonus: 3 });
     expect(pass.roll).toMatchObject({ total: 15, dc: 15, success: true });
     expect(pass.next?.node).toBe('persuaded');
     const g2 = fresh();
-    g2.flags['quest:ale'] = 'done';
+    g2.flags['found:shack'] = true;
     const fail = pick(g2, startTalk(g2, questData, 'troll')!, 'old shack', scripted([11]), { name: 'Ysolde', bonus: 3 });
     expect(fail.next?.node).toBe('refused');
     // one try only
@@ -88,6 +89,21 @@ describe('quest engine', () => {
     const ysolde = pregens.find((p) => p.name === 'Ysolde')!;
     const r = checkRoller(ysolde, 'cha', 'Persuasion');
     expect(r.bonus).toBe(Math.floor((ysolde.scores.cha + (ysolde.increases.cha ?? 0) - 10) / 2) + (r.proficient ? 2 : 0));
+  });
+});
+
+describe('the troll and the shack', () => {
+  it('a persuaded troll that moves in before the shack is searched hands over the brewing gear', () => {
+    const g = fresh();
+    Object.assign(g.flags, { 'quest:ale': 'find-parts', 'found:shack': true, 'troll:moved': true });
+    const t = startTalk(g, questData, 'shack')!;
+    expect(nodeOf(questData, t).speaker).toBe('The troll');
+    expect(visibleChoices(g, questData, t).some((c) => c.text.includes('brewing gear'))).toBe(true);
+    const i = nodeOf(questData, t).choices!.findIndex((c) => c.text.includes('brewing gear'));
+    expect(i).toBeGreaterThanOrEqual(0);
+    choose(g, t, i, ctx(), undefined);
+    expect(g.flags['quest:ale']).toBe('return-parts');
+    expect(g.inventory['misc:spigot-parts']).toBe(1);
   });
 });
 
