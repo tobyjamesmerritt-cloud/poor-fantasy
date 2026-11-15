@@ -324,6 +324,23 @@
           "text": "The troll snatches the mug, sniffs, and pours it down in one gulp. Then it belches, sways, and grins. \"More!\" It is in no state to aim straight — but it is still in the way.",
           "choices": [
             {
+              "text": "While it's merry, tell it about the old shack by the river — dry, quiet, plenty of rats.",
+              "when": { "all": [{ "quest": "ale", "stage": "done" }, { "not": { "flag": "troll:merry-refused" } }] },
+              "check": { "ability": "cha", "skill": "Persuasion", "dc": 10, "pass": "persuaded", "fail": "merry-refused" }
+            },
+            {
+              "text": "Fight it while it's tipsy!",
+              "do": [{ "fight": "troll-bridge", "tweaks": { "troll": { "fumble": 0.75 } }, "onWin": [{ "quest": "troll", "stage": "done" }, { "say": "The troll crashes into the river and does not get up. Millbrook's carpenters come out to mend the bridge." }] }]
+            },
+            { "text": "Back away." }
+          ]
+        },
+        "merry-refused": {
+          "speaker": "The troll",
+          "text": "The troll laughs so hard it nearly falls off the bridge. \"Funny! Troll stay. More ale!\" It still sways on its feet.",
+          "do": [{ "set": "troll:merry-refused" }],
+          "choices": [
+            {
               "text": "Fight it while it's tipsy!",
               "do": [{ "fight": "troll-bridge", "tweaks": { "troll": { "fumble": 0.75 } }, "onWin": [{ "quest": "troll", "stage": "done" }, { "say": "The troll crashes into the river and does not get up. Millbrook's carpenters come out to mend the bridge." }] }]
             },
