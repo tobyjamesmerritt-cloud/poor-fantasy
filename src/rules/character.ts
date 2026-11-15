@@ -74,8 +74,29 @@ export interface WeaponDef {
 
 export interface ConsumableDef {
   name: string;
-  heal: string; // dice, e.g. "2d4+2"
+  heal?: string; // dice, e.g. "2d4+2" (potions)
+  drink?: string; // flavour text when drunk outside a fight (ale)
   cost: number;
+  shop?: boolean; // false = not on ordinary shop shelves
+}
+
+/** Quest items: no value, can't be sold or equipped. */
+export interface MiscDef {
+  name: string;
+  description: string;
+  cost: number;
+}
+
+/** SRD 5.2 Magic Item Rarities and Values: Weapon +1 Uncommon (400 GP), +2 Rare, +3 Very Rare — plus the weapon's own cost. */
+const MAGIC_WEAPON_VALUE: Record<number, number> = { 1: 40000, 2: 400000, 3: 4000000 };
+
+/** A weapon by gear id; "longsword+1" is a magic Longsword +1 (bonus to attack and damage rolls). */
+export function weaponDef(data: CharacterData, id: string): (WeaponDef & { bonus: number }) | undefined {
+  const m = /^(.+)\+([123])$/.exec(id);
+  const base = data.weapons[m ? m[1] : id];
+  if (!base) return undefined;
+  const bonus = m ? Number(m[2]) : 0;
+  return { ...base, name: bonus ? `${base.name} +${bonus}` : base.name, cost: base.cost + (MAGIC_WEAPON_VALUE[bonus] ?? 0), bonus };
 }
 
 export interface CharacterData {
@@ -86,6 +107,7 @@ export interface CharacterData {
   shield: { name: string; cost: number };
   weapons: Record<string, WeaponDef>;
   consumables: Record<string, ConsumableDef>;
+  misc: Record<string, MiscDef>;
   spells: Spells;
 }
 
@@ -250,13 +272,14 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
   }
 
   // Weapon attack: Strength, or Dexterity for a Finesse weapon if better; proficient with class kit.
-  const weapon = data.weapons[gear.weapon];
+  const weapon = weaponDef(data, gear.weapon)!;
   const useDex = !!weapon.finesse && mod('dex') > mod('str');
   const atkMod = useDex ? mod('dex') : mod('str');
   const proficient = trainedWithWeapon(cls, weapon);
   const pb = proficiencyBonus(sheet.level);
   if (!proficient) notes.push(`${weapon.name}: not trained — no proficiency bonus to hit.`);
-  const damage = [`${weapon.damage}${atkMod ? signed(atkMod) : ''}`];
+  const dmgMod = atkMod + weapon.bonus;
+  const damage = [`${weapon.damage}${dmgMod ? signed(dmgMod) : ''}`];
 
   // Initiative: Dex modifier; the Alert origin feat adds the Proficiency Bonus.
   let initBonus = mod('dex');
@@ -272,7 +295,7 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
     speed: Math.floor(speedFt / 5),
     initBonus,
     attackName: weapon.name,
-    attackBonus: atkMod + (proficient ? pb : 0),
+    attackBonus: atkMod + (proficient ? pb : 0) + weapon.bonus,
     damage,
     medicine: mod('wis'),
     hitDie: cls.hitDie,

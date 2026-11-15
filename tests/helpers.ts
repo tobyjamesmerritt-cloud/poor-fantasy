@@ -1,8 +1,8 @@
-import { buildUnits, DEFAULT_ENCOUNTER, encounters } from '../src/content/encounters';
+import { buildUnits, DEFAULT_ENCOUNTER, encounters, resolveEncounter } from '../src/content/encounters';
 import type { Rng } from '../src/engine/rng';
 import type { Unit } from '../src/rules/combat';
 
-export const skirmishUnits = (id = DEFAULT_ENCOUNTER): Unit[] => buildUnits(encounters[id]);
+export const skirmishUnits = (id = DEFAULT_ENCOUNTER): Unit[] => buildUnits(resolveEncounter(encounters[id]));
 
 /** A unit with sensible defaults; override what the test cares about. */
 export function makeUnit(p: Partial<Unit> & Pick<Unit, 'id' | 'side' | 'x' | 'y'>): Unit {

@@ -1,0 +1,53 @@
+{
+  "_note": "The run-down shack (quest: Dry Taps): Giant Bats and Giant Rats, Moderate budget.",
+  "id": "old-shack",
+  "width": 12,
+  "height": 9,
+  "floor": "meadow-grass",
+  "partyLevel": 1,
+  "partyStart": [
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 4
+    },
+    {
+      "x": 1,
+      "y": 6
+    },
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 0,
+      "y": 4
+    }
+  ],
+  "enemies": [],
+  "scaling": {
+    "difficulty": "moderate",
+    "fixed": [
+      {
+        "monster": "giant-bat",
+        "x": 11,
+        "y": 4
+      }
+    ],
+    "filler": {
+      "monsters": [
+        "giant-rat",
+        "giant-bat"
+      ],
+      "min": 2,
+      "max": 6
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "_note": "SRD 5.2 equipment (Equipment chapter). cost in copper (100 cp = 1 gp). Weapons: category simple|martial; melee only for now (ranged weapons come with DND-13). Armor: category light|medium|heavy; dexMax null = full Dex. Selling = half cost.",
+  "_note": "SRD 5.2 equipment (Equipment chapter). cost in copper (100 cp = 1 gp). Weapons: category simple|martial; melee only for now (ranged weapons come with DND-13). Armor: category light|medium|heavy; dexMax null = full Dex. Selling = half cost. Ale (mug) 4 CP (SRD 5.2 Food, Drink, and Lodging); shop:false = not sold in ordinary shops. misc = quest items (no value, can't be sold). Magic weapons are 'weapon:<id>+1' (SRD Weapon +1: Uncommon, 400 GP + the weapon); spell scrolls 'scroll:<spell id>' (SRD value: twice the scribing cost — cantrip 30 GP, level 1 50 GP, level 2 200 GP, level 3 300 GP).",
   "armor": {
     "padded": {
       "name": "Padded Armor",
@@ -212,6 +212,19 @@
       "name": "Potion of Healing",
       "heal": "2d4+2",
       "cost": 5000
+    },
+    "ale": {
+      "name": "Ale (mug)",
+      "cost": 4,
+      "drink": "Cool, bitter and very welcome.",
+      "shop": false
+    }
+  },
+  "misc": {
+    "spigot-parts": {
+      "name": "Old spigot parts",
+      "description": "Brass fittings from the old shack. Nobody knows if they work.",
+      "cost": 0
     }
   }
 }

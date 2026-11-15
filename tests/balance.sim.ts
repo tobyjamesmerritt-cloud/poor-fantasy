@@ -9,17 +9,30 @@
 import { it } from 'vitest';
 import { createRng } from '../src/engine/rng';
 import { activeUnit, chebyshev, endTurn, isDown, isUp, planMoveTo, reachableSquares, startCombat, step } from '../src/rules/combat';
-import { encounters, encounterXp } from '../src/content/encounters';
-import { spells } from '../src/content/characters';
+import { buildUnits, encounters, encounterXp, resolveEncounter } from '../src/content/encounters';
+import { membersOf, pregens, spells, characterData } from '../src/content/characters';
+import { averageHitDie } from '../src/rules/character';
+import type { FightTweaks } from '../src/rules/quests';
 import { castOptions, castSpell, targetingOf, validTargets } from '../src/rules/spells';
-import { skirmishUnits } from './helpers';
 
-for (const id of Object.keys(encounters)) it(`balance: ${id}`, () => {
-  const N = 500;
+/** The ready-made party at a level (average hit points per level). */
+const partyAt = (level: number) =>
+  membersOf(pregens.map((p) => ({ ...p, level, hpGains: Array.from({ length: level - 1 }, () => averageHitDie(characterData.classes[p.classId].hitDie)) })));
+
+// Every encounter at level 1 and level 3 (scaled to the party: 6 characters → budget for 5), plus the drunk troll.
+const runs: { id: string; level: number; tweaks?: FightTweaks; label?: string }[] = [
+  ...Object.keys(encounters).flatMap((id) => [1, 3].map((level) => ({ id, level }))),
+  { id: 'troll-bridge', level: 3, tweaks: { troll: { fumble: 0.75 } }, label: 'troll (ale)' },
+];
+
+for (const r of runs) it(`balance: ${r.label ?? r.id} L${r.level}`, () => {
+  const N = 300;
+  const def = resolveEncounter(encounters[r.id], { partySize: 6, level: r.level });
+  const members = partyAt(r.level);
   let wins = 0, dead = 0, down = 0, rounds = 0;
   for (let seed = 0; seed < N; seed++) {
     const rng = createRng(seed);
-    const s = startCombat(rng, 12, 9, skirmishUnits(id));
+    const s = startCombat(rng, 12, 9, buildUnits(def, members, undefined, 0, r.tweaks));
     for (let t = 0; t < 400 && s.outcome === 'ongoing'; t++) {
       const u = activeUnit(s);
       const foes = s.units.filter((e) => e.side === 'enemy' && isUp(e)).sort((a, b) => chebyshev(u, a) - chebyshev(u, b));
@@ -40,7 +53,7 @@ for (const id of Object.keys(encounters)) it(`balance: ${id}`, () => {
     down += party.filter(isDown).length;
   }
   console.log(
-    `${id.padEnd(16)} XP ${encounterXp(encounters[id])} · bot win ${((100 * wins) / N).toFixed(0)}% · ` +
+    `${(r.label ?? r.id).padEnd(15)} L${r.level} XP ${String(encounterXp(def)).padStart(4)} · bot win ${((100 * wins) / N).toFixed(0)}% · ` +
       `avg rounds ${(rounds / N).toFixed(1)} · avg dead ${(dead / N).toFixed(2)} · avg down at end ${(down / N).toFixed(2)}`,
   );
 });

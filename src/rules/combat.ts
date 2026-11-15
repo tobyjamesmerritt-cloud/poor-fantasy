@@ -92,6 +92,11 @@ export interface Unit {
   caster?: CasterInfo;
   unarmoredAc?: number; // AC with Mage Armor (13 + Dex, + shield) — characters wearing no armour only
   mageArmor?: boolean;
+  monster?: string; // monsters.json id
+  attacks?: number; // Multiattack: attacks per Attack action
+  regeneration?: number; // HP regained at the start of its turn…
+  regenBlocked?: boolean; // …unless it took acid or fire damage since (SRD 5.2 Troll)
+  fumble?: number; // house rule for quest tweaks (a drunk troll): chance each attack simply misses
 }
 
 export interface CombatState {
@@ -108,6 +113,7 @@ export interface CombatState {
   bonusUsed: boolean; // this turn's Bonus Action (potions, some spells)
   slotUsed: boolean; // SRD 5.2: only one spell slot may be expended per turn
   potions: number; // Potions of Healing in the party pack
+  scrolls?: Record<string, number>; // Spell Scrolls in the party pack, by spell id
   log: string[];
 }
 
@@ -132,6 +138,7 @@ export function startCombat(
   units: Unit[],
   retreat: RetreatRule = 'normal',
   potions = 0,
+  scrolls: Record<string, number> = {},
 ): CombatState {
   const rolled = units.map((u) => ({ id: u.id, init: rollD20(rng).kept + u.initBonus, tie: u.initBonus }));
   rolled.sort((a, b) => b.init - a.init || b.tie - a.tie);
@@ -149,6 +156,7 @@ export function startCombat(
     bonusUsed: false,
     slotUsed: false,
     potions,
+    scrolls: { ...scrolls },
     log: ['Roll for initiative! ' + rolled.map((r) => `${nameOf(units, r.id)} ${r.init}`).join(', ')],
   };
   beginTurn(state);
@@ -332,6 +340,16 @@ function beginTurn(state: CombatState): void {
   if (u.concentration && state.round - u.concentration.round >= u.concentration.rounds) {
     endConcentration(state, u, 'runs out');
   }
+  // Regeneration (SRD 5.2 Troll): back up at the start of its turn, unless burned or dissolved since.
+  if (u.regeneration && !u.dead && u.hp > 0) {
+    if (u.regenBlocked) state.log.push(`${u.name}'s burned flesh does not knit.`);
+    else if (u.hp < u.maxHp) {
+      const before = u.hp;
+      u.hp = Math.min(u.maxHp, u.hp + u.regeneration);
+      state.log.push(`${u.name} regenerates ${u.hp - before} HP (${u.hp}/${u.maxHp}).`);
+    }
+    u.regenBlocked = false;
+  }
   // Ray of Frost: Speed −10 ft (2 squares)
   state.movesLeft = hasEffect(u, 'slowed') ? Math.max(0, u.speed - 2) : u.speed;
   state.actionUsed = false;
@@ -433,7 +451,8 @@ export function attackMode(state: CombatState, attacker: Unit, target: Unit, ran
  * (DC 10 or half the damage, max 30) or loses Concentration; dropping to
  * 0 HP ends it. Someone carrying an ally drops them.
  */
-export function hurt(state: CombatState, rng: Rng, target: Unit, amount: number, line: string): void {
+export function hurt(state: CombatState, rng: Rng, target: Unit, amount: number, line: string, type?: string): void {
+  if (target.regeneration && amount > 0 && (type === 'fire' || type === 'acid')) target.regenBlocked = true;
   let soaked = 0;
   if (target.tempHp && amount > 0) {
     soaked = Math.min(target.tempHp, amount);
@@ -528,6 +547,12 @@ export function applyDamage(target: Unit, amount: number): string {
 }
 
 function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit): void {
+  if (attacker.fumble && rng.int(1, 100) <= Math.round(attacker.fumble * 100)) {
+    state.actionUsed = true;
+    state.movesLeft = 0;
+    state.log.push(`${attacker.name} lurches, swings wide and misses ${target.name}.`);
+    return;
+  }
   const { mode, notes } = attackMode(state, attacker, target, false);
   const bless = blessBonus(rng, attacker);
   if (bless) notes.push(`bless +${bless}`);
@@ -583,7 +608,15 @@ export function runEnemyTurn(state: CombatState, rng: Rng): void {
       const target = nearest(state, u, 'party');
       if (!target) break;
       if (chebyshev(u, target) === 1) {
-        if (!state.actionUsed) attack(state, rng, u, target);
+        if (!state.actionUsed) {
+          attack(state, rng, u, target);
+          // Multiattack: the rest of the attacks, at whoever is still standing next to it
+          for (let k = 1; k < (u.attacks ?? 1) && state.outcome === 'ongoing'; k++) {
+            const next = state.units.find((o) => o.side === 'party' && isUp(o) && onField(o) && chebyshev(o, u) === 1);
+            if (!next) break;
+            attack(state, rng, u, next);
+          }
+        }
         break;
       }
       if (state.movesLeft <= 0) break;

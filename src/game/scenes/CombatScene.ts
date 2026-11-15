@@ -28,10 +28,11 @@ import {
   acOf,
   type EffectKind,
 } from '../../rules/combat';
-import { areaSquares, castOptions, castSpell, targetingOf, validTargets } from '../../rules/spells';
+import { areaSquares, castOptions, castSpell, spellOf, targetingOf, validTargets } from '../../rules/spells';
 import { spells } from '../../content/characters';
 import { assets, cellSize, cursorCss } from '../../content/assets';
-import { buildUnits, encounters, type EncounterDef, type PartyMemberDef } from '../../content/encounters';
+import { buildUnits, encounters, type EncounterDef, type PartyMemberDef, resolveEncounter } from '../../content/encounters';
+import type { FightTweaks } from '../../rules/quests';
 import type { ActiveCard, Hud } from '../../ui/hud';
 import type { PrefsStore } from '../../ui/prefs';
 import { commandForKey } from '../input/keyboard';
@@ -53,11 +54,14 @@ export interface CombatSceneDeps {
   prefs: PrefsStore;
   seed: number;
   encounter: string; // id in content/encounters
+  encounterDef?: EncounterDef; // the encounter already scaled to the party (main.ts); else the default party size
+  tweaks?: FightTweaks; // quest changes to monsters (e.g. a drunk troll)
   onVictory?: () => void; // e.g. mark the map location cleared
   members?: PartyMemberDef[]; // who fights (default: the quick-start party)
   party?: PartyMemberState[]; // persistent party: current HP, who is dead (omit = everyone fresh)
   onEnd?: (state: CombatState) => void; // once, when the fight is won, lost or fled
   potions?: number; // Potions of Healing in the party pack
+  scrolls?: Record<string, number>; // Spell Scrolls in the pack, by spell id
   now?: number; // game time (Mage Armor still running?)
 }
 
@@ -119,7 +123,7 @@ export class CombatScene extends Phaser.Scene {
     this.aim = null;
     this.history = new History();
     this.victoryReported = false;
-    const enc = encounters[deps.encounter];
+    const enc = deps.encounterDef ?? (encounters[deps.encounter] && resolveEncounter(encounters[deps.encounter]));
     if (!enc) throw new Error(`Unknown encounter "${deps.encounter}"`);
     this.enc = enc;
   }
@@ -130,7 +134,7 @@ export class CombatScene extends Phaser.Scene {
 
   create(): void {
     this.rng = createRng(this.deps.seed);
-    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, this.deps.members, this.deps.party, this.deps.now ?? 0), this.deps.prefs.get().difficulty, this.deps.potions ?? 0);
+    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, this.deps.members, this.deps.party, this.deps.now ?? 0, this.deps.tweaks), this.deps.prefs.get().difficulty, this.deps.potions ?? 0, this.deps.scrolls ?? {});
     this.cameras.main.setZoom(1).setScroll(0, 0);
 
     this.deps.hud.setNames(this.state.units);
@@ -275,7 +279,7 @@ export class CombatScene extends Phaser.Scene {
             slots: c.maxSlots.map((max, i) => ({ level: i + 1, max, left: c.slots[i] })),
             spells: options.map((o) => ({
               id: o.id,
-              name: o.spell.name,
+              name: o.scroll ? `📜 ${o.spell.name} (scroll ×${this.state.scrolls?.[o.id.slice(7)] ?? 0})` : o.spell.name,
               level: o.spell.level,
               detail: [
                 o.spell.level ? `level ${o.spell.level}` : 'cantrip',
@@ -397,12 +401,12 @@ export class CombatScene extends Phaser.Scene {
 
   private aimTargeting() {
     const a = this.aim!;
-    return targetingOf(spells[a.spellId], a.slot, activeUnit(this.state).caster!.level);
+    return targetingOf(spellOf(spells, a.spellId)!, a.slot, activeUnit(this.state).caster!.level);
   }
 
   private aimInfo(): NonNullable<ActiveCard['aiming']> {
     const a = this.aim!;
-    const spell = spells[a.spellId];
+    const spell = spellOf(spells, a.spellId)!;
     const t = this.aimTargeting();
     const name = `${spell.name}${a.slot > spell.level && spell.level > 0 ? ` (level ${a.slot})` : ''}`;
     const hint =
@@ -465,7 +469,7 @@ export class CombatScene extends Phaser.Scene {
     const h = a.hover;
     if (h && (t.kind === 'point' || t.kind === 'direction') && valid.some((p) => p.x === h.x && p.y === h.y)) {
       g.fillStyle(0xff7a1a, 0.42);
-      for (const p of areaSquares(this.state, activeUnit(this.state), spells[a.spellId], h)) g.fillRect(p.x * TILE + 1, p.y * TILE + 1, TILE - 2, TILE - 2);
+      for (const p of areaSquares(this.state, activeUnit(this.state), spellOf(spells, a.spellId)!, h)) g.fillRect(p.x * TILE + 1, p.y * TILE + 1, TILE - 2, TILE - 2);
     }
     g.lineStyle(3, 0xf1c40f, 1);
     a.picks.forEach((p, i) => {

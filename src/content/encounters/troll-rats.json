@@ -1,0 +1,45 @@
+{
+  "_note": "The broken bridge once the troll has lumbered off: its rats stay to fight. Low budget.",
+  "id": "troll-rats",
+  "width": 12,
+  "height": 9,
+  "floor": "meadow-grass",
+  "partyLevel": 1,
+  "partyStart": [
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 4
+    },
+    {
+      "x": 1,
+      "y": 6
+    },
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 0,
+      "y": 4
+    }
+  ],
+  "enemies": [],
+  "scaling": {
+    "difficulty": "low",
+    "filler": {
+      "monsters": [
+        "giant-rat"
+      ],
+      "min": 2,
+      "max": 6
+    }
+  }
+}

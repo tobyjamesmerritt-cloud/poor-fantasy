@@ -249,6 +249,13 @@ export type Targeting =
 
 const squares = (feet: number) => Math.max(1, Math.round(feet / 5));
 
+/** Spell ids may name a Spell Scroll: "scroll:<spell id>". */
+export const baseSpellId = (id: string): string => (id.startsWith('scroll:') ? id.slice(7) : id);
+export const spellOf = (spells: Spells, id: string): SpellDef | undefined => spells[baseSpellId(id)];
+
+/** Spell Scroll (SRD 5.2): the scroll's own save DC and attack bonus by spell level. */
+export const scrollNumbers = (level: number): { dc: number; attack: number } => (level >= 3 ? { dc: 15, attack: 7 } : { dc: 13, attack: 5 });
+
 /** How a spell picks its targets, cast with a slot of level `slot` (cantrips: 0) by a caster of `level`. */
 export function targetingOf(spell: SpellDef, slot: number, level: number): Targeting {
   const e = spell.effect;
@@ -296,7 +303,7 @@ function creatureTargets(state: CombatState, caster: Unit, spell: SpellDef, t: E
 /** Squares the player can click to aim the spell. */
 export function validTargets(state: CombatState, spells: Spells, spellId: string, slot: number): { x: number; y: number }[] {
   const u = activeUnit(state);
-  const spell = spells[spellId];
+  const spell = spellOf(spells, spellId);
   if (!spell || !u.caster) return [];
   const t = targetingOf(spell, slot, u.caster.level);
   const all: { x: number; y: number }[] = [];
@@ -385,7 +392,8 @@ export function areaSquares(state: CombatState, caster: { x: number; y: number }
 }
 
 export interface CastOption {
-  id: string;
+  id: string; // spell id, or "scroll:<spell id>" to read a Spell Scroll from the pack
+  scroll?: boolean;
   spell: SpellDef;
   levels: number[]; // slot levels it can be cast with now (cantrips: [0])
   reason?: string; // why it can't be cast right now
@@ -398,7 +406,7 @@ export function castOptions(state: CombatState, spells: Spells): CastOption[] {
   if (!c || state.outcome !== 'ongoing' || !isUp(u) || !onField(u)) return [];
   return [...c.cantrips, ...c.prepared]
     .filter((id) => spells[id] && spells[id].where !== 'rest')
-    .map((id) => {
+    .map((id): CastOption => {
       const spell = spells[id];
       const levels = spell.level === 0 ? [0] : c.slots.map((n, i) => (n > 0 && i + 1 >= spell.level ? i + 1 : 0)).filter(Boolean);
       let reason: string | undefined;
@@ -409,6 +417,28 @@ export function castOptions(state: CombatState, spells: Spells): CastOption[] {
       else if (spell.effect.kind === 'teleport' && u.carrying) reason = 'Put your load down first';
       else if (!validTargets(state, spells, id, levels[0]).length) reason = 'No target in range';
       return { id, spell, levels, reason };
+    })
+    .concat(scrollOptions(state, spells));
+}
+
+/**
+ * Spell Scrolls in the pack the active caster can read: the spell must be on
+ * their class's list (SRD 5.2). Reading one uses no spell slot.
+ */
+function scrollOptions(state: CombatState, spells: Spells): CastOption[] {
+  const u = activeUnit(state);
+  const c = u.caster!;
+  return Object.entries(state.scrolls ?? {})
+    .filter(([id, n]) => n > 0 && spells[id]?.classes.includes(c.classId) && spells[id].where !== 'rest')
+    .map(([id]) => {
+      const spell = spells[id];
+      const ref = `scroll:${id}`;
+      let reason: string | undefined;
+      if (spell.time === 'action' && state.actionUsed) reason = 'Action already used';
+      else if (spell.time === 'bonus' && state.bonusUsed) reason = 'Bonus Action already used';
+      else if (spell.effect.kind === 'teleport' && u.carrying) reason = 'Put your load down first';
+      else if (!validTargets(state, spells, ref, spell.level).length) reason = 'No target in range';
+      return { id: ref, scroll: true, spell, levels: [spell.level], reason };
     });
 }
 
@@ -427,7 +457,7 @@ export function castSpell(
 ): boolean {
   const u = activeUnit(state);
   const c = u.caster;
-  const spell = spells[spellId];
+  const spell = spellOf(spells, spellId);
   const option = castOptions(state, spells).find((o) => o.id === spellId);
   if (!c || !spell || !option || option.reason || !option.levels.includes(slot)) return false;
   const t = targetingOf(spell, slot, c.level);
@@ -439,8 +469,10 @@ export function castSpell(
     if (!t.repeat && new Set(targets.map((p) => `${p.x},${p.y}`)).size !== targets.length) return false;
   } else if (targets.length !== 1) return false;
 
-  // Pay for it
-  if (spell.level > 0) {
+  // Pay for it: a spell slot, or the scroll (which crumbles to dust)
+  const scroll = option.scroll ? baseSpellId(spellId) : null;
+  if (scroll) state.scrolls![scroll] -= 1;
+  else if (spell.level > 0) {
     c.slots[slot - 1] -= 1;
     state.slotUsed = true;
   }
@@ -450,7 +482,37 @@ export function castSpell(
     state.movesLeft = 0; // as with attacks: acting ends movement (until DND-10)
   }
   const upcast = slot > spell.level && spell.level > 0 ? ` (level ${slot} slot)` : '';
-  state.log.push(`✦ ${u.name} casts ${spell.name}${upcast}.`);
+  state.log.push(`✦ ${u.name} ${scroll ? 'reads a scroll of' : 'casts'} ${spell.name}${upcast}.`);
+  if (scroll && spell.level > c.maxSlots.length) {
+    // SRD 5.2 Spell Scroll: a spell above what you can cast needs a spellcasting ability check, DC 10 + its level.
+    const d20 = rng.int(1, 20);
+    if (d20 + c.mod < 10 + spell.level) {
+      state.log.push(`The words twist away from ${u.name} (${d20 + c.mod} vs DC ${10 + spell.level}) — the scroll is wasted.`);
+      return true;
+    }
+  }
+  const own = { attack: c.attack, dc: c.dc };
+  if (scroll) Object.assign(c, scrollNumbers(spell.level)); // the scroll's own DC and attack bonus
+  try {
+    resolveSpell(state, rng, spellId, spell, slot, targets);
+  } finally {
+    Object.assign(c, own);
+  }
+  checkOutcome(state);
+  return true;
+}
+
+function resolveSpell(
+  state: CombatState,
+  rng: Rng,
+  spellId: string,
+  spell: SpellDef,
+  slot: number,
+  targets: { x: number; y: number }[],
+): void {
+  const u = activeUnit(state);
+  const c = u.caster!;
+  spellId = baseSpellId(spellId);
   if (spell.concentration) {
     if (u.concentration) endConcentration(state, u, `${u.name} begins ${spell.name}`);
     u.concentration = { spell: spellId, name: spell.name, round: state.round, rounds: CONCENTRATION_ROUNDS[spellId] ?? 10 };
@@ -483,7 +545,7 @@ export function castSpell(
       for (const target of unitsAt(targets)) {
         if (!isUp(target)) continue;
         const dmg = rollAll(rng, [e.damage]);
-        hurt(state, rng, target, dmg, `A dart strikes ${target.name} for ${dmg} ${e.type}`);
+        hurt(state, rng, target, dmg, `A dart strikes ${target.name} for ${dmg} ${e.type}`, e.type);
       }
       break;
     }
@@ -551,8 +613,6 @@ export function castSpell(
       break;
     }
   }
-  checkOutcome(state);
-  return true;
 }
 
 /** Spell attack roll: crits double the dice; riders on a hit. */
@@ -576,7 +636,7 @@ function spellAttack(
     state.log.push(`It misses ${target.name} (${r.attackTotal} vs AC ${ac})${tag}.`);
     return;
   }
-  hurt(state, rng, target, r.damage, `${r.critical ? 'CRITICAL! It' : 'It'} hits ${target.name} for ${r.damage} ${type}${tag}`);
+  hurt(state, rng, target, r.damage, `${r.critical ? 'CRITICAL! It' : 'It'} hits ${target.name} for ${r.damage} ${type}${tag}`, type);
   if (rider && isUp(target)) applyRider(state, caster, target, rider);
 }
 
@@ -588,7 +648,7 @@ function savingThrow(state: CombatState, rng: Rng, caster: Unit, target: Unit, a
   const success = total >= dc;
   const what = `${target.name} ${success ? 'saves' : 'fails'} (${ability.toUpperCase()} ${total} vs DC ${dc}${bless ? `, bless +${bless}` : ''})`;
   const taken = success ? (half ? Math.floor(dmg / 2) : 0) : dmg;
-  if (taken > 0) hurt(state, rng, target, taken, `${what}: ${taken} ${type ?? ''}`.trimEnd());
+  if (taken > 0) hurt(state, rng, target, taken, `${what}: ${taken} ${type ?? ''}`.trimEnd(), type);
   else state.log.push(`${what}.`);
   return success;
 }
@@ -645,14 +705,26 @@ export interface OutsideResult {
   log: string[];
 }
 
-/** Spells a character can cast right now outside a fight (healing, wards). */
-export function outsideOptions(spells: Spells, who: CasterStats, p: PartyMemberState): { id: string; spell: SpellDef; levels: number[] }[] {
+/** Spells a character can cast right now outside a fight (healing, wards) — prepared ones, and scrolls in the pack. */
+export function outsideOptions(
+  spells: Spells,
+  who: CasterStats,
+  p: PartyMemberState,
+  inventory: Record<string, number> = {},
+): { id: string; spell: SpellDef; levels: number[]; scroll?: boolean }[] {
   const c = who.caster;
   if (!c || p.dead || p.hp <= 0) return [];
   const left = slotsLeft(c.maxSlots, p.spells);
-  return c.prepared
-    .filter((id) => spells[id] && spells[id].where !== 'combat' && spells[id].level > 0)
+  const outside = (id: string) => spells[id] && spells[id].where !== 'combat' && spells[id].level > 0;
+  const prepared = c.prepared
+    .filter(outside)
     .map((id) => ({ id, spell: spells[id], levels: left.map((n, i) => (n > 0 && i + 1 >= spells[id].level ? i + 1 : 0)).filter(Boolean) }));
+  const scrolls = Object.keys(inventory)
+    .filter((ref) => ref.startsWith('scroll:') && inventory[ref] > 0)
+    .map(baseSpellId)
+    .filter((id) => outside(id) && spells[id].classes.includes(c.classId))
+    .map((id) => ({ id: `scroll:${id}`, spell: spells[id], levels: [spells[id].level], scroll: true }));
+  return [...prepared, ...scrolls];
 }
 
 /** Who a spell can target outside a fight. */
@@ -687,12 +759,13 @@ export function castOutside(
   now: number,
   rng: Rng,
   spendHitDice: (p: PartyMemberState, s: CasterStats, log: string[]) => void,
+  inventory: Record<string, number> = {},
 ): OutsideResult {
   const fail = (reason: string): OutsideResult => ({ ok: false, reason, minutes: 0, log: [] });
-  const spell = spells[spellId];
+  const spell = spellOf(spells, spellId);
   const me = party.find((p) => p.id === caster.id);
   if (!spell || !me) return fail('Unknown spell.');
-  const option = outsideOptions(spells, caster, me).find((o) => o.id === spellId);
+  const option = outsideOptions(spells, caster, me, inventory).find((o) => o.id === spellId);
   if (!option) return fail(`${caster.name} can't cast that now.`);
   if (!option.levels.includes(slot)) return fail('No spell slot of that level left.');
   const allowed = outsideTargets(spell, caster.id, party, stats, now);
@@ -702,11 +775,22 @@ export function castOutside(
     return fail('Choose who the spell is for.');
   }
 
-  me.spells = me.spells ?? { used: [] };
-  me.spells.used[slot - 1] = (me.spells.used[slot - 1] ?? 0) + 1;
-  for (let i = 0; i < me.spells.used.length; i++) me.spells.used[i] ??= 0;
+  if (option.scroll) {
+    // the scroll crumbles to dust (SRD 5.2); a spell above the caster's slots needs a check, DC 10 + level
+    const left = (inventory[spellId] ?? 0) - 1;
+    if (left > 0) inventory[spellId] = left;
+    else delete inventory[spellId];
+    if (spell.level > caster.caster!.maxSlots.length) {
+      const total = rng.int(1, 20) + caster.caster!.mod;
+      if (total < 10 + spell.level) return { ok: true, minutes: 1, log: [`${caster.name} stumbles over the scroll's words (${total} vs DC ${10 + spell.level}) — it is wasted.`] };
+    }
+  } else {
+    me.spells = me.spells ?? { used: [] };
+    me.spells.used[slot - 1] = (me.spells.used[slot - 1] ?? 0) + 1;
+    for (let i = 0; i < me.spells.used.length; i++) me.spells.used[i] ??= 0;
+  }
   const extra = slot - spell.level;
-  const log = [`${caster.name} casts ${spell.name}${extra > 0 ? ` (level ${slot} slot)` : ''}.`];
+  const log = [`${caster.name} ${option.scroll ? 'reads a scroll of' : 'casts'} ${spell.name}${extra > 0 ? ` (level ${slot} slot)` : ''}.`];
   const minutes = spell.time === '10 minutes' ? 10 : 1;
 
   for (const id of targetIds) {

@@ -6,6 +6,8 @@
  */
 import { parseDice } from '../engine/dice';
 import { slotsLeft } from '../rules/spells';
+import type { Difficulty, FightTweaks } from '../rules/quests';
+import { fightBudget, fillerCount, fillerSquares, XP_BUDGET } from '../rules/scaling';
 import type { PartyMemberState } from '../engine/state';
 import type { Trait, Unit } from '../rules/combat';
 import type { MemberStats } from '../rules/party';
@@ -17,6 +19,11 @@ import ambushDark from './encounters/ambush-dark.json';
 import ambushWilds from './encounters/ambush-wilds.json';
 import caveRats from './encounters/cave-rats.json';
 import ruinsCrawlers from './encounters/ruins-crawlers.json';
+import shrineNave from './encounters/shrine-nave.json';
+import shrineCrypt from './encounters/shrine-crypt.json';
+import oldShack from './encounters/old-shack.json';
+import trollBridge from './encounters/troll-bridge.json';
+import trollRats from './encounters/troll-rats.json';
 import locationsRaw from './locations.json';
 import monstersRaw from './monsters.json';
 
@@ -32,6 +39,8 @@ export interface MonsterDef {
   initBonus: number;
   saves: Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>>; // saving throw bonuses
   attack: { name: string; bonus: number; damage: string[] };
+  multiattack?: number; // attacks per Attack action (default 1)
+  regeneration?: number; // HP regained at the start of each turn (stopped for a turn by acid or fire)
   traits: string[];
 }
 
@@ -43,12 +52,49 @@ export interface EncounterDef {
   floor: string;
   partyLevel: number;
   partyStart: { x: number; y: number }[]; // one square per party member, in party order
-  enemies: { monster: string; x: number; y: number }[];
+  enemies: { monster: string; x: number; y: number }[]; // fixed layout (empty when `scaling` places them)
+  scaling?: ScalingDef;
+}
+
+/**
+ * A fight that scales to the party (rules/scaling.ts): `fixed` monsters always
+ * appear where placed; `filler` monsters (cycling through the list) are added
+ * to fill the XP budget for the difficulty, at least `min` and at most `max`.
+ */
+export interface ScalingDef {
+  difficulty: Difficulty;
+  fixed?: { monster: string; x: number; y: number }[];
+  filler: { monsters: string[]; min: number; max: number };
+}
+
+/** Who is fighting: party size (able to fight) and their average level; quests may override the difficulty. */
+export interface FightContext {
+  partySize: number;
+  level: number;
+  difficulty?: Difficulty;
+}
+
+/** The concrete monsters for this party. Fixed encounters come back unchanged. */
+export function resolveEncounter(e: EncounterDef, ctx: FightContext = { partySize: 6, level: 1 }): EncounterDef {
+  const s = e.scaling;
+  if (!s) return e;
+  const fixed = s.fixed ?? [];
+  const xpOf = (id: string) => monsters[id]?.xp ?? 0;
+  const fixedXp = fixed.reduce((sum, f) => sum + xpOf(f.monster), 0);
+  const avg = s.filler.monsters.reduce((sum, id) => sum + xpOf(id), 0) / Math.max(1, s.filler.monsters.length);
+  const budget = fightBudget(ctx.partySize, ctx.level, ctx.difficulty ?? s.difficulty);
+  const n = fillerCount(budget, fixedXp, avg, s.filler.min, s.filler.max);
+  const spots = fillerSquares(e.width, e.height, [...fixed, ...e.partyStart], n);
+  return { ...e, enemies: [...fixed, ...spots.map((p, i) => ({ monster: s.filler.monsters[i % s.filler.monsters.length], ...p }))] };
 }
 
 export interface LocationContent {
   map?: string; // public/assets/maps/<map>.json; fights live in the map's spots layer
   intro?: string;
+  // places inside another location (not on the world map):
+  name?: string;
+  style?: 'town' | 'cave' | 'ruins';
+  parent?: { location: string; x: number; y: number; facing: 'n' | 'e' | 's' | 'w' }; // where you come out
 }
 
 /** Every combat board has this size (the Phaser canvas is sized from it). */
@@ -88,13 +134,6 @@ export function validateMonsters(defs: Record<string, MonsterDef>): Record<strin
   return defs;
 }
 
-/** SRD 5.2 "Combat Encounters": XP budget per character, levels 1–3 (extend as the party levels). */
-const XP_BUDGET: Record<number, { low: number; moderate: number; high: number }> = {
-  1: { low: 50, moderate: 75, high: 100 },
-  2: { low: 100, moderate: 150, high: 200 },
-  3: { low: 150, moderate: 225, high: 400 },
-};
-
 export function encounterXp(e: EncounterDef): number {
   return e.enemies.reduce((sum, en) => sum + monsters[en.monster].xp, 0);
 }
@@ -115,6 +154,7 @@ export function buildUnits(
   members: readonly PartyMemberDef[] = party,
   status?: readonly PartyMemberState[],
   time = 0,
+  tweaks: FightTweaks = {},
 ): Unit[] {
   const errors: string[] = [];
   const seen = new Set<string>();
@@ -188,6 +228,10 @@ export function buildUnits(
       attackBonus: m.attack.bonus,
       damage: m.attack.damage,
       traits: m.traits as Trait[],
+      monster: en.monster,
+      ...(m.multiattack ? { attacks: m.multiattack } : {}),
+      ...(m.regeneration ? { regeneration: m.regeneration } : {}),
+      ...(tweaks[en.monster]?.fumble ? { fumble: tweaks[en.monster].fumble } : {}),
       xp: m.xp,
       medicine: 0,
       deathSaves: { successes: 0, failures: 0 },
@@ -202,9 +246,10 @@ export function buildUnits(
 
 /** All encounters by id; each is built once at load so mistakes fail at startup. */
 export const encounters: Record<string, EncounterDef> = Object.fromEntries(
-  [caveRats, ruinsCrawlers, ambushWilds, ambushDark].map((raw) => {
+  [caveRats, ruinsCrawlers, ambushWilds, ambushDark, shrineNave, shrineCrypt, oldShack, trollBridge, trollRats].map((raw) => {
     const e = strip<EncounterDef>(raw);
-    buildUnits(e);
+    buildUnits(resolveEncounter(e)); // the default party…
+    if (e.scaling) buildUnits(resolveEncounter(e, { partySize: 6, level: 7, difficulty: 'high' })); // …and the most monsters it can get
     return [e.id, e];
   }),
 );

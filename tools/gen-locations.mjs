@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generates the four starter location maps as Tiled JSON files:
+ * Generates the starter location maps as Tiled JSON files:
  *   public/assets/maps/<locationId>.json
  *
  * Each map is 16×16 squares (the Gold Box area size). Layers:
@@ -120,6 +120,34 @@ const LOCATIONS = {
     spots: {
       a: { type: 'fight', name: 'Great Hall', encounter: 'ruins-crawlers', description: 'Thick webs hang between the broken pillars. Something skitters closer…' },
       t: { type: 'text', name: 'Collapsed Chapel', description: 'Rubble buries an old altar. A faded sun is carved above it.' },
+    },
+  },
+  'shrine-of-the-dawn': {
+    style: 'ruins',
+    facing: 'n',
+    rows: [
+      '################',
+      '#######..#######',
+      '######.b..######',
+      '######....######',
+      '#######..#######',
+      '########.#######',
+      '#....#..t..#...#',
+      '#.##.#.....#.#.#',
+      '#.#..#..a..#.#.#',
+      '#.#.##.....##..#',
+      '#...#.......#..#',
+      '#.#...##.##...##',
+      '#.###.##.##.#..#',
+      '#.....##s##....#',
+      '#######.@#######',
+      '########X#######',
+    ],
+    spots: {
+      a: { type: 'fight', name: 'Nave', encounter: 'shrine-nave', description: 'Rats swarm over the pews, gnawing on candle stubs.' },
+      b: { type: 'fight', name: 'Crypt', encounter: 'shrine-crypt', description: 'The crypt reeks. Nests of rag and bone fill the old niches, and something larger stirs.' },
+      t: { type: 'text', name: 'Altar of the Dawn', description: 'A carved sun, scratched and chewed. Steps behind the altar lead down to the crypt.' },
+      s: { type: 'text', name: 'Shrine Door', description: 'Mother Ilse bars the door behind you. You hear her muttering a prayer.' },
     },
   },
   millbrook: {

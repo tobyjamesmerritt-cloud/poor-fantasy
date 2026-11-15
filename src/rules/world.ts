@@ -17,11 +17,25 @@ export interface MapLocation {
   description: string;
 }
 
+/**
+ * A quest site on the world map (Tiled object type "site": properties siteId,
+ * description, hidden). What it does is quest data (rules/quests.ts).
+ */
+export interface MapSite {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  description: string;
+  hidden: boolean; // not drawn until found (flag found:<id>)
+}
+
 export interface TravelMap {
   width: number;
   height: number;
   blocked: boolean[]; // row-major, true = impassable (water, walls, rocks)
   locations: MapLocation[];
+  sites: MapSite[];
   start: { x: number; y: number };
   terrain?: string[]; // row-major: grass | forest | rocks | road | bridge | water ('' = unknown)
 }
@@ -32,6 +46,8 @@ export const isBlocked = (m: TravelMap, x: number, y: number): boolean =>
 export function locationAt(m: TravelMap, x: number, y: number): MapLocation | undefined {
   return m.locations.find((l) => l.x === x && l.y === y);
 }
+
+export const siteAt = (m: TravelMap, x: number, y: number): MapSite | undefined => m.sites.find((s) => s.x === x && s.y === y);
 
 /**
  * One step. Diagonal steps may not cut a corner past a blocked square

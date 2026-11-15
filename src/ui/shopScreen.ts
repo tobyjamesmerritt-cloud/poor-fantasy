@@ -6,8 +6,8 @@
 import type { Command, CommandBus } from '../engine/commands';
 import type { GameState } from '../engine/state';
 import { characterData, derive } from '../content/characters';
-import { equipped, signed, trainedWithArmor, trainedWithWeapon } from '../rules/character';
-import { equipProblem, itemInfo, sellPrice } from '../rules/items';
+import { equipped, signed, trainedWithArmor, trainedWithWeapon, weaponDef } from '../rules/character';
+import { canSell, equipProblem, itemInfo, sellPrice } from '../rules/items';
 import { formatCoins } from '../rules/party';
 
 const gp = (cp: number) => formatCoins(cp);
@@ -41,7 +41,7 @@ export class ShopScreen {
     const stock: { title: string; refs: string[] }[] = [
       { title: 'Weapons', refs: Object.keys(d.weapons).map((id) => `weapon:${id}`) },
       { title: 'Armor', refs: Object.keys(d.armor).map((id) => `armor:${id}`) },
-      { title: 'Shields and potions', refs: ['shield', ...Object.keys(d.consumables).map((id) => `consumable:${id}`)] },
+      { title: 'Shields and potions', refs: ['shield', ...Object.keys(d.consumables).filter((id) => d.consumables[id].shop !== false).map((id) => `consumable:${id}`)] },
     ];
     const forSale = div(
       'sh-col',
@@ -99,14 +99,14 @@ export class ShopScreen {
     const state = this.game.party.find((p) => p.id === id);
     // what in the pack this character could put on
     const options = Object.keys(this.game.inventory)
-      .filter((ref) => !ref.startsWith('consumable:'))
+      .filter((ref) => ref === 'shield' || ref.startsWith('weapon:') || ref.startsWith('armor:'))
       .map((ref) => ({ ref, why: equipProblem(sheet, ref, characterData) }));
     const select = h('select', '') as HTMLSelectElement;
     select.append(new Option('Equip from pack…', ''));
     for (const o of options) {
       const info = itemInfo(o.ref, characterData)!;
       const kind = o.ref.split(':')[0];
-      const untrained = kind === 'weapon' && !trainedWithWeapon(cls, characterData.weapons[o.ref.split(':')[1]]);
+      const untrained = kind === 'weapon' && !trainedWithWeapon(cls, weaponDef(characterData, o.ref.split(':')[1])!);
       const opt = new Option(`${info.name}${o.why ? ` — ${o.why}` : untrained ? ' — not trained (no proficiency bonus)' : ''}`, o.ref);
       opt.disabled = !!o.why;
       select.append(opt);
@@ -146,8 +146,8 @@ export class ShopScreen {
           'tr',
           '',
           h('td', '', `${this.game.inventory[ref]}× ${itemInfo(ref, characterData)?.name ?? ref}`),
-          h('td', 'num', `sells for ${gp(sellPrice(ref, characterData))}`),
-          h('td', '', button('Sell one', () => this.send({ type: 'shopSell', ref }))),
+          h('td', 'num', canSell(ref) ? `sells for ${gp(sellPrice(ref, characterData))}` : 'quest item'),
+          h('td', '', canSell(ref) ? button('Sell one', () => this.send({ type: 'shopSell', ref })) : null),
         ),
       ),
     );

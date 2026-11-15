@@ -1,21 +1,46 @@
 {
-  "_note": "Night ambush at an outdoor camp: 2 Giant Wolf Spiders + 1 Giant Bat = 150 XP (well under SRD Low; the party may be hurt and woken).",
+  "_note": "Night ambush at an outdoor camp: Giant Wolf Spiders and Giant Bats, Low budget.",
   "id": "ambush-wilds",
   "width": 12,
   "height": 9,
   "floor": "meadow-grass",
   "partyLevel": 1,
   "partyStart": [
-    {"x": 1, "y": 2},
-    {"x": 1, "y": 4},
-    {"x": 1, "y": 6},
-    {"x": 0, "y": 3},
-    {"x": 0, "y": 5},
-    {"x": 0, "y": 4}
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 4
+    },
+    {
+      "x": 1,
+      "y": 6
+    },
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 0,
+      "y": 4
+    }
   ],
-  "enemies": [
-    {"monster": "giant-wolf-spider", "x": 10, "y": 1},
-    {"monster": "giant-wolf-spider", "x": 10, "y": 7},
-    {"monster": "giant-bat", "x": 11, "y": 4}
-  ]
+  "enemies": [],
+  "scaling": {
+    "difficulty": "low",
+    "filler": {
+      "monsters": [
+        "giant-wolf-spider",
+        "giant-bat"
+      ],
+      "min": 1,
+      "max": 5
+    }
+  }
 }

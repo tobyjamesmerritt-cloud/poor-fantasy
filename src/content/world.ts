@@ -4,8 +4,10 @@
  *   (set per tile in the tileset, so painting water in Tiled stays impassable).
  * - Locations come from the `locations` object layer (type = town | cave | ruins,
  *   custom properties `locationId` and `description`); `start` marks the party start.
+ * - Quest sites: type `site`, properties `siteId`, `description`, `hidden` (bool).
+ *   Their behaviour lives in src/content/quests.json.
  */
-import type { LocationKind, MapLocation, TravelMap } from '../rules/world';
+import type { LocationKind, MapLocation, MapSite, TravelMap } from '../rules/world';
 import terrainRaw from './terrain.json';
 
 interface TiledProperty {
@@ -107,11 +109,18 @@ export function loadTravelMap(t: TiledMap): TravelMap {
   const toTile = (o: TiledObject) => objTile(t, o);
 
   const locations: MapLocation[] = [];
+  const sites: MapSite[] = [];
   let start: { x: number; y: number } | undefined;
   for (const o of objects) {
     const kind = o.type ?? o.class ?? '';
     if (kind === 'start') {
       start = toTile(o);
+      continue;
+    }
+    if (kind === 'site') {
+      const id = String(prop(o, 'siteId') ?? '');
+      if (!id) errors.push(`site "${o.name}" is missing the siteId property`);
+      sites.push({ id, name: o.name, description: String(prop(o, 'description') ?? ''), hidden: prop(o, 'hidden') === true, ...toTile(o) });
       continue;
     }
     if (!KINDS.includes(kind)) {
@@ -127,5 +136,6 @@ export function loadTravelMap(t: TiledMap): TravelMap {
   if (new Set(ids).size !== ids.length) errors.push('duplicate locationId');
 
   if (errors.length) throw new Error('Invalid map:\n- ' + errors.join('\n- '));
-  return { width: t.width, height: t.height, blocked, locations, start: start!, terrain };
+  if (new Set(sites.map((s) => s.id)).size !== sites.length) errors.push('duplicate siteId');
+  return { width: t.width, height: t.height, blocked, locations, sites, start: start!, terrain };
 }

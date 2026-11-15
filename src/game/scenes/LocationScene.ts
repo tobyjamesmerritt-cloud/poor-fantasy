@@ -7,6 +7,8 @@
  * All movement and view geometry comes from rules/location.ts; this scene
  * only renders and forwards commands.
  */
+import { questData } from '../../content/quests';
+import { hooksAt } from '../../rules/quests';
 import * as Phaser from 'phaser';
 import type { Command, CommandBus } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
@@ -113,8 +115,9 @@ export class LocationScene extends Phaser.Scene {
     const key = `loc:${this.mapFile}`;
     this.map = loadLocationMap(this.mapFile, this.cache.tilemap.get(key).data as TiledMap, Object.keys(encounters));
     const world = loadTravelMap(this.cache.tilemap.get('world').data as TiledMap).locations.find((l) => l.id === id);
-    this.name = world?.name ?? id;
-    this.style = (world?.kind ?? 'cave') as Style;
+    const content = locationContent[id];
+    this.name = world?.name ?? content?.name ?? id;
+    this.style = (world?.kind ?? content?.style ?? 'cave') as Style;
 
     // Overhead map in the right pane.
     const tm = this.make.tilemap({ key });
@@ -331,8 +334,19 @@ export class LocationScene extends Phaser.Scene {
     }
   }
 
-  /** What you can do in a building: rest at inns, trade at shops, healing at temples. */
+  /**
+   * What you can do in a building: quest hooks first (people to talk to,
+   * things to buy), then the building's own services — unless a hook
+   * replaces them (a shrine full of rats has no temple services).
+   */
   private buildingActions(spot: Spot): { label: string; command?: Command }[] {
+    const hooks = hooksAt(this.deps.game, questData, `${this.deps.locationId}/${spot.name}`);
+    const hookActions = hooks.map((h) => ({ label: h.label ?? 'Look around', command: { type: 'hook', index: questData.hooks.indexOf(h) } as Command }));
+    if (hooks.some((h) => h.replaces)) return hookActions;
+    return [...hookActions, ...this.services(spot)];
+  }
+
+  private services(spot: Spot): { label: string; command?: Command }[] {
     const g = this.deps.game;
     if (spot.building === 'inn') {
       return [
@@ -355,7 +369,7 @@ export class LocationScene extends Phaser.Scene {
       }
       return actions;
     }
-    return [{ label: 'Nothing to do here yet' }];
+    return spot.building === 'hall' ? [] : [{ label: 'Nothing to do here yet' }];
   }
 
   private say(line: string): void {

@@ -13,6 +13,7 @@ function grid(rows: string[]): TravelMap {
     height: rows.length,
     blocked: rows.join('').split('').map((c) => c === '#'),
     locations: [],
+    sites: [],
     start: { x: 0, y: 0 },
   };
 }

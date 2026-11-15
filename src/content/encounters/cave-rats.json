@@ -1,24 +1,57 @@
 {
-  "_note": "Hollow Cave: 4 Giant Rats + Giant Wolf Spider + Giant Bat = 200 XP (below SRD Low 300 for 6 on purpose until class features exist). Bot win ~84% (npm run sim).",
+  "_note": "Hollow Cave rat nest: a Giant Wolf Spider and a Giant Bat, plus Giant Rats to fill a Moderate budget for (party − 1).",
   "id": "cave-rats",
   "width": 12,
   "height": 9,
   "floor": "dungeon-sand",
   "partyLevel": 1,
   "partyStart": [
-    {"x": 1, "y": 2},
-    {"x": 1, "y": 4},
-    {"x": 1, "y": 6},
-    {"x": 0, "y": 3},
-    {"x": 0, "y": 5},
-    {"x": 0, "y": 4}
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 4
+    },
+    {
+      "x": 1,
+      "y": 6
+    },
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 0,
+      "y": 4
+    }
   ],
-  "enemies": [
-    {"monster": "giant-rat", "x": 10, "y": 2},
-    {"monster": "giant-rat", "x": 10, "y": 3},
-    {"monster": "giant-rat", "x": 10, "y": 5},
-    {"monster": "giant-rat", "x": 10, "y": 6},
-    {"monster": "giant-wolf-spider", "x": 11, "y": 4},
-    {"monster": "giant-bat", "x": 11, "y": 1}
-  ]
+  "enemies": [],
+  "scaling": {
+    "difficulty": "moderate",
+    "fixed": [
+      {
+        "monster": "giant-wolf-spider",
+        "x": 10,
+        "y": 4
+      },
+      {
+        "monster": "giant-bat",
+        "x": 11,
+        "y": 1
+      }
+    ],
+    "filler": {
+      "monsters": [
+        "giant-rat"
+      ],
+      "min": 2,
+      "max": 8
+    }
+  }
 }

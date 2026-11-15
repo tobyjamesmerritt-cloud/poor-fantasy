@@ -56,6 +56,10 @@ export type Command =
   | { type: 'confirm' }
   | { type: 'aimSpell'; spellId: string; slot: number } // combat: pick targets on the grid next (cantrips: slot 0)
   | { type: 'openSpells' } // spells dialog (camp, party screen)
+  | { type: 'hook'; index: number } // a quest hook's button (index into quests.json hooks)
+  | { type: 'atSite'; site: string } // the party reached (or bumped into) a world-map site
+  | { type: 'talkChoice'; index: number; characterId?: string } // a conversation choice (skill checks: who tries)
+  | { type: 'talkClose' }
   | { type: 'castOutside'; casterId: string; spellId: string; slot: number; targetIds: string[] }
   | { type: 'prepareSpells'; characterId: string; prepared: string[] }
   | { type: 'cancel' }

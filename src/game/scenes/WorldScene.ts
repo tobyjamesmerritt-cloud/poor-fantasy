@@ -14,7 +14,9 @@ import { formatCoins, passTime } from '../../rules/party';
 import { SITE_RISK } from '../../rules/rest';
 import { rosterEntries } from '../partyView';
 import { loadTravelMap, type TiledMap } from '../../content/world';
-import { canStep, findPath, isBlocked, locationAt, type MapLocation, type TravelMap, worldCampSite } from '../../rules/world';
+import { canStep, findPath, isBlocked, locationAt, type MapLocation, siteAt, type TravelMap, worldCampSite } from '../../rules/world';
+import { questData } from '../../content/quests';
+import { hooksAt, siteBlocks, siteIcon, siteVisible } from '../../rules/quests';
 import { formatClock, MINUTES } from '../../rules/time';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
@@ -70,6 +72,7 @@ export class WorldScene extends Phaser.Scene {
     const ref = assets.sprites['party-token'];
     this.token = this.add.image(0, 0, ref.sheet, ref.frame).setScale(WORLD_SCALE).setDepth(5);
     this.placeToken();
+    this.drawSites();
 
     const cam = this.cameras.main;
     cam.setZoom(1).setBounds(0, 0, this.map.width * TILE, this.map.height * TILE);
@@ -148,16 +151,47 @@ export class WorldScene extends Phaser.Scene {
         return;
       }
       const [dx, dy] = DIRECTION_VECTORS[path[i]];
+      // A blocking site (the troll, the broken bridge) stops the party in front of it — and speaks up.
+      const ahead = siteAt(this.map, this.pos.x + dx, this.pos.y + dy);
+      if (ahead && siteBlocks(this.deps.game, questData, ahead.id)) {
+        this.busy = false;
+        this.arrive(false);
+        this.deps.bus.dispatch({ type: 'atSite', site: ahead.id });
+        return;
+      }
       this.pos = { x: this.pos.x + dx, y: this.pos.y + dy };
       this.deps.game.time += MINUTES.worldStep;
       for (const name of passTime(this.deps.game.party, statsOf(this.deps.game.roster), this.deps.game.time)) this.log.push(`${name} comes round (1 HP).`);
       this.placeToken();
       this.showRoster();
-      // stop early when walking onto a location on the way
-      if (i < path.length - 1 && locationAt(this.map, this.pos.x, this.pos.y)) return next(path.length);
+      // stop early when walking onto a location, or a site that does something
+      if (i < path.length - 1 && (locationAt(this.map, this.pos.x, this.pos.y) || this.siteHere())) return next(path.length);
       this.time.delayedCall(90, () => next(i + 1));
     };
     next(0);
+  }
+
+  /** A site on the party's square that shows on the map or has something to say. */
+  private siteHere() {
+    const s = siteAt(this.map, this.pos.x, this.pos.y);
+    if (!s) return undefined;
+    return this.siteShown(s) || hooksAt(this.deps.game, questData, `site:${s.id}`).length ? s : undefined;
+  }
+
+  /** Drawn on the map: found (or never hidden) and with an icon right now (a troll that left has none). */
+  private siteShown(s: { id: string; hidden: boolean }): boolean {
+    return siteVisible(this.deps.game, s.id, s.hidden) && siteIcon(this.deps.game, questData, s.id) !== null;
+  }
+
+  /** Quest sites: icons for those found or never hidden (quest data may change or remove them). */
+  private drawSites(): void {
+    for (const s of this.map.sites) {
+      if (!siteVisible(this.deps.game, s.id, s.hidden)) continue;
+      const key = siteIcon(this.deps.game, questData, s.id);
+      const ref = key ? assets.sprites[key] : undefined;
+      if (!ref) continue;
+      this.add.image(s.x * TILE + TILE / 2, s.y * TILE + TILE / 2, ref.sheet, ref.frame).setScale(WORLD_SCALE).setDepth(3);
+    }
   }
 
   private showRoster(): void {
@@ -179,6 +213,24 @@ export class WorldScene extends Phaser.Scene {
    * map goes inside; standing on one (e.g. just came out) shows its panel.
    */
   private arrive(announce: boolean): void {
+    const site = this.siteHere();
+    if (site) {
+      const name = this.siteShown(site) ? site.name : 'Wilderness';
+      this.deps.hud.setStatus(`World map · ${name} · (${this.pos.x}, ${this.pos.y}) · ${formatClock(this.deps.game.time)}`);
+    }
+    if (site && announce) {
+      // quest content takes over (main.ts runs the site's hooks); a plain visible site just shows its panel
+      if (hooksAt(this.deps.game, questData, `site:${site.id}`).length) {
+        this.deps.hud.setLog(this.log);
+        this.deps.bus.dispatch({ type: 'atSite', site: site.id });
+        return;
+      }
+    }
+    if (site && this.siteShown(site)) {
+      this.deps.hud.setLog(this.log);
+      this.deps.hud.setPlace({ name: site.name, kind: 'Site', description: site.description, actions: [{ label: 'Leave', command: { type: 'leavePlace' } }] });
+      return;
+    }
     const loc = locationAt(this.map, this.pos.x, this.pos.y);
     if (loc && (announce || loc !== this.here)) this.log.push(`You arrive at ${loc.name}.`);
     this.here = loc;

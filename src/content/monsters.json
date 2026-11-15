@@ -1,5 +1,5 @@
 {
-  "_note": "Stat blocks from SRD 5.2 (CC-BY-4.0). Speeds in 5-ft squares; flying treated as walking until flight rules exist. hp = the stat block's fixed average. saves = saving throw bonuses (the stat block's Save column).",
+  "_note": "Stat blocks from SRD 5.2 (CC-BY-4.0). Speeds in 5-ft squares; flying treated as walking until flight rules exist. hp = the stat block's fixed average. saves = saving throw bonuses (the stat block's Save column). troll: SRD 5.2 Troll (CR 5). Implemented: Multiattack (3 Rends), Regeneration (fire/acid stops it for a turn). Not yet: Large size, 10-ft reach, Loathsome Limbs, Charge; at 0 HP it simply dies.",
   "giant-rat": {
     "name": "Giant Rat",
     "sprite": "giant-rat",
@@ -110,6 +110,35 @@
         "2d6"
       ]
     },
+    "traits": []
+  },
+  "troll": {
+    "name": "Troll",
+    "sprite": "troll",
+    "cr": "5",
+    "xp": 1800,
+    "ac": 15,
+    "hp": 94,
+    "hpDice": "9d10+45",
+    "speed": 6,
+    "initBonus": 1,
+    "saves": {
+      "str": 4,
+      "dex": 1,
+      "con": 5,
+      "int": -2,
+      "wis": -1,
+      "cha": -2
+    },
+    "attack": {
+      "name": "Rend",
+      "bonus": 7,
+      "damage": [
+        "2d6+4"
+      ]
+    },
+    "multiattack": 3,
+    "regeneration": 15,
     "traits": []
   }
 }

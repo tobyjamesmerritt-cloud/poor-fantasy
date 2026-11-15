@@ -975,3 +975,55 @@ button.danger {
   white-space: nowrap;
   font-size: 0.85rem;
 }
+
+/* Conversations and the quest journal */
+#talk-dialog {
+  width: min(40rem, 94vw);
+  max-width: none;
+}
+.talk-text {
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.talk-results {
+  border-left: 3px solid var(--gold);
+  padding-left: 0.6rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+  color: #cfcfcf;
+}
+.talk-results p {
+  margin: 0.2rem 0;
+}
+.talk-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.8rem;
+}
+.talk-choices button {
+  text-align: left;
+}
+#journal-dialog {
+  width: min(40rem, 94vw);
+  max-width: none;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.journal-list {
+  list-style: none;
+  padding: 0;
+}
+.journal-quest {
+  border-top: 1px solid #333;
+  padding: 0.4rem 0;
+}
+.journal-quest.done {
+  opacity: 0.7;
+}
+.journal-head {
+  color: var(--gold);
+}
+.journal-head small {
+  color: #aaa;
+}

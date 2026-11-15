@@ -99,7 +99,7 @@ export class SpellsDialog {
 
       // Casting between fights
       if (p) {
-        const options = outsideOptions(spells, s, p);
+        const options = outsideOptions(spells, s, p, g.inventory);
         if (options.length) section.append(el('h4', '', 'Cast now'));
         for (const o of options) {
           const key = `${sheet.id}:${o.id}`;
@@ -113,7 +113,7 @@ export class SpellsDialog {
           this.picks.set(key, pick);
           const row = el('div', 'sd-cast');
           row.title = o.spell.summary;
-          row.append(el('div', 'sd-cast-name', o.spell.name, el('small', '', o.spell.summary)));
+          row.append(el('div', 'sd-cast-name', o.scroll ? `📜 ${o.spell.name} (scroll ×${g.inventory[o.id] ?? 0})` : o.spell.name, el('small', '', o.spell.summary)));
           if (!o.levels.length) {
             row.append(el('small', 'muted', 'No spell slots left'));
             section.append(row);

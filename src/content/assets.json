@@ -89,6 +89,22 @@
     "hero-f": {
       "sheet": "dungeon",
       "frame": 111
+    },
+    "troll": {
+      "sheet": "dungeon",
+      "frame": 109
+    },
+    "site-brewery": {
+      "sheet": "dungeon",
+      "frame": 82
+    },
+    "site-shack": {
+      "sheet": "battle",
+      "frame": 10
+    },
+    "broken-bridge": {
+      "sheet": "battle",
+      "frame": 37
     }
   },
   "floors": {

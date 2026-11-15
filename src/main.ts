@@ -14,7 +14,7 @@ import { WorldScene } from './game/scenes/WorldScene';
 import { Hud } from './ui/hud';
 import { initMenu } from './ui/menu';
 import { PrefsStore } from './ui/prefs';
-import { BOARD, DEFAULT_ENCOUNTER } from './content/encounters';
+import { BOARD, DEFAULT_ENCOUNTER, encounters, locationContent, resolveEncounter } from './content/encounters';
 import { characterData, checkSheet, derive, membersOf, pregens, startingCoins, statsOf } from './content/characters';
 import { roll4d6DropLowest, startingCopper } from './rules/character';
 import { PartyScreen } from './ui/partyScreen';
@@ -30,6 +30,25 @@ import { addCharacter, benchMember, deleteCharacter, joinParty, restoreAll, useR
 import { SpellsDialog } from './ui/spellsDialog';
 import { castOutside } from './rules/spells';
 import { spendHitDice } from './rules/rest';
+import { TalkDialog, type TalkView } from './ui/talkDialog';
+import { JournalDialog } from './ui/journalDialog';
+import { checkRoller, questContext, questData } from './content/quests';
+import { ABILITY_NAMES } from './rules/character';
+import {
+  type Action,
+  type ActionResult,
+  choose,
+  type Difficulty,
+  type FightTweaks,
+  hooksAt,
+  nodeOf,
+  openTalk,
+  type Request,
+  run,
+  runTriggers,
+  type Talk,
+  visibleChoices,
+} from './rules/quests';
 import './ui/style.css';
 
 // ?seed=123 in the URL jumps straight into the test fight with those dice — paste it into bug reports.
@@ -160,6 +179,125 @@ document.getElementById('menu-new-game')!.addEventListener('click', () => {
 
 const shopScreen = new ShopScreen(bus);
 const spellsDialog = new SpellsDialog(bus);
+
+// ---------------------------------------------------------------------------
+// Quests (rules/quests.ts + content/quests.json): conversations, hooks, quest fights
+// ---------------------------------------------------------------------------
+const talkDialog = new TalkDialog(bus);
+const journal = new JournalDialog(questData);
+document.getElementById('menu-journal')!.addEventListener('click', () => journal.show(gameState));
+let talk: Talk | null = null; // the conversation on screen
+let talkNotes: string[] = []; // what happened in it, for the log afterwards
+let questFight: { onWin: Action[]; onLose: Action[]; onFlee: Action[] } | null = null; // what the current fight decides
+let fightDifficulty: Difficulty | undefined; // a quest's override of the encounter's difficulty
+let fightTweaks: FightTweaks | undefined;
+const qctx = () => questContext(exploreRng);
+
+/** Who fights: party members who aren't dead, and their average level (rules/scaling.ts). */
+function fightContext() {
+  const alive = gameState.party.filter((p) => !p.dead);
+  const levels = alive.map((p) => gameState.roster.find((r) => r.id === p.id)?.level ?? 1);
+  return { partySize: alive.length, level: levels.reduce((a, b) => a + b, 0) / Math.max(1, levels.length), difficulty: fightDifficulty };
+}
+
+function talkView(results: string[]): TalkView {
+  const node = nodeOf(questData, talk!);
+  const able = gameState.roster.filter((r) => {
+    const p = gameState.party.find((x) => x.id === r.id);
+    return p && !p.dead && p.hp > 0;
+  });
+  return {
+    speaker: node.speaker,
+    text: node.text,
+    results,
+    choices: visibleChoices(gameState, questData, talk!).map((c) => ({
+      index: c.index,
+      text: c.text,
+      check: c.check && {
+        label: `${ABILITY_NAMES[c.check.ability]}${c.check.skill ? ` (${c.check.skill})` : ''} check, DC ${c.check.dc}`,
+        rollers: able
+          .map((r) => {
+            const roll = checkRoller(r, c.check!.ability, c.check!.skill);
+            return { id: r.id, name: r.name, bonus: roll.bonus, note: roll.proficient ? 'proficient' : '' };
+          })
+          .sort((a, b) => b.bonus - a.bonus),
+      },
+    })),
+  };
+}
+
+/** Carry out what quest actions did: log lines, then any fight, place or new conversation they ask for. */
+function questOutcome(r: ActionResult): void {
+  const trig = runTriggers(gameState, qctx());
+  const log = [...r.log, ...trig.log];
+  const requests: Request[] = [...r.requests, ...trig.requests];
+  talkNotes.push(...log);
+  const fight = requests.find((x) => x.kind === 'fight');
+  const enter = requests.find((x) => x.kind === 'enter');
+  const next = requests.find((x) => x.kind === 'dialog');
+  if (fight || enter) {
+    endTalk(false);
+    if (fight?.kind === 'fight') startQuestFight(fight);
+    else if (enter?.kind === 'enter') {
+      locationId = enter.location;
+      gameState.location = null;
+      show('location');
+    }
+    return;
+  }
+  if (next?.kind === 'dialog') {
+    const opened = openTalk(gameState, next.id, qctx());
+    if (opened) {
+      talk = opened.talk;
+      log.push(...opened.log);
+      talkNotes.push(...opened.log);
+    }
+  }
+  if (talk) talkDialog.show(talkView(log));
+  else endTalk(true);
+}
+
+/** Close the conversation; its results go to the log of the place you're in. */
+function endTalk(redraw: boolean): void {
+  talk = null;
+  talkDialog.close();
+  notices.push(...talkNotes);
+  talkNotes = [];
+  if (redraw) refreshScreen();
+}
+
+function startDialog(id: string): void {
+  const opened = openTalk(gameState, id, qctx());
+  if (!opened) return;
+  talk = opened.talk;
+  talkNotes = [];
+  questOutcome(opened);
+}
+
+function runHook(index: number, at?: string): void {
+  const h = questData.hooks[index];
+  if (!h || (at && h.at !== at) || !hooksAt(gameState, questData, h.at).includes(h)) return;
+  if (h.dialog) startDialog(h.dialog);
+  else {
+    talkNotes = [];
+    questOutcome(run(gameState, h.do, qctx()));
+  }
+}
+
+function startQuestFight(f: Extract<Request, { kind: 'fight' }>): void {
+  if (!gameState.party.some(isConscious)) {
+    notices.push('Nobody in the party can fight right now — rest first.');
+    refreshScreen();
+    return;
+  }
+  questFight = { onWin: f.onWin, onLose: f.onLose, onFlee: f.onFlee };
+  encounter = f.encounter;
+  origin = undefined;
+  fightDifficulty = f.difficulty;
+  fightTweaks = f.tweaks;
+  seed = randomSeed();
+  show('combat');
+}
 const PREPARE_FLAG = 'spells:prepare'; // set at camp after a Long Rest, cleared on leaving camp
 
 /** Redraw whatever is on screen after a change made from a dialog. */
@@ -253,6 +391,17 @@ function onFightEnd(state: CombatState): void {
   }
   persistLibrary(); // XP lives on the character sheets
   notices.push(...afterCombat(gameState.party, statsOf(gameState.roster), state, gameState.time, exploreRng));
+  // scrolls read in the fight are gone
+  for (const [id, n] of Object.entries(state.scrolls ?? {})) {
+    if (n > 0) gameState.inventory[`scroll:${id}`] = n;
+    else delete gameState.inventory[`scroll:${id}`];
+  }
+  // a quest fight decides what happens next
+  if (questFight) {
+    const then = state.outcome === 'victory' ? questFight.onWin : state.outcome === 'fled' ? questFight.onFlee : questFight.onLose;
+    questFight = null;
+    notices.push(...run(gameState, then, qctx()).log);
+  }
   if (state.outcome === 'defeat') {
     defeat = afterDefeat(gameState.party, gameState.coins, prefs.get().difficulty);
     gameState.coins = defeat.coins;
@@ -289,11 +438,19 @@ function show(key: SceneKey): void {
       members: membersOf(gameState.roster),
       party: gameState.party,
       potions: gameState.inventory[POTION] ?? 0,
+      scrolls: Object.fromEntries(
+        Object.entries(gameState.inventory)
+          .filter(([ref]) => ref.startsWith('scroll:'))
+          .map(([ref, n]) => [ref.slice(7), n]),
+      ),
+      encounterDef: resolveEncounter(encounters[encounter], fightContext()),
+      tweaks: fightTweaks,
       now: gameState.time,
       onEnd: onFightEnd,
     };
   } else {
     returnTo = key;
+    notices.push(...runTriggers(gameState, qctx()).log); // e.g. the last shrine fight just won
     if (key === 'location') data = { bus, hud, game: gameState, locationId, notices: take() };
     else if (key === 'camp') data = { bus, hud, game: gameState, site: campSite!, rng: exploreRng, notices: take() };
     else data = { bus, hud, game: gameState, notices: take() };
@@ -341,6 +498,9 @@ bus.subscribe((cmd) => {
       if (cmd.type === 'fight') {
         encounter = cmd.encounter;
         origin = cmd.origin;
+        questFight = null;
+        fightDifficulty = undefined;
+        fightTweaks = undefined;
       }
       seed = randomSeed();
       delete gameState.flags[PREPARE_FLAG];
@@ -358,9 +518,39 @@ bus.subscribe((cmd) => {
       gameState.location = null; // walk in at the entrance
       show('location');
       break;
-    case 'leaveLocation':
+    case 'leaveLocation': {
+      // a place inside a town (the shrine) lets you out at its door; anywhere else onto the world map
+      const parent = locationContent[locationId]?.parent;
+      if (parent) {
+        locationId = parent.location;
+        gameState.location = { id: parent.location, x: parent.x, y: parent.y, facing: parent.facing };
+        show('location');
+        break;
+      }
       gameState.location = null;
       show('world');
+      break;
+    }
+    case 'hook':
+      runHook(cmd.index);
+      break;
+    case 'atSite': {
+      const h = hooksAt(gameState, questData, `site:${cmd.site}`)[0];
+      if (h) runHook(questData.hooks.indexOf(h));
+      break;
+    }
+    case 'talkChoice': {
+      if (!talk) break;
+      const sheet = cmd.characterId ? gameState.roster.find((r) => r.id === cmd.characterId) : undefined;
+      const c = nodeOf(questData, talk).choices?.[cmd.index];
+      const roller = sheet && c?.check ? checkRoller(sheet, c.check.ability, c.check.skill) : undefined;
+      const r = choose(gameState, talk, cmd.index, qctx(), roller);
+      talk = r.next;
+      questOutcome(r);
+      break;
+    }
+    case 'talkClose':
+      endTalk(true);
       break;
     case 'endFight':
       if (defeat) handleDefeat(defeat);
@@ -396,8 +586,18 @@ bus.subscribe((cmd) => {
       const stats = statsOf(gameState.roster);
       const caster = stats.find((s) => s.id === cmd.casterId);
       if (!caster) break;
-      const r = castOutside(characterData.spells, cmd.spellId, cmd.slot, caster, gameState.party, stats, cmd.targetIds, gameState.time, exploreRng, (p, s, log) =>
-        spendHitDice(p, s, exploreRng, log),
+      const r = castOutside(
+        characterData.spells,
+        cmd.spellId,
+        cmd.slot,
+        caster,
+        gameState.party,
+        stats,
+        cmd.targetIds,
+        gameState.time,
+        exploreRng,
+        (p, s, log) => spendHitDice(p, s, exploreRng, log),
+        gameState.inventory,
       );
       if (!r.ok) {
         spellsDialog.refresh(r.reason);
@@ -559,8 +759,11 @@ bus.subscribe((cmd) => {
       if (newGameMode) {
         beginAdventure();
         newGameMode = false;
-        notices.push('The party sets out into the Vale.');
-        show('world');
+        // every adventure begins in Millbrook
+        locationId = 'millbrook';
+        gameState.location = null;
+        notices.push('The party gathers in Millbrook. The reeve, they say, is looking for help.');
+        show('location');
       } else show(partyReturn);
       break;
     default:

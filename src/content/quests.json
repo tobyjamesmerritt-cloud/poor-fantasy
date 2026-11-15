@@ -1,0 +1,306 @@
+{
+  "_note": "Quest content (rules/quests.ts). quests: journal entries by stage; dialogs: conversations (entry picks the first node whose condition holds); hooks: where content attaches — \"<location>/<building spot name>\" buttons, or \"site:<id>\" on the world map (fires on arrival or when the party bumps into a blocking site); sites: blocking and icons for world-map sites (positions in world.json, type site); triggers: fire once when their condition becomes true. Quest progress is the flag quest:<id> (stage, \"none\" before it starts, \"done\" at the end). Fights scale to the party (party size − 1, rules/scaling.ts); a fight action may override the difficulty and tweak monsters.",
+
+  "quests": {
+    "rats": {
+      "name": "The Rats of Millbrook",
+      "level": "1",
+      "difficulty": "easy",
+      "stages": {
+        "accepted": "Reeve Tamsin Holt wants the rats cleared out of the Shrine of the Dawn, south-west of Millbrook's market. Mother Ilse will let you in.",
+        "cleared": "The shrine is quiet at last. Tell the reeve in her hall.",
+        "done": "The Shrine of the Dawn is open again, and the reeve paid 25 gp."
+      }
+    },
+    "ale": {
+      "name": "Dry Taps",
+      "level": "1–2",
+      "difficulty": "medium",
+      "stages": {
+        "find-brewery": "The Leaky Bucket has no ale: the brewery stopped sending barrels. The innkeeper thinks it lies in the hills to the north-west of Millbrook.",
+        "find-parts": "Brewmaster Odo's main spigot has cracked and he can't pay the smith. He thinks an old shack to the east, by the river, may still hold brewing parts.",
+        "return-parts": "You found some old spigot parts in the shack. Take them back to Odo at the brewery — who knows if they work.",
+        "done": "The ale flows again. The Leaky Bucket sells it by the mug."
+      }
+    },
+    "troll": {
+      "name": "The Troll Toll",
+      "level": "3",
+      "difficulty": "hard",
+      "stages": {
+        "met": "A troll has torn up the old bridge over the river and squats there with its rats. Nobody crosses east. Fighting it is deadly below level 3 — perhaps there is another way.",
+        "done": "The troll is gone and Millbrook's carpenters have mended the bridge. The road east is open."
+      }
+    }
+  },
+
+  "dialogs": {
+    "reeve": {
+      "entry": [
+        { "when": { "quest": "rats", "stage": "none" }, "node": "hello" },
+        { "when": { "quest": "rats", "stage": "accepted" }, "node": "waiting" },
+        { "when": { "quest": "rats", "stage": "cleared" }, "node": "reward" },
+        { "when": { "quest": "troll", "stage": "done" }, "node": "chat-open" },
+        { "node": "chat" }
+      ],
+      "nodes": {
+        "hello": {
+          "speaker": "Reeve Tamsin Holt",
+          "text": "Rats! Rats in the granary, rats in the well — and now rats in the Shrine of the Dawn. The priests are sleeping at the inn. Clear the shrine and the town will pay you twenty-five gold.",
+          "choices": [
+            { "text": "We'll clear the shrine.", "do": [{ "quest": "rats", "stage": "accepted" }], "next": "thanks" },
+            { "text": "Not today." }
+          ]
+        },
+        "thanks": {
+          "speaker": "Reeve Tamsin Holt",
+          "text": "Bless you. Mother Ilse waits at the shrine door — tell her I sent you. Mind the crypt: that's where they nest."
+        },
+        "waiting": {
+          "speaker": "Reeve Tamsin Holt",
+          "text": "The shrine is still crawling, I hear. The crypt below the altar is the worst of it."
+        },
+        "reward": {
+          "speaker": "Reeve Tamsin Holt",
+          "text": "Quiet as a tomb, Mother Ilse says — the good kind of quiet. Here, as promised. Millbrook won't forget it.",
+          "do": [{ "coins": 2500 }, { "quest": "rats", "stage": "done" }],
+          "choices": [{ "text": "Anything else troubling the town?", "next": "chat" }, { "text": "Farewell." }]
+        },
+        "chat": {
+          "speaker": "Reeve Tamsin Holt",
+          "text": "A troll has taken the old bridge east of here and torn half of it into the river. Nobody crosses. I'd not go near it unless you're seasoned — level three at the least. And the inn has run dry, which is making everyone surly."
+        },
+        "chat-open": {
+          "speaker": "Reeve Tamsin Holt",
+          "text": "The road east is open again, thanks to you. Fenwick's traders are already at the market."
+        }
+      }
+    },
+
+    "shrine-door": {
+      "entry": [
+        { "when": { "quest": "rats", "stage": "none" }, "node": "closed" },
+        { "when": { "quest": "rats", "stage": "accepted" }, "node": "open" },
+        { "node": "cleared" }
+      ],
+      "nodes": {
+        "closed": {
+          "speaker": "Mother Ilse",
+          "text": "You can't go in there, friend. Too many rats — they bite, and they're bold as wolves. If you want to help, speak to the reeve in her hall."
+        },
+        "open": {
+          "speaker": "Mother Ilse",
+          "text": "The reeve sent you? The Dawn be thanked. They're in the nave, and worse down in the crypt behind the altar. I'll bar the door behind you.",
+          "choices": [{ "text": "Go in.", "do": [{ "enter": "shrine-of-the-dawn" }] }, { "text": "Not yet." }]
+        },
+        "cleared": {
+          "speaker": "Mother Ilse",
+          "text": "You did it! I'll light the candles again. Do tell the reeve.",
+          "choices": [{ "text": "Look inside again.", "do": [{ "enter": "shrine-of-the-dawn" }] }, { "text": "Farewell." }]
+        }
+      }
+    },
+
+    "innkeeper": {
+      "entry": [
+        { "when": { "quest": "ale", "stage": "none" }, "node": "dry" },
+        { "when": { "quest": "ale", "stage": "done" }, "node": "flowing" },
+        { "node": "waiting" }
+      ],
+      "nodes": {
+        "dry": {
+          "speaker": "Bertram, innkeeper",
+          "text": "No ale, I'm afraid — not a drop. The brewery up in the hills stopped sending barrels two weeks back, and nobody's been to see why. Somewhere north-west of town, it is; I've never been. If you find out what's wrong, there's a free round in it.",
+          "choices": [
+            { "text": "We'll find the brewery.", "do": [{ "quest": "ale", "stage": "find-brewery" }], "next": "thanks" },
+            { "text": "Shame. Farewell." }
+          ]
+        },
+        "thanks": { "speaker": "Bertram, innkeeper", "text": "Bless you. Follow the hills north-west — you'll smell it before you see it." },
+        "waiting": { "speaker": "Bertram, innkeeper", "text": "Still dry. My regulars are drinking well water and complaining about it." },
+        "flowing": { "speaker": "Bertram, innkeeper", "text": "Listen to that — a full room again! Ale's four copper a mug, and the first one's on the house." }
+      }
+    },
+
+    "brewery": {
+      "entry": [
+        { "when": { "quest": "ale", "stage": "find-brewery" }, "node": "found" },
+        { "when": { "quest": "ale", "stage": "find-parts" }, "node": "waiting" },
+        { "when": { "all": [{ "quest": "ale", "stage": "return-parts" }, { "item": "misc:spigot-parts" }] }, "node": "parts" },
+        { "when": { "quest": "ale", "stage": "done" }, "node": "thanks-again" },
+        { "node": "closed" }
+      ],
+      "nodes": {
+        "found": {
+          "speaker": "Odo, brewmaster",
+          "text": "Visitors! Don't tell me — Bertram sent you. It's the main spigot: split clean down the middle. Can't draw a barrel without it, and the smith wants more than I'll see this season. There's an old shack east of here, by the river — the last brewer kept his spare fittings there. Might be something left, if the vermin haven't had it.",
+          "do": [{ "reveal": "brewery" }, { "quest": "ale", "stage": "find-parts" }],
+          "choices": [{ "text": "We'll look in the shack." }]
+        },
+        "waiting": { "speaker": "Odo, brewmaster", "text": "The shack's east of here, by the river. Mind the bats — they nest in the roof." },
+        "parts": {
+          "speaker": "Odo, brewmaster",
+          "text": "Let's see… brass, a bit green, but — yes! This'll seat. Give me an hour.",
+          "choices": [
+            {
+              "text": "Hand over the parts.",
+              "do": [{ "take": "misc:spigot-parts" }, { "time": 60 }, { "set": "ale:flowing" }, { "quest": "ale", "stage": "done" }],
+              "next": "fixed"
+            }
+          ]
+        },
+        "fixed": {
+          "speaker": "Odo, brewmaster",
+          "text": "Hear that gurgle? Sweetest sound in the Vale. I can't pay you — every copper I have is in those vats — but the Leaky Bucket will have barrels by nightfall. Drink one for me."
+        },
+        "thanks-again": { "speaker": "Odo, brewmaster", "text": "Spigot's holding! Tell Bertram I said hello." },
+        "closed": { "text": "The brewery is shut and quiet." }
+      }
+    },
+
+    "shack": {
+      "entry": [
+        { "when": { "all": [{ "quest": "ale", "stage": "find-parts" }, { "not": { "flag": "shack:searched" } }] }, "node": "found" },
+        { "when": { "flag": "troll:moved" }, "node": "troll-home" },
+        { "node": "empty" }
+      ],
+      "nodes": {
+        "found": {
+          "text": "Behind a wall of brambles you find a sagging shack. The door hangs by one hinge. Inside, something squeaks — a lot of somethings — and leathery wings stir in the rafters.",
+          "do": [{ "reveal": "shack" }],
+          "choices": [
+            {
+              "text": "Go in.",
+              "do": [
+                {
+                  "fight": "old-shack",
+                  "onWin": [
+                    { "set": "shack:searched" },
+                    { "say": "Among the droppings and broken crates you find old brewing gear and a few things somebody left behind." },
+                    { "give": "random:weapon+1", "count": 2 },
+                    { "give": "random:scroll:cleric:1" },
+                    { "give": "random:scroll:wizard:1" },
+                    { "give": "misc:spigot-parts" },
+                    { "quest": "ale", "stage": "return-parts" }
+                  ]
+                }
+              ]
+            },
+            { "text": "Leave it for now." }
+          ]
+        },
+        "empty": { "text": "The old shack is empty but for droppings and broken crates." },
+        "troll-home": { "text": "Loud snoring rattles the shack's last good wall. The troll has made itself at home — best not to wake it." }
+      }
+    },
+
+    "troll": {
+      "entry": [{ "node": "meet" }],
+      "nodes": {
+        "meet": {
+          "speaker": "The troll",
+          "text": "A troll heaves itself up from the end of the bridge, rats boiling around its feet. Behind it, the middle of the bridge is gone. \"Toll,\" it rumbles. \"Toll is: YOU.\"",
+          "do": [{ "quest": "troll", "stage": "met" }],
+          "choices": [
+            {
+              "text": "Tell it about the old shack by the river — dry, quiet, plenty of rats to eat.",
+              "when": { "all": [{ "quest": "ale", "stage": "done" }, { "not": { "flag": "troll:refused" } }] },
+              "check": { "ability": "cha", "skill": "Persuasion", "dc": 15, "pass": "persuaded", "fail": "refused" }
+            },
+            {
+              "text": "Offer it a mug of ale.",
+              "when": { "item": "consumable:ale" },
+              "do": [{ "take": "consumable:ale" }],
+              "next": "drunk"
+            },
+            { "text": "Fight!", "do": [{ "fight": "troll-bridge", "onWin": [{ "quest": "troll", "stage": "done" }, { "say": "The troll crashes into the river and does not get up. Millbrook's carpenters come out to mend the bridge." }] }] },
+            { "text": "Back away slowly." }
+          ]
+        },
+        "persuaded": {
+          "speaker": "The troll",
+          "text": "The troll scratches its head with a claw. \"Dry? Rats?\" It sniffs the air toward the north, grunts, and wades off upstream without a backward glance. Its rats are not so easily convinced.",
+          "do": [{ "set": "troll:moved" }],
+          "choices": [
+            {
+              "text": "Deal with the rats.",
+              "do": [{ "fight": "troll-rats", "onWin": [{ "quest": "troll", "stage": "done" }, { "say": "With the troll gone, Millbrook's carpenters come out to mend the bridge." }] }]
+            }
+          ]
+        },
+        "refused": {
+          "speaker": "The troll",
+          "text": "\"Lies,\" the troll growls, and spits. \"Troll stay. Troll eat.\"",
+          "do": [{ "set": "troll:refused" }],
+          "choices": [
+            { "text": "Offer it a mug of ale.", "when": { "item": "consumable:ale" }, "do": [{ "take": "consumable:ale" }], "next": "drunk" },
+            { "text": "Fight!", "do": [{ "fight": "troll-bridge", "onWin": [{ "quest": "troll", "stage": "done" }, { "say": "The troll crashes into the river and does not get up. Millbrook's carpenters come out to mend the bridge." }] }] },
+            { "text": "Back away slowly." }
+          ]
+        },
+        "drunk": {
+          "speaker": "The troll",
+          "text": "The troll snatches the mug, sniffs, and pours it down in one gulp. Then it belches, sways, and grins. \"More!\" It is in no state to aim straight — but it is still in the way.",
+          "choices": [
+            {
+              "text": "Fight it while it's tipsy!",
+              "do": [{ "fight": "troll-bridge", "tweaks": { "troll": { "fumble": 0.75 } }, "onWin": [{ "quest": "troll", "stage": "done" }, { "say": "The troll crashes into the river and does not get up. Millbrook's carpenters come out to mend the bridge." }] }]
+            },
+            { "text": "Back away." }
+          ]
+        }
+      }
+    }
+  },
+
+  "hooks": [
+    { "at": "millbrook/Reeve's Hall", "label": "Talk to the reeve", "dialog": "reeve" },
+    { "at": "millbrook/Shrine of the Dawn", "label": "Speak with Mother Ilse", "dialog": "shrine-door", "when": { "not": { "quest": "rats", "stage": "done" } }, "replaces": true },
+    { "at": "millbrook/Shrine of the Dawn", "label": "Look inside the shrine", "do": [{ "enter": "shrine-of-the-dawn" }], "when": { "quest": "rats", "stage": "done" } },
+    { "at": "millbrook/The Leaky Bucket", "label": "Talk to the innkeeper", "dialog": "innkeeper", "when": { "quest": "rats", "stage": "done" } },
+    {
+      "at": "millbrook/The Leaky Bucket",
+      "label": "Buy a mug of ale (4 cp)",
+      "when": { "flag": "ale:flowing" },
+      "do": [{ "buy": "consumable:ale", "price": 4 }]
+    },
+    {
+      "at": "millbrook/The Leaky Bucket",
+      "label": "Drink a mug of ale",
+      "when": { "item": "consumable:ale" },
+      "do": [{ "take": "consumable:ale", "quiet": true }, { "say": "The party shares a mug of Odo's ale. It is cool, bitter and very welcome." }]
+    },
+    { "at": "site:brewery", "dialog": "brewery", "when": { "any": [{ "flag": "found:brewery" }, { "quest": "ale", "stage": "find-brewery" }] } },
+    { "at": "site:shack", "dialog": "shack", "when": { "any": [{ "flag": "found:shack" }, { "quest": "ale", "stage": "find-parts" }] } },
+    { "at": "site:troll", "dialog": "troll", "when": { "not": { "quest": "troll", "stage": "done" } } },
+    { "at": "site:bridge", "dialog": "troll", "when": { "not": { "quest": "troll", "stage": "done" } } }
+  ],
+
+  "sites": {
+    "brewery": { "icon": "site-brewery" },
+    "shack": { "icon": "site-shack" },
+    "troll": {
+      "icon": "troll",
+      "blocks": { "not": { "quest": "troll", "stage": "done" } },
+      "iconWhen": [{ "when": { "any": [{ "quest": "troll", "stage": "done" }, { "flag": "troll:moved" }] }, "icon": null }]
+    },
+    "bridge": {
+      "icon": "broken-bridge",
+      "blocks": { "not": { "quest": "troll", "stage": "done" } },
+      "iconWhen": [{ "when": { "quest": "troll", "stage": "done" }, "icon": null }]
+    }
+  },
+
+  "triggers": [
+    {
+      "id": "shrine-cleared",
+      "when": { "all": [{ "quest": "rats", "stage": "accepted" }, { "cleared": "shrine-of-the-dawn:nave" }, { "cleared": "shrine-of-the-dawn:crypt" }] },
+      "do": [{ "quest": "rats", "stage": "cleared" }, { "say": "The last rat squeals and lies still. The Shrine of the Dawn is quiet." }]
+    },
+    {
+      "id": "ale-first-round",
+      "when": { "quest": "ale", "stage": "done" },
+      "do": [{ "give": "consumable:ale" }, { "say": "Word reaches the Leaky Bucket fast: Bertram puts a mug of ale aside for you." }]
+    }
+  ]
+}

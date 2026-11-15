@@ -1,0 +1,52 @@
+{
+  "_note": "The broken bridge (quest: The Troll Toll): an SRD Troll (CR 5, 1,800 XP) and its rats, High budget. Meant for about level 3.",
+  "id": "troll-bridge",
+  "width": 12,
+  "height": 9,
+  "floor": "meadow-grass",
+  "partyLevel": 1,
+  "partyStart": [
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 4
+    },
+    {
+      "x": 1,
+      "y": 6
+    },
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 0,
+      "y": 4
+    }
+  ],
+  "enemies": [],
+  "scaling": {
+    "difficulty": "high",
+    "fixed": [
+      {
+        "monster": "troll",
+        "x": 10,
+        "y": 4
+      }
+    ],
+    "filler": {
+      "monsters": [
+        "giant-rat"
+      ],
+      "min": 2,
+      "max": 4
+    }
+  }
+}

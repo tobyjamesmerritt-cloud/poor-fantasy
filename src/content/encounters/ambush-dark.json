@@ -1,22 +1,45 @@
 {
-  "_note": "Ambush while camping in a cave or ruin: 4 Giant Rats = 100 XP.",
+  "_note": "Ambush while camping in a cave or ruin: Giant Rats, Low budget.",
   "id": "ambush-dark",
   "width": 12,
   "height": 9,
   "floor": "dungeon-sand",
   "partyLevel": 1,
   "partyStart": [
-    {"x": 1, "y": 2},
-    {"x": 1, "y": 4},
-    {"x": 1, "y": 6},
-    {"x": 0, "y": 3},
-    {"x": 0, "y": 5},
-    {"x": 0, "y": 4}
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 4
+    },
+    {
+      "x": 1,
+      "y": 6
+    },
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 0,
+      "y": 4
+    }
   ],
-  "enemies": [
-    {"monster": "giant-rat", "x": 10, "y": 1},
-    {"monster": "giant-rat", "x": 11, "y": 3},
-    {"monster": "giant-rat", "x": 11, "y": 5},
-    {"monster": "giant-rat", "x": 10, "y": 7}
-  ]
+  "enemies": [],
+  "scaling": {
+    "difficulty": "low",
+    "filler": {
+      "monsters": [
+        "giant-rat"
+      ],
+      "min": 2,
+      "max": 8
+    }
+  }
 }
