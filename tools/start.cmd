@@ -17,7 +17,19 @@ if %NEED_INSTALL%==0 echo === Packages up to date.
 
 echo === Starting the game - your browser will open when it is ready.
 echo     To stop the game, close THIS window (closing the browser is not enough).
+if /i "%~1"=="mobile" goto mobile
 call npm run dev -- --open
+pause
+exit /b 0
+
+:mobile
+echo.
+echo === PHONE MODE: on your phone (same Wi-Fi as this PC), open the address
+echo     shown below next to "Network:" - for example http://192.168.1.23:5173
+echo     If Windows asks whether Node.js may use the network, allow PRIVATE networks.
+echo     Anyone on your home Wi-Fi can reach the game while this window is open.
+echo.
+call npm run dev -- --open --host
 pause
 exit /b 0
 
