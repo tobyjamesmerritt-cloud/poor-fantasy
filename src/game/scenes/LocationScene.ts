@@ -14,6 +14,7 @@ import type { Command, CommandBus } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
 import { encounters, locationContent } from '../../content/encounters';
 import { statsOf } from '../../content/characters';
+import { assets } from '../../content/assets';
 import { loadLocationMap } from '../../content/locationMap';
 import { loadTravelMap, type TiledMap } from '../../content/world';
 import {
@@ -84,6 +85,7 @@ export class LocationScene extends Phaser.Scene {
   private pose!: Pose;
   private view!: Phaser.GameObjects.Graphics;
   private arrow!: Phaser.GameObjects.Graphics;
+  private leader?: Phaser.GameObjects.Image; // the party's first (living) member stands for the party on the map
   private busy = false;
   private log: string[] = [];
 
@@ -128,6 +130,7 @@ export class LocationScene extends Phaser.Scene {
     this.add.rectangle(PANE, 0, 3, PANE, 0x000000).setOrigin(0.5, 0).setDepth(3); // pane divider
     this.view = this.add.graphics().setDepth(0);
     this.arrow = this.add.graphics().setDepth(4);
+    this.leader = undefined;
 
     // Resume where the party stood (back from a fight), or walk in at the entrance.
     const saved = this.deps.game.location;
@@ -398,16 +401,26 @@ export class LocationScene extends Phaser.Scene {
     });
   }
 
+  /** The party on the overhead map: the leader's icon, with a small arrow on top showing which way they face. */
   private drawArrow(): void {
     const g = this.arrow.clear();
     const cx = PANE + this.pose.x * CELL + CELL / 2;
     const cy = this.pose.y * CELL + CELL / 2;
+    const game = this.deps.game;
+    const first = game.roster.find((r) => !game.party.find((p) => p.id === r.id)?.dead) ?? game.roster[0];
+    const ref = first ? assets.sprites[first.sprite] : undefined;
+    if (ref) {
+      if (!this.leader) this.leader = this.add.image(cx, cy, ref.sheet, ref.frame).setScale(MAP_SCALE).setDepth(3.5);
+      this.leader.setTexture(ref.sheet, ref.frame).setPosition(cx, cy);
+    }
     const [fx, fy] = FACING_VECTORS[this.pose.facing];
-    const r = CELL * 0.38;
-    // a triangle pointing the way the party faces
-    const tip = { x: cx + fx * r, y: cy + fy * r };
-    const left = { x: cx - fx * r * 0.7 + fy * r * 0.75, y: cy - fy * r * 0.7 - fx * r * 0.75 };
-    const right = { x: cx - fx * r * 0.7 - fy * r * 0.75, y: cy - fy * r * 0.7 + fx * r * 0.75 };
+    // a small triangle on the facing edge of the square, over the icon
+    const r = CELL * 0.22;
+    const ox = cx + fx * CELL * 0.36;
+    const oy = cy + fy * CELL * 0.36;
+    const tip = { x: ox + fx * r, y: oy + fy * r };
+    const left = { x: ox - fx * r * 0.5 + fy * r, y: oy - fy * r * 0.5 - fx * r };
+    const right = { x: ox - fx * r * 0.5 - fy * r, y: oy - fy * r * 0.5 + fx * r };
     g.fillStyle(0xf1c40f, 1).lineStyle(2, 0x000000, 1);
     g.fillTriangle(tip.x, tip.y, left.x, left.y, right.x, right.y);
     g.strokeTriangle(tip.x, tip.y, left.x, left.y, right.x, right.y);
