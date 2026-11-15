@@ -7,7 +7,7 @@ import { assertTransition } from './modes';
 
 const START_TIME = 8 * 60; // day 1, 08:00
 
-export const SAVE_VERSION = 7; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench) · v7 inventory, XP
+export const SAVE_VERSION = 8; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench) · v7 inventory, XP · v8 XP and levels on the character sheet
 
 export interface GameState {
   version: number;
@@ -44,6 +44,9 @@ export interface CharacterSheet {
   increases: Partial<AbilityScores>; // background: +2/+1 or +1/+1/+1 among its three abilities
   level: number;
   gear?: Gear; // equipped items; absent = the class's starting kit
+  xp?: number; // experience points (kept with the character across games)
+  hpGains?: number[]; // Hit Die result for each level after the first (level 2 = index 0), before Con
+  asi?: Partial<AbilityScores>; // Ability Score Improvement(s) taken at level 4
 }
 
 /** Equipped items (ids in content/gear.json). */
@@ -66,7 +69,6 @@ export interface PartyMemberState {
   hitDice: number; // unspent Hit Point Dice (level 1: max 1)
   dead: boolean;
   wakesAt: number | null; // unconscious + stable: game time they regain 1 HP (SRD: after 1d4 hours)
-  xp: number; // experience points earned in this game
 }
 
 export function newGameState(seed: number): GameState {

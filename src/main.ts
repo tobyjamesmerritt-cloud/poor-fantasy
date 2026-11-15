@@ -23,7 +23,8 @@ import { buy, equip, sell, unequip } from './rules/items';
 import { loadSheetSizes, spriteCssFromSizes } from './game/spriteCss';
 import type { CombatState } from './rules/combat';
 import { afterCombat, afterDefeat, combatMinutes, freshParty, isConscious } from './rules/party';
-import { awardXp, nextLevelXp, takeTreasure } from './rules/rewards';
+import { awardXp, takeTreasure } from './rules/rewards';
+import { canLevelUp, levelUp } from './rules/levelling';
 import { describeTreasure, treasure } from './content/treasure';
 import { addCharacter, benchMember, deleteCharacter, joinParty, restoreAll, useReadyMade } from './rules/roster';
 import './ui/style.css';
@@ -224,21 +225,20 @@ function onFightEnd(state: CombatState): void {
   // potions drunk in the fight leave the pack
   if (state.potions > 0) gameState.inventory[POTION] = state.potions;
   else delete gameState.inventory[POTION];
-  const before = new Map(gameState.party.map((p) => [p.id, p.xp]));
-  const xp = awardXp(gameState.party, state);
+  const couldLevel = new Set(gameState.roster.filter(canLevelUp).map((r) => r.id));
+  const xp = awardXp(gameState.party, gameState.roster, state);
   if (xp.each) notices.push(`Each survivor earns ${xp.each} XP (${xp.total} XP in all).`);
   if (state.outcome === 'victory' && origin && treasure[origin] && !gameState.flags[`looted:${origin}`]) {
     gameState.flags[`looted:${origin}`] = true;
     takeTreasure(gameState, treasure[origin]);
     notices.push(`You search the area and find: ${describeTreasure(treasure[origin])}.`);
   }
-  for (const p of gameState.party) {
-    const next = nextLevelXp(1);
-    if (next && p.xp >= next && (before.get(p.id) ?? 0) < next && !p.dead) {
-      const name = gameState.roster.find((r) => r.id === p.id)?.name;
-      notices.push(`${name} has ${p.xp} XP — enough for level 2 (levelling up comes in a later update).`);
+  for (const r of gameState.roster) {
+    if (canLevelUp(r) && !couldLevel.has(r.id)) {
+      notices.push(`${r.name} can reach level ${r.level + 1}! Open Game → Party roster to level up.`);
     }
   }
+  persistLibrary(); // XP lives on the character sheets
   notices.push(...afterCombat(gameState.party, statsOf(gameState.roster), state, gameState.time, exploreRng));
   if (state.outcome === 'defeat') {
     defeat = afterDefeat(gameState.party, gameState.coins, prefs.get().difficulty);
@@ -456,6 +456,29 @@ bus.subscribe((cmd) => {
       const st = gameState.party.find((p) => p.id === sheet.id);
       if (st) st.hp = Math.min(st.hp, derive(sheet).hp || before);
       shopScreen.refresh(err ?? '');
+      break;
+    }
+    case 'levelUp': {
+      const inParty = gameState.roster.find((r) => r.id === cmd.characterId);
+      const benched = gameState.bench.find((b) => b.sheet.id === cmd.characterId);
+      const sheet = inParty ?? benched?.sheet;
+      if (!sheet) break;
+      const r = levelUp(sheet, { hp: cmd.hp, asi: cmd.asi }, exploreRng, characterData);
+      if (typeof r === 'string') {
+        partyScreen.refresh(undefined, r);
+        break;
+      }
+      const st = inParty ? gameState.party.find((p) => p.id === sheet.id) : benched?.state;
+      if (st && !st.dead) {
+        st.hp += r.hpGain; // the new hit points are there straight away
+        st.hitDice += 1;
+      }
+      persistLibrary();
+      partyScreen.refresh(
+        undefined,
+        `${sheet.name} reaches level ${r.level}! +${r.hpGain} HP${cmd.hp === 'roll' ? ` (rolled ${r.roll})` : ''}.` +
+          (r.features.length ? ` New: ${r.features.join(', ')}.` : ''),
+      );
       break;
     }
     case 'closePartyScreen':

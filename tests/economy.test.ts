@@ -67,8 +67,9 @@ describe('rewards', () => {
       makeUnit({ id: 'y', side: 'enemy', x: 4, y: 5, dead: true, hp: 0, xp: 50 }),
       makeUnit({ id: 'x', side: 'enemy', x: 3, y: 5, xp: 999 }), // still alive: no XP
     ]);
-    expect(awardXp(party, combat)).toMatchObject({ total: 75, each: 37 });
-    expect(party.map((p) => p.xp)).toEqual([37, 37, 0]);
+    const sheets = ['a', 'b', 'c'].map((id) => ({ ...structuredClone(pregens[0]), id }));
+    expect(awardXp(party, sheets, combat)).toMatchObject({ total: 75, each: 37 });
+    expect(sheets.map((s) => s.xp ?? 0)).toEqual([37, 37, 0]);
     expect(nextLevelXp(1)).toBe(300);
   });
 
@@ -80,7 +81,7 @@ describe('rewards', () => {
 });
 
 describe('save migration', () => {
-  it('a v6 save loads as v7 with an empty pack and 0 XP', () => {
+  it('a v6 save loads as the current version with an empty pack and 0 XP', () => {
     const v7 = newGameState(1);
     v7.party = freshParty([{ id: 'a', name: 'A', hp: 10, hitDie: 10, conMod: 0 }]);
     const old = makeSave(v7, 1, '', '') as unknown as { state: Record<string, unknown> };
@@ -89,8 +90,8 @@ describe('save migration', () => {
     old.state.party = [{ id: 'a', hp: 4, hitDice: 1, dead: false, wakesAt: null }];
     const env = parseSave(JSON.stringify(old));
     expect(env.state.inventory).toEqual({});
-    expect(env.state.party[0]).toMatchObject({ hp: 4, xp: 0 });
-    expect(env.state.version).toBe(7);
+    expect(env.state.party[0]).toMatchObject({ hp: 4 });
+    expect(env.state.version).toBe(8);
   });
 });
 

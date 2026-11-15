@@ -29,6 +29,25 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<stri
       state: b.state ? { xp: 0, ...b.state } : null,
     })),
   }),
+  // v8: XP moves from the party condition onto the character sheet
+  7: (s) => {
+    const party = s.party as { id: string; xp?: number }[];
+    const xpOf = (id: string) => party.find((p) => p.id === id)?.xp ?? 0;
+    const strip = <T extends { xp?: number }>(o: T | null) => {
+      if (!o) return o;
+      const { xp: _xp, ...rest } = o;
+      return rest;
+    };
+    return {
+      ...s,
+      roster: (s.roster as { id: string }[]).map((r) => ({ ...r, xp: xpOf(r.id) })),
+      party: party.map((p) => strip(p)),
+      bench: (s.bench as { sheet: { id: string }; state: { xp?: number } | null }[]).map((b) => ({
+        sheet: { ...b.sheet, xp: b.state?.xp ?? 0 },
+        state: strip(b.state),
+      })),
+    };
+  },
 };
 
 const REQUIRED: (keyof GameState)[] = ['version', 'seed', 'flags', 'time', 'roster', 'party', 'bench', 'coins', 'inventory'];

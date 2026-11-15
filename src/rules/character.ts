@@ -34,6 +34,7 @@ export interface ClassDef {
   weaponTraining: ('simple' | 'martial' | 'martial-finesse-light')[];
   playable: boolean; // false = data only, not offered yet
   features?: string[]; // level-1 features by name (not in effect yet unless noted in rules)
+  featuresByLevel?: Record<string, string[]>; // level → feature names gained
 }
 
 export interface SpeciesDef {
@@ -145,11 +146,21 @@ export function checkIncreases(bg: BackgroundDef, inc: Partial<AbilityScores>): 
   return ok ? null : 'Choose +2 and +1, or +1 to all three.';
 }
 
-export function finalScores(sheet: Pick<CharacterSheet, 'scores' | 'increases'>): AbilityScores {
+/** Scores after background increases and any Ability Score Improvements (none above 20). */
+export function finalScores(sheet: Pick<CharacterSheet, 'scores' | 'increases' | 'asi'>): AbilityScores {
   const out = { ...sheet.scores };
-  for (const a of ABILITIES) out[a] = Math.min(20, out[a] + (sheet.increases[a] ?? 0));
+  for (const a of ABILITIES) out[a] = Math.min(20, out[a] + (sheet.increases[a] ?? 0) + (sheet.asi?.[a] ?? 0));
   return out;
 }
+
+/** Highest level the game supports so far. */
+export const MAX_LEVEL = 5;
+
+/** SRD 5.2 Proficiency Bonus by level: +2 at 1–4, +3 at 5–8, … */
+export const proficiencyBonus = (level: number): number => 2 + Math.floor((level - 1) / 4);
+
+/** SRD 5.2: the fixed Hit Point increase per level instead of rolling (die / 2 + 1). */
+export const averageHitDie = (die: number): number => die / 2 + 1;
 
 // ---------------------------------------------------------------------------
 // Validation and derived stats
@@ -173,7 +184,11 @@ export function validateSheet(sheet: CharacterSheet, data: CharacterData): strin
     const why = checkIncreases(bg, sheet.increases);
     if (why) errors.push(why);
   }
-  if (sheet.level !== 1) errors.push('Only level 1 characters for now.');
+  if (!Number.isInteger(sheet.level) || sheet.level < 1 || sheet.level > MAX_LEVEL) errors.push(`Level must be 1–${MAX_LEVEL}.`);
+  if (cls && (sheet.hpGains?.length ?? 0) !== sheet.level - 1) errors.push('Hit point increases don’t match the level.');
+  if (cls && sheet.hpGains?.some((g) => !Number.isInteger(g) || g < 1 || g > cls.hitDie)) errors.push('A hit point increase is out of range.');
+  const asiTotal = Object.values(sheet.asi ?? {}).reduce((a, b) => a + (b ?? 0), 0);
+  if (asiTotal > (sheet.level >= 4 ? 2 : 0)) errors.push('Too many Ability Score Improvements for this level.');
   return errors;
 }
 
@@ -196,7 +211,7 @@ export interface DerivedStats {
 export const PROFICIENCY_BONUS_L1 = 2;
 
 /** Species traits and feats that already change the numbers (the rest are listed but not in effect yet). */
-export const IMPLEMENTED: readonly string[] = ['Alert', 'Dwarven Toughness'];
+export const IMPLEMENTED: readonly string[] = ['Alert', 'Dwarven Toughness', 'Ability Score Improvement'];
 
 export function deriveStats(sheet: CharacterSheet, data: CharacterData): DerivedStats {
   const cls = data.classes[sheet.classId];
@@ -207,7 +222,9 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
   const notes: string[] = [];
 
   // Hit Points at level 1: Hit Point Die maximum + Con modifier (minimum 1).
+  // Hit Points: level 1 = Hit Die max + Con; each later level = the recorded die result + Con (min 1).
   let hp = Math.max(1, cls.hitDie + mod('con'));
+  for (const g of sheet.hpGains ?? []) hp += Math.max(1, g + mod('con'));
   if (species.traits.includes('Dwarven Toughness')) hp += sheet.level; // +1 HP per level
 
   // Armor Class: armor base + Dex (capped by armor), +2 shield; unarmored 10 + Dex.
@@ -229,12 +246,13 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
   const useDex = !!weapon.finesse && mod('dex') > mod('str');
   const atkMod = useDex ? mod('dex') : mod('str');
   const proficient = trainedWithWeapon(cls, weapon);
+  const pb = proficiencyBonus(sheet.level);
   if (!proficient) notes.push(`${weapon.name}: not trained — no proficiency bonus to hit.`);
   const damage = [`${weapon.damage}${atkMod ? signed(atkMod) : ''}`];
 
   // Initiative: Dex modifier; the Alert origin feat adds the Proficiency Bonus.
   let initBonus = mod('dex');
-  if (bg.feat === 'Alert') initBonus += PROFICIENCY_BONUS_L1;
+  if (bg.feat === 'Alert') initBonus += proficiencyBonus(sheet.level);
 
   return {
     hp,
@@ -242,7 +260,7 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
     speed: Math.floor(speedFt / 5),
     initBonus,
     attackName: weapon.name,
-    attackBonus: atkMod + (proficient ? PROFICIENCY_BONUS_L1 : 0),
+    attackBonus: atkMod + (proficient ? pb : 0),
     damage,
     medicine: mod('wis'),
     hitDie: cls.hitDie,

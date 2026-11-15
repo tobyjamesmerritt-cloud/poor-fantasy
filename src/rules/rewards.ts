@@ -6,7 +6,7 @@
  * Treasure: wild beasts carry none (house rule); lairs and guarded rooms hold
  * the treasure listed in content/treasure.json, taken when the fight is won.
  */
-import type { PartyMemberState } from '../engine/state';
+import type { CharacterSheet, PartyMemberState } from '../engine/state';
 import type { CombatState } from './combat';
 import type { Inventory } from './items';
 
@@ -18,12 +18,19 @@ export interface Treasure {
   items: Inventory;
 }
 
-export function awardXp(party: PartyMemberState[], combat: CombatState): { each: number; total: number; who: string[] } {
+export function awardXp(
+  party: readonly PartyMemberState[],
+  roster: CharacterSheet[],
+  combat: CombatState,
+): { each: number; total: number; who: string[] } {
   const total = combat.units.filter((u) => u.side === 'enemy' && u.dead).reduce((sum, u) => sum + (u.xp ?? 0), 0);
   const fighters = party.filter((p) => !p.dead && combat.units.some((u) => u.id === p.id));
   if (!total || !fighters.length) return { each: 0, total, who: [] };
   const each = Math.floor(total / fighters.length);
-  for (const p of fighters) p.xp = (p.xp ?? 0) + each;
+  for (const p of fighters) {
+    const sheet = roster.find((s) => s.id === p.id);
+    if (sheet) sheet.xp = (sheet.xp ?? 0) + each;
+  }
   return { each, total, who: fighters.map((p) => p.id) };
 }
 

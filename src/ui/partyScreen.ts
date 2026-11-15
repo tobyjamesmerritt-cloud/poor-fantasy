@@ -21,6 +21,8 @@ import {
   ABILITIES,
   ABILITY_NAMES,
   abilityMod,
+  averageHitDie,
+  finalScores,
   IMPLEMENTED,
   POINT_BUY_BUDGET,
   pointBuyCost,
@@ -28,6 +30,12 @@ import {
   STANDARD_ARRAY,
 } from '../rules/character';
 import type { SpriteCss } from './hud';
+import { canLevelUp, checkAsi, needsAsi, xpForNext } from '../rules/levelling';
+
+function xpLine(s: CharacterSheet): string {
+  const need = xpForNext(s);
+  return `XP ${s.xp ?? 0}${need ? ` / ${need} for level ${s.level + 1}` : ' (highest level for now)'}`;
+}
 
 type Method = 'roll' | 'array' | 'points';
 
@@ -54,6 +62,8 @@ export class PartyScreen {
   private game!: GameState;
   private newGame = false;
   private draft: Draft | null = null;
+  private levelling: { id: string; hp: 'roll' | 'average'; asi: Partial<AbilityScores> } | null = null;
+  private message = '';
 
   constructor(private deps: PartyScreenDeps) {
     const el = document.getElementById('party-screen');
@@ -69,8 +79,12 @@ export class PartyScreen {
   }
 
   /** Re-render after main.ts changed the roster (keeps an open editor unless it was saved). */
-  refresh(saved?: string): void {
+  refresh(saved?: string, message = ''): void {
     if (saved && this.draft?.sheet.id === saved) this.draft = null;
+    if (message) {
+      this.message = message;
+      this.levelling = null;
+    }
     this.render();
   }
 
@@ -126,7 +140,9 @@ export class PartyScreen {
         ),
       ),
     );
-    const right = this.draft ? this.editor(this.draft) : this.help();
+    const right = this.levelling ? this.levelPanel() : this.draft ? this.editor(this.draft) : this.help();
+    if (this.message) right.prepend(h('div', 'ps-message', this.message));
+    this.message = '';
     this.root.replaceChildren(left, right);
   }
 
@@ -137,7 +153,8 @@ export class PartyScreen {
       'ps-who',
       h('div', 'name party', s.name),
       h('div', 'small', `${characterData.species[s.speciesId].name} ${className(s)} · ${characterData.backgrounds[s.backgroundId].name}`),
-      h('div', 'small muted', `HP ${now ? now.hp : d.hp}/${d.hp} · AC ${d.ac} · ${d.attackName} ${signed(d.attackBonus)} · XP ${now?.xp ?? 0}${status}`),
+      h('div', 'small muted', `Level ${s.level} · HP ${now ? now.hp : d.hp}/${d.hp} · AC ${d.ac} · ${d.attackName} ${signed(d.attackBonus)}${status}`),
+      h('div', 'small muted', xpLine(s)),
     );
   }
 
@@ -151,6 +168,7 @@ export class PartyScreen {
         'ps-row-buttons',
         button('↑', () => this.send({ type: 'moveCharacter', id: s.id, by: -1 }), i === 0 ? 'Already first' : undefined),
         button('↓', () => this.send({ type: 'moveCharacter', id: s.id, by: 1 }), i === this.game.roster.length - 1 ? 'Already last' : undefined),
+        canLevelUp(s) ? button('Level up!', () => this.startLevelUp(s), undefined, 'primary') : null,
         button('Edit', () => this.startEdit(s)),
         button('Bench', () => this.send({ type: 'benchCharacter', id: s.id })),
       ),
@@ -164,6 +182,7 @@ export class PartyScreen {
       this.summary(s, state),
       div(
         'ps-row-buttons',
+        canLevelUp(s) ? button('Level up!', () => this.startLevelUp(s), undefined, 'primary') : null,
         button('Join', () => this.send({ type: 'joinParty', id: s.id }), full ? 'The party is full (6) — bench someone first.' : undefined),
         button('Edit', () => this.startEdit(s)),
         button('Delete', () => {
@@ -176,6 +195,89 @@ export class PartyScreen {
               danger: true,
             })
             .then((yes) => yes && this.send({ type: 'deleteCharacter', id: s.id }));
+        }),
+      ),
+    );
+  }
+
+  private startLevelUp(s: CharacterSheet): void {
+    this.draft = null;
+    this.levelling = { id: s.id, hp: 'average', asi: {} };
+    this.render();
+  }
+
+  /** Level-up panel: Hit Points (roll or fixed), Ability Score Improvement at level 4, new features. */
+  private levelPanel(): HTMLElement {
+    const l = this.levelling!;
+    const s = this.findSheet(l.id)!;
+    const cls = characterData.classes[s.classId];
+    const next = s.level + 1;
+    const con = abilityMod(finalScores(s).con);
+    const avg = averageHitDie(cls.hitDie);
+    const features = cls.featuresByLevel?.[String(next)] ?? [];
+    const asiNeeded = needsAsi(s);
+    const asiError = asiNeeded ? checkAsi(s, l.asi) : null;
+    const now = finalScores(s);
+    const asiControls = asiNeeded
+      ? div(
+          'ps-asi',
+          h('h3', '', 'Ability Score Improvement'),
+          h('p', 'small muted', 'Add +2 to one ability, or +1 to two (nothing above 20). Feats instead of this come later.'),
+          h(
+            'table',
+            'ps-scores',
+            ...ABILITIES.map((a) =>
+              h(
+                'tr',
+                '',
+                h('td', '', ABILITY_NAMES[a]),
+                h('td', 'num', String(now[a])),
+                h(
+                  'td',
+                  '',
+                  div(
+                    'ps-pb',
+                    button('−', () => {
+                      l.asi[a] = Math.max(0, (l.asi[a] ?? 0) - 1);
+                      if (!l.asi[a]) delete l.asi[a];
+                      this.render();
+                    }, l.asi[a] ? undefined : 'Nothing added'),
+                    h('span', 'num', l.asi[a] ? `+${l.asi[a]}` : '0'),
+                    button('+', () => {
+                      l.asi[a] = (l.asi[a] ?? 0) + 1;
+                      this.render();
+                    }, Object.values(l.asi).reduce((x, y) => x + (y ?? 0), 0) >= 2 || now[a] + (l.asi[a] ?? 0) >= 20 ? 'No more points' : undefined),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        )
+      : null;
+    const pick = (hp: 'roll' | 'average', label: string) =>
+      button(label, () => {
+        l.hp = hp;
+        this.render();
+      }, undefined, l.hp === hp ? 'active' : '');
+    return div(
+      'ps-editor',
+      h('h2', '', `${s.name} reaches level ${next}`),
+      h('p', 'small muted', `${className(s)} · ${s.xp ?? 0} XP`),
+      h('h3', '', 'Hit points'),
+      div('ps-tabs', pick('average', `Take ${avg} ${signed(con)} Con`), pick('roll', `Roll d${cls.hitDie} ${signed(con)} Con`)),
+      h('p', 'small muted', `Either way you also gain a Hit Die (d${cls.hitDie}) for short rests.${next === 5 ? ' Proficiency bonus rises to +3.' : ''}`),
+      asiControls,
+      h('h3', '', 'New class features'),
+      features.length
+        ? h('ul', 'ps-traits', ...features.map((f) => h('li', IMPLEMENTED.includes(f) ? 'ok' : 'muted', `${IMPLEMENTED.includes(f) ? '✓ ' : ''}${f}${IMPLEMENTED.includes(f) ? '' : ' (not in the game yet)'}`)))
+        : h('p', 'small muted', 'None at this level.'),
+      asiError ? h('div', 'ps-errors', asiError) : null,
+      div(
+        'ps-buttons',
+        button(`Level up to ${next}`, () => this.send({ type: 'levelUp', characterId: s.id, hp: l.hp, asi: asiNeeded ? l.asi : undefined }), asiError ?? undefined, 'primary'),
+        button('Not now', () => {
+          this.levelling = null;
+          this.render();
         }),
       ),
     );
@@ -202,6 +304,7 @@ export class PartyScreen {
   // -------------------------------------------------------------------------
 
   private startNew(): void {
+    this.levelling = null;
     const scores = byValue(this.deps.rollScores());
     this.draft = {
       sheet: {
@@ -227,6 +330,7 @@ export class PartyScreen {
   }
 
   private startEdit(s: CharacterSheet): void {
+    this.levelling = null;
     const inc = Object.entries(s.increases).filter(([, v]) => v);
     const spread = inc.length === 3;
     const plus2 = (inc.find(([, v]) => v === 2)?.[0] ?? inc[0]?.[0] ?? 'str') as Ability;

@@ -20,8 +20,8 @@ function input(party: PartyMemberState[], over: Partial<RestInput> = {}): RestIn
 describe('party between fights', () => {
   it('starts fresh and formats coins', () => {
     expect(freshParty(STATS)).toEqual([
-      { id: 'a', hp: 12, hitDice: 1, dead: false, wakesAt: null, xp: 0 },
-      { id: 'b', hp: 7, hitDice: 1, dead: false, wakesAt: null, xp: 0 },
+      { id: 'a', hp: 12, hitDice: 1, dead: false, wakesAt: null },
+      { id: 'b', hp: 7, hitDice: 1, dead: false, wakesAt: null },
     ]);
     expect(formatCoins(6000)).toBe('60 gp');
     expect(formatCoins(345)).toBe('3 gp 4 sp 5 cp');

@@ -822,3 +822,11 @@ button.danger {
   padding: 0.15rem 0.45rem;
   font-size: 0.8rem;
 }
+
+.ps-message {
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  padding: 0.5rem;
+  margin-bottom: 0.6rem;
+  border-radius: 6px;
+}

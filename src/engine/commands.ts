@@ -44,7 +44,8 @@ export type Command =
   | { type: 'equipItem'; characterId: string; ref: string }
   | { type: 'unequipItem'; characterId: string; slot: 'armor' | 'shield' }
   | { type: 'templeHeal' }
-  | { type: 'templeRaise'; characterId: string } // after a fight: back to where it started (location or world map)
+  | { type: 'templeRaise'; characterId: string }
+  | { type: 'levelUp'; characterId: string; hp: 'roll' | 'average'; asi?: Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>> } // after a fight: back to where it started (location or world map)
   | { type: 'leavePlace' } // close the location panel on the map
   | { type: 'confirm' }
   | { type: 'cancel' }

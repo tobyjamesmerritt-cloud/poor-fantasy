@@ -1,5 +1,5 @@
 {
-  "_note": "SRD 5.2 classes, level 1. kit = combat-relevant part of starting equipment option A (+ its GP). playable=false entries are data for later (DND backlog: remaining classes); verify their kits against the SRD before enabling. weaponTraining: simple | martial | martial-finesse-light (Rogue: Martial weapons with the Finesse or Light property).",
+  "_note": "SRD 5.2 classes, level 1. kit = combat-relevant part of starting equipment option A (+ its GP). playable=false entries are data for later (DND backlog: remaining classes); verify their kits against the SRD before enabling. weaponTraining: simple | martial | martial-finesse-light (Rogue: Martial weapons with the Finesse or Light property). featuresByLevel: SRD 5.2 class table names for levels 2-5 (playable classes); only Ability Score Improvement is in effect so far.",
   "barbarian": {
     "name": "Barbarian",
     "hitDie": 12,
@@ -88,7 +88,21 @@
     ],
     "weaponTraining": [
       "simple"
-    ]
+    ],
+    "featuresByLevel": {
+      "2": [
+        "Channel Divinity"
+      ],
+      "3": [
+        "Cleric Subclass (Life Domain)"
+      ],
+      "4": [
+        "Ability Score Improvement"
+      ],
+      "5": [
+        "Sear Undead"
+      ]
+    }
   },
   "druid": {
     "name": "Druid",
@@ -152,7 +166,23 @@
     "weaponTraining": [
       "simple",
       "martial"
-    ]
+    ],
+    "featuresByLevel": {
+      "2": [
+        "Action Surge",
+        "Tactical Mind"
+      ],
+      "3": [
+        "Fighter Subclass (Champion)"
+      ],
+      "4": [
+        "Ability Score Improvement"
+      ],
+      "5": [
+        "Extra Attack",
+        "Tactical Shift"
+      ]
+    }
   },
   "monk": {
     "name": "Monk",
@@ -213,7 +243,24 @@
     "weaponTraining": [
       "simple",
       "martial"
-    ]
+    ],
+    "featuresByLevel": {
+      "2": [
+        "Fighting Style",
+        "Paladin's Smite"
+      ],
+      "3": [
+        "Channel Divinity",
+        "Paladin Subclass (Oath of Devotion)"
+      ],
+      "4": [
+        "Ability Score Improvement"
+      ],
+      "5": [
+        "Extra Attack",
+        "Faithful Steed"
+      ]
+    }
   },
   "ranger": {
     "name": "Ranger",
@@ -246,7 +293,22 @@
     "weaponTraining": [
       "simple",
       "martial"
-    ]
+    ],
+    "featuresByLevel": {
+      "2": [
+        "Deft Explorer",
+        "Fighting Style"
+      ],
+      "3": [
+        "Ranger Subclass (Hunter)"
+      ],
+      "4": [
+        "Ability Score Improvement"
+      ],
+      "5": [
+        "Extra Attack"
+      ]
+    }
   },
   "rogue": {
     "name": "Rogue",
@@ -277,7 +339,23 @@
     "weaponTraining": [
       "simple",
       "martial-finesse-light"
-    ]
+    ],
+    "featuresByLevel": {
+      "2": [
+        "Cunning Action"
+      ],
+      "3": [
+        "Rogue Subclass (Thief)",
+        "Steady Aim"
+      ],
+      "4": [
+        "Ability Score Improvement"
+      ],
+      "5": [
+        "Cunning Strike",
+        "Uncanny Dodge"
+      ]
+    }
   },
   "sorcerer": {
     "name": "Sorcerer",
@@ -358,6 +436,20 @@
     ],
     "weaponTraining": [
       "simple"
-    ]
+    ],
+    "featuresByLevel": {
+      "2": [
+        "Scholar"
+      ],
+      "3": [
+        "Wizard Subclass (Evoker)"
+      ],
+      "4": [
+        "Ability Score Improvement"
+      ],
+      "5": [
+        "Memorize Spell"
+      ]
+    }
   }
 }

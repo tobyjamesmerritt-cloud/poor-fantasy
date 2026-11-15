@@ -96,7 +96,7 @@ export function memberOf(sheet: CharacterSheet): PartyMemberDef {
 export const membersOf = (roster: readonly CharacterSheet[]): PartyMemberDef[] => roster.map(memberOf);
 
 export const statsOf = (roster: readonly CharacterSheet[]): MemberStats[] =>
-  membersOf(roster).map((m) => ({ id: m.id, name: m.name, hp: m.hp, hitDie: m.hitDie, conMod: m.conMod }));
+  membersOf(roster).map((m, i) => ({ id: m.id, name: m.name, hp: m.hp, hitDie: m.hitDie, conMod: m.conMod, level: roster[i].level }));
 
 export const startingCoins = (roster: readonly CharacterSheet[]): number =>
   roster.reduce((sum, s) => sum + startingCopper(s, characterData), 0);

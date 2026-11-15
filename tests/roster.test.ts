@@ -13,7 +13,7 @@ import {
   useReadyMade,
 } from '../src/rules/roster';
 
-const fresh = (s: CharacterSheet): PartyMemberState => ({ id: s.id, hp: 10, hitDice: 1, dead: false, wakesAt: null, xp: 0 });
+const fresh = (s: CharacterSheet): PartyMemberState => ({ id: s.id, hp: 10, hitDice: 1, dead: false, wakesAt: null });
 const sheet = (id: string): CharacterSheet => ({ ...pregens[0], id, name: id });
 const empty = (): Roster => ({ roster: [], party: [], bench: [] });
 
