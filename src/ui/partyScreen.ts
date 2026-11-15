@@ -43,7 +43,7 @@ interface Draft {
 
 export interface PartyScreenDeps {
   bus: CommandBus;
-  rollScores: () => number[]; // 4d6 drop lowest ×6 through the game Rng
+  rollScores: () => number[]; // 4d6 drop lowest ×6 through the game Rng (shown highest first)
   spriteCss: (key: string) => SpriteCss | null;
 }
 
@@ -161,7 +161,7 @@ export class PartyScreen {
     const used = new Set(this.game.roster.map((s) => s.id));
     let n = 1;
     while (used.has(`c${n}`)) n++;
-    const scores = this.deps.rollScores();
+    const scores = byValue(this.deps.rollScores());
     this.draft = {
       sheet: {
         id: `c${n}`,
@@ -194,7 +194,7 @@ export class PartyScreen {
       sheet: structuredClone(s),
       isNew: false,
       method: 'roll',
-      pool: ABILITIES.map((a) => s.scores[a]),
+      pool: byValue(ABILITIES.map((a) => s.scores[a])),
       incMode: spread ? 'spread' : 'split',
       plus2,
       plus1,
@@ -367,7 +367,7 @@ export class PartyScreen {
           { roll: 'Roll 4d6', array: 'Standard array', points: 'Point buy' }[m],
           () => {
             d.method = m;
-            if (m === 'roll') d.pool = this.deps.rollScores();
+            if (m === 'roll') d.pool = byValue(this.deps.rollScores());
             if (m === 'array') d.pool = [...STANDARD_ARRAY];
             s.scores = m === 'points' ? { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 } : suggest(s.classId, d.pool);
             this.render();
@@ -378,7 +378,7 @@ export class PartyScreen {
       ),
       d.method === 'roll' && !locked
         ? button('🎲 Re-roll', () => {
-            d.pool = this.deps.rollScores();
+            d.pool = byValue(this.deps.rollScores());
             s.scores = suggest(s.classId, d.pool);
             this.render();
           })
@@ -402,8 +402,12 @@ export class PartyScreen {
         );
       } else {
         // pick a value from the pool; picking one that another ability holds swaps them
+        const holder = (i: number) => ABILITIES.find((b) => indexIn(d.pool, s.scores, b) === i);
         control = select(
-          d.pool.map((v, i) => ({ value: String(i), label: String(v) })),
+          d.pool.map((v, i) => {
+            const who = holder(i);
+            return { value: String(i), label: who && who !== a ? `${v}  (swap with ${who.toUpperCase()})` : String(v) };
+          }),
           String(indexIn(d.pool, s.scores, a)),
           (v) => {
             const i = Number(v);
@@ -432,7 +436,13 @@ export class PartyScreen {
       'ps-abilities',
       h('h3', '', 'Ability scores'),
       tabs,
-      d.method === 'points' ? h('div', 'small', `Points spent: ${spent ?? '?'} / ${POINT_BUY_BUDGET}`) : null,
+      d.method === 'points'
+        ? h('div', 'small', `Points spent: ${spent ?? '?'} / ${POINT_BUY_BUDGET}`)
+        : h(
+            'div',
+            'small',
+            `Your six values: ${d.pool.join(', ')}. Each ability takes one; picking a value another ability has swaps the two.`,
+          ),
       h('table', 'ps-scores', h('tr', '', h('th', '', ''), h('th', '', 'Base'), h('th', 'num', 'Bg'), h('th', 'num', 'Score'), h('th', 'num', 'Mod')), ...rows),
       h('div', 'small muted', '★ = the class’s primary ability. Scores are suggested for the class; change any of them.'),
     );
@@ -462,6 +472,8 @@ export class PartyScreen {
     return p;
   }
 }
+
+const byValue = (pool: readonly number[]): number[] => [...pool].sort((x, y) => y - x);
 
 /** Put the biggest values into the class's primary abilities, then Con, then the rest. */
 function suggest(classId: string, pool: readonly number[]): AbilityScores {
