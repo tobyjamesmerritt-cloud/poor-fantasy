@@ -1,0 +1,71 @@
+{
+  "_note": "SRD 5.2 armor and weapons used by starting kits. dexMax null = full Dex modifier.",
+  "armor": {
+    "leather": {
+      "name": "Leather Armor",
+      "base": 11,
+      "dexMax": null
+    },
+    "studded-leather": {
+      "name": "Studded Leather Armor",
+      "base": 12,
+      "dexMax": null
+    },
+    "chain-shirt": {
+      "name": "Chain Shirt",
+      "base": 13,
+      "dexMax": 2
+    },
+    "chain-mail": {
+      "name": "Chain Mail",
+      "base": 16,
+      "dexMax": 0,
+      "strength": 13
+    }
+  },
+  "weapons": {
+    "greatsword": {
+      "name": "Greatsword",
+      "damage": "2d6"
+    },
+    "longsword": {
+      "name": "Longsword",
+      "damage": "1d8"
+    },
+    "mace": {
+      "name": "Mace",
+      "damage": "1d6"
+    },
+    "scimitar": {
+      "name": "Scimitar",
+      "damage": "1d6",
+      "finesse": true
+    },
+    "shortsword": {
+      "name": "Shortsword",
+      "damage": "1d6",
+      "finesse": true
+    },
+    "quarterstaff": {
+      "name": "Quarterstaff",
+      "damage": "1d6"
+    },
+    "dagger": {
+      "name": "Dagger",
+      "damage": "1d4",
+      "finesse": true
+    },
+    "greataxe": {
+      "name": "Greataxe",
+      "damage": "1d12"
+    },
+    "sickle": {
+      "name": "Sickle",
+      "damage": "1d4"
+    },
+    "spear": {
+      "name": "Spear",
+      "damage": "1d6"
+    }
+  }
+}

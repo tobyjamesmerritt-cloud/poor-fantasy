@@ -8,6 +8,9 @@ import { parseDice } from '../engine/dice';
 import type { PartyMemberState } from '../engine/state';
 import type { Trait, Unit } from '../rules/combat';
 import type { MemberStats } from '../rules/party';
+import { membersOf, type PartyMemberDef, pregens, statsOf } from './characters';
+
+export type { PartyMemberDef };
 import { assets } from './assets';
 import ambushDark from './encounters/ambush-dark.json';
 import ambushWilds from './encounters/ambush-wilds.json';
@@ -15,7 +18,6 @@ import caveRats from './encounters/cave-rats.json';
 import ruinsCrawlers from './encounters/ruins-crawlers.json';
 import locationsRaw from './locations.json';
 import monstersRaw from './monsters.json';
-import partyRaw from './party.json';
 
 export interface MonsterDef {
   name: string;
@@ -31,21 +33,6 @@ export interface MonsterDef {
   traits: string[];
 }
 
-export interface PartyMemberDef {
-  id: string;
-  name: string;
-  sprite: string;
-  hp: number;
-  ac: number;
-  speed: number;
-  initBonus: number;
-  attackName: string;
-  attackBonus: number;
-  damage: string[];
-  medicine: number;
-  hitDie: number; // Hit Point Die size (d10 = 10)
-  conMod: number;
-}
 
 export interface EncounterDef {
   id: string;
@@ -73,15 +60,9 @@ const strip = <T>(raw: unknown): T => {
 };
 
 export const monsters: Record<string, MonsterDef> = validateMonsters(strip(monstersRaw));
-export const party: PartyMemberDef[] = (partyRaw as unknown as { members: PartyMemberDef[] }).members;
-/** The party's fixed stats as the rest/party rules need them. */
-export const partyStats: MemberStats[] = party.map((p) => ({
-  id: p.id,
-  name: p.name,
-  hp: p.hp,
-  hitDie: p.hitDie,
-  conMod: p.conMod,
-}));
+/** The quick-start party: default for encounter validation, tests and the balance simulator. */
+export const party: PartyMemberDef[] = membersOf(pregens);
+export const partyStats: MemberStats[] = statsOf(pregens);
 
 export function validateMonsters(defs: Record<string, MonsterDef>): Record<string, MonsterDef> {
   const errors: string[] = [];

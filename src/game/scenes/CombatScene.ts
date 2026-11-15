@@ -25,7 +25,7 @@ import {
   unitAt,
 } from '../../rules/combat';
 import { assets, cellSize, cursorCss } from '../../content/assets';
-import { buildUnits, encounters, type EncounterDef } from '../../content/encounters';
+import { buildUnits, encounters, type EncounterDef, type PartyMemberDef } from '../../content/encounters';
 import type { ActiveCard, Hud } from '../../ui/hud';
 import type { PrefsStore } from '../../ui/prefs';
 import { commandForKey } from '../input/keyboard';
@@ -48,6 +48,7 @@ export interface CombatSceneDeps {
   seed: number;
   encounter: string; // id in content/encounters
   onVictory?: () => void; // e.g. mark the map location cleared
+  members?: PartyMemberDef[]; // who fights (default: the quick-start party)
   party?: PartyMemberState[]; // persistent party: current HP, who is dead (omit = everyone fresh)
   onEnd?: (state: CombatState) => void; // once, when the fight is won, lost or fled
 }
@@ -100,7 +101,7 @@ export class CombatScene extends Phaser.Scene {
 
   create(): void {
     this.rng = createRng(this.deps.seed);
-    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, undefined, this.deps.party), this.deps.prefs.get().difficulty);
+    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, this.deps.members, this.deps.party), this.deps.prefs.get().difficulty);
     this.cameras.main.setZoom(1).setScroll(0, 0);
 
     this.deps.hud.setNames(this.state.units);

@@ -1,0 +1,59 @@
+{
+  "_note": "SRD 5.2 backgrounds. abilities = the three a character may raise (+2/+1 or +1/+1/+1). gp = coins in equipment option A.",
+  "acolyte": {
+    "name": "Acolyte",
+    "abilities": [
+      "int",
+      "wis",
+      "cha"
+    ],
+    "feat": "Magic Initiate (Cleric)",
+    "skills": [
+      "Insight",
+      "Religion"
+    ],
+    "gp": 8
+  },
+  "criminal": {
+    "name": "Criminal",
+    "abilities": [
+      "dex",
+      "con",
+      "int"
+    ],
+    "feat": "Alert",
+    "skills": [
+      "Sleight of Hand",
+      "Stealth"
+    ],
+    "gp": 16
+  },
+  "sage": {
+    "name": "Sage",
+    "abilities": [
+      "con",
+      "int",
+      "wis"
+    ],
+    "feat": "Magic Initiate (Wizard)",
+    "skills": [
+      "Arcana",
+      "History"
+    ],
+    "gp": 8
+  },
+  "soldier": {
+    "name": "Soldier",
+    "abilities": [
+      "str",
+      "dex",
+      "con"
+    ],
+    "feat": "Savage Attacker",
+    "skills": [
+      "Athletics",
+      "Intimidation"
+    ],
+    "gp": 14
+  }
+}

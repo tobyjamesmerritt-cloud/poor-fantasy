@@ -65,6 +65,30 @@
     "party-token": {
       "sheet": "dungeon",
       "frame": 96
+    },
+    "hero-a": {
+      "sheet": "dungeon",
+      "frame": 85
+    },
+    "hero-b": {
+      "sheet": "dungeon",
+      "frame": 86
+    },
+    "hero-c": {
+      "sheet": "dungeon",
+      "frame": 97
+    },
+    "hero-d": {
+      "sheet": "dungeon",
+      "frame": 98
+    },
+    "hero-e": {
+      "sheet": "dungeon",
+      "frame": 99
+    },
+    "hero-f": {
+      "sheet": "dungeon",
+      "frame": 111
     }
   },
   "floors": {

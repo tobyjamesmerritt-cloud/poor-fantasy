@@ -7,7 +7,7 @@ import { assertTransition } from './modes';
 
 const START_TIME = 8 * 60; // day 1, 08:00
 
-export const SAVE_VERSION = 4; // v2: party position · v3: world + location positions, facing, clock · v4: persistent party, coins, rests
+export const SAVE_VERSION = 5; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets (roster)
 
 export interface GameState {
   version: number;
@@ -18,9 +18,29 @@ export interface GameState {
   world: { x: number; y: number } | null; // party square on the world map; null = use the map's start
   location: { id: string; x: number; y: number; facing: 'n' | 'e' | 's' | 'w' } | null; // inside a location, else null
   time: number; // game clock in minutes since midnight of day 1 (see rules/time.ts)
-  party: PartyMemberState[]; // current condition of each member, in party.json order
+  roster: CharacterSheet[]; // who is in the party, in marching order (derived stats: rules/character.ts)
+  party: PartyMemberState[]; // current condition of each member (same ids as the roster)
   coins: number; // party purse in copper pieces (100 cp = 1 gp)
   lastLongRest: number | null; // game time a Long Rest finished (16-hour wait before the next)
+}
+
+export type Ability = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
+export type AbilityScores = Record<Ability, number>;
+
+/**
+ * The choices a player made for a character (SRD 5.2 "Creating a Character").
+ * Everything else (HP, AC, attack, speed) is derived from these + content data.
+ */
+export interface CharacterSheet {
+  id: string;
+  name: string;
+  sprite: string; // portrait / map sprite key (content/assets.json)
+  classId: string; // content/classes.json
+  speciesId: string; // content/species.json
+  backgroundId: string; // content/backgrounds.json
+  scores: AbilityScores; // before background increases
+  increases: Partial<AbilityScores>; // background: +2/+1 or +1/+1/+1 among its three abilities
+  level: number;
 }
 
 /** What changes about a character between fights. Fixed stats live in content/party.json. */
@@ -42,7 +62,8 @@ export function newGameState(seed: number): GameState {
     world: null,
     location: null,
     time: START_TIME,
-    party: [], // filled from content/party.json at startup (main.ts)
+    roster: [], // filled at startup (quick start) or on the party screen
+    party: [],
     coins: 60 * 100, // 60 gp to start (placeholder until character creation, M2)
     lastLongRest: null,
   };

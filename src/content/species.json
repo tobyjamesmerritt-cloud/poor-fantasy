@@ -1,0 +1,99 @@
+{
+  "_note": "SRD 5.2 species. Speed in feet. traits are names; only those listed in rules/character.ts IMPLEMENTED are in effect.",
+  "dragonborn": {
+    "name": "Dragonborn",
+    "speed": 30,
+    "size": "Medium",
+    "traits": [
+      "Draconic Ancestry",
+      "Breath Weapon",
+      "Damage Resistance",
+      "Darkvision",
+      "Draconic Flight"
+    ]
+  },
+  "dwarf": {
+    "name": "Dwarf",
+    "speed": 30,
+    "size": "Medium",
+    "traits": [
+      "Darkvision",
+      "Dwarven Resilience",
+      "Dwarven Toughness",
+      "Stonecunning"
+    ]
+  },
+  "elf": {
+    "name": "Elf",
+    "speed": 30,
+    "size": "Medium",
+    "traits": [
+      "Darkvision",
+      "Elven Lineage",
+      "Fey Ancestry",
+      "Keen Senses",
+      "Trance"
+    ]
+  },
+  "gnome": {
+    "name": "Gnome",
+    "speed": 30,
+    "size": "Small",
+    "traits": [
+      "Darkvision",
+      "Gnomish Cunning",
+      "Gnomish Lineage"
+    ]
+  },
+  "goliath": {
+    "name": "Goliath",
+    "speed": 35,
+    "size": "Medium",
+    "traits": [
+      "Giant Ancestry",
+      "Large Form",
+      "Powerful Build"
+    ]
+  },
+  "halfling": {
+    "name": "Halfling",
+    "speed": 30,
+    "size": "Small",
+    "traits": [
+      "Brave",
+      "Halfling Nimbleness",
+      "Luck",
+      "Naturally Stealthy"
+    ]
+  },
+  "human": {
+    "name": "Human",
+    "speed": 30,
+    "size": "Small or Medium",
+    "traits": [
+      "Resourceful",
+      "Skillful",
+      "Versatile"
+    ]
+  },
+  "orc": {
+    "name": "Orc",
+    "speed": 30,
+    "size": "Medium",
+    "traits": [
+      "Adrenaline Rush",
+      "Darkvision",
+      "Relentless Endurance"
+    ]
+  },
+  "tiefling": {
+    "name": "Tiefling",
+    "speed": 30,
+    "size": "Small or Medium",
+    "traits": [
+      "Darkvision",
+      "Fiendish Legacy",
+      "Otherworldly Presence"
+    ]
+  }
+}

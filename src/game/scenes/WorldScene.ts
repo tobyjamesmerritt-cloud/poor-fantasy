@@ -8,7 +8,8 @@ import type { Command, CommandBus, Direction } from '../../engine/commands';
 import { DIRECTION_VECTORS } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
 import { assets, cursorCss } from '../../content/assets';
-import { locationContent, partyStats } from '../../content/encounters';
+import { locationContent } from '../../content/encounters';
+import { statsOf } from '../../content/characters';
 import { formatCoins, passTime } from '../../rules/party';
 import { SITE_RISK } from '../../rules/rest';
 import { rosterEntries } from '../partyView';
@@ -149,7 +150,7 @@ export class WorldScene extends Phaser.Scene {
       const [dx, dy] = DIRECTION_VECTORS[path[i]];
       this.pos = { x: this.pos.x + dx, y: this.pos.y + dy };
       this.deps.game.time += MINUTES.worldStep;
-      for (const name of passTime(this.deps.game.party, partyStats, this.deps.game.time)) this.log.push(`${name} comes round (1 HP).`);
+      for (const name of passTime(this.deps.game.party, statsOf(this.deps.game.roster), this.deps.game.time)) this.log.push(`${name} comes round (1 HP).`);
       this.placeToken();
       this.showRoster();
       // stop early when walking onto a location on the way

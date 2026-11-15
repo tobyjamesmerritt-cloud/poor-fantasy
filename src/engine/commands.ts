@@ -3,6 +3,8 @@
  * on-screen buttons all translate into these, so mobile support needs no
  * gameplay changes.
  */
+import type { CharacterSheet } from './state';
+
 export type Direction = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 
 export type Command =
@@ -24,7 +26,14 @@ export type Command =
   | { type: 'encamp' } // try to make camp where the party stands
   | { type: 'camp'; site: CampSiteRef } // open the camp screen (validated by the scene that sends it)
   | { type: 'rest'; kind: 'short' | 'long' }
-  | { type: 'breakCamp' } // after a fight: back to where it started (location or world map)
+  | { type: 'breakCamp' }
+  | { type: 'partyScreen' } // open the party roster (menu, inn)
+  | { type: 'newGame' } // start over: empty party screen
+  | { type: 'quickStart' } // new game with the pregenerated party
+  | { type: 'saveCharacter'; sheet: CharacterSheet } // create or update (validated by main.ts)
+  | { type: 'removeCharacter'; id: string }
+  | { type: 'moveCharacter'; id: string; by: -1 | 1 }
+  | { type: 'closePartyScreen' } // begin the adventure / back to the game // after a fight: back to where it started (location or world map)
   | { type: 'leavePlace' } // close the location panel on the map
   | { type: 'confirm' }
   | { type: 'cancel' }

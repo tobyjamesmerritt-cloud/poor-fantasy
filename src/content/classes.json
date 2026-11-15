@@ -1,0 +1,322 @@
+{
+  "_note": "SRD 5.2 classes, level 1. kit = combat-relevant part of starting equipment option A (+ its GP). playable=false entries are data for later (DND backlog: remaining classes); verify their kits against the SRD before enabling.",
+  "barbarian": {
+    "name": "Barbarian",
+    "hitDie": 12,
+    "primary": [
+      "str"
+    ],
+    "saves": [
+      "str",
+      "con"
+    ],
+    "armorTraining": [
+      "light",
+      "medium",
+      "shields"
+    ],
+    "kit": {
+      "armor": null,
+      "shield": false,
+      "weapon": "greataxe",
+      "gp": 15
+    },
+    "playable": false,
+    "features": [
+      "Rage",
+      "Unarmored Defense",
+      "Weapon Mastery"
+    ]
+  },
+  "bard": {
+    "name": "Bard",
+    "hitDie": 8,
+    "primary": [
+      "cha"
+    ],
+    "saves": [
+      "dex",
+      "cha"
+    ],
+    "armorTraining": [
+      "light"
+    ],
+    "kit": {
+      "armor": "leather",
+      "shield": false,
+      "weapon": "dagger",
+      "gp": 19
+    },
+    "playable": false,
+    "features": [
+      "Bardic Inspiration",
+      "Spellcasting"
+    ]
+  },
+  "cleric": {
+    "name": "Cleric",
+    "hitDie": 8,
+    "primary": [
+      "wis"
+    ],
+    "saves": [
+      "wis",
+      "cha"
+    ],
+    "armorTraining": [
+      "light",
+      "medium",
+      "shields"
+    ],
+    "kit": {
+      "armor": "chain-shirt",
+      "shield": true,
+      "weapon": "mace",
+      "gp": 7
+    },
+    "playable": true,
+    "features": [
+      "Spellcasting",
+      "Divine Order"
+    ]
+  },
+  "druid": {
+    "name": "Druid",
+    "hitDie": 8,
+    "primary": [
+      "wis"
+    ],
+    "saves": [
+      "int",
+      "wis"
+    ],
+    "armorTraining": [
+      "light",
+      "shields"
+    ],
+    "kit": {
+      "armor": "leather",
+      "shield": true,
+      "weapon": "sickle",
+      "gp": 9
+    },
+    "playable": false,
+    "features": [
+      "Spellcasting",
+      "Druidic",
+      "Primal Order"
+    ]
+  },
+  "fighter": {
+    "name": "Fighter",
+    "hitDie": 10,
+    "primary": [
+      "str",
+      "dex"
+    ],
+    "saves": [
+      "str",
+      "con"
+    ],
+    "armorTraining": [
+      "light",
+      "medium",
+      "heavy",
+      "shields"
+    ],
+    "kit": {
+      "armor": "chain-mail",
+      "shield": false,
+      "weapon": "greatsword",
+      "gp": 4
+    },
+    "playable": true,
+    "features": [
+      "Fighting Style",
+      "Second Wind",
+      "Weapon Mastery"
+    ]
+  },
+  "monk": {
+    "name": "Monk",
+    "hitDie": 8,
+    "primary": [
+      "dex",
+      "wis"
+    ],
+    "saves": [
+      "str",
+      "dex"
+    ],
+    "armorTraining": [],
+    "kit": {
+      "armor": null,
+      "shield": false,
+      "weapon": "spear",
+      "gp": 11
+    },
+    "playable": false,
+    "features": [
+      "Martial Arts",
+      "Unarmored Defense"
+    ]
+  },
+  "paladin": {
+    "name": "Paladin",
+    "hitDie": 10,
+    "primary": [
+      "str",
+      "cha"
+    ],
+    "saves": [
+      "wis",
+      "cha"
+    ],
+    "armorTraining": [
+      "light",
+      "medium",
+      "heavy",
+      "shields"
+    ],
+    "kit": {
+      "armor": "chain-mail",
+      "shield": true,
+      "weapon": "longsword",
+      "gp": 9
+    },
+    "playable": true,
+    "features": [
+      "Lay On Hands",
+      "Spellcasting",
+      "Weapon Mastery"
+    ]
+  },
+  "ranger": {
+    "name": "Ranger",
+    "hitDie": 10,
+    "primary": [
+      "dex",
+      "wis"
+    ],
+    "saves": [
+      "str",
+      "dex"
+    ],
+    "armorTraining": [
+      "light",
+      "medium",
+      "shields"
+    ],
+    "kit": {
+      "armor": "studded-leather",
+      "shield": false,
+      "weapon": "scimitar",
+      "gp": 7
+    },
+    "playable": true,
+    "features": [
+      "Spellcasting",
+      "Favored Enemy",
+      "Weapon Mastery"
+    ]
+  },
+  "rogue": {
+    "name": "Rogue",
+    "hitDie": 8,
+    "primary": [
+      "dex"
+    ],
+    "saves": [
+      "dex",
+      "int"
+    ],
+    "armorTraining": [
+      "light"
+    ],
+    "kit": {
+      "armor": "leather",
+      "shield": false,
+      "weapon": "shortsword",
+      "gp": 8
+    },
+    "playable": true,
+    "features": [
+      "Expertise",
+      "Sneak Attack",
+      "Thieves' Cant",
+      "Weapon Mastery"
+    ]
+  },
+  "sorcerer": {
+    "name": "Sorcerer",
+    "hitDie": 6,
+    "primary": [
+      "cha"
+    ],
+    "saves": [
+      "con",
+      "cha"
+    ],
+    "armorTraining": [],
+    "kit": {
+      "armor": null,
+      "shield": false,
+      "weapon": "dagger",
+      "gp": 28
+    },
+    "playable": false,
+    "features": [
+      "Spellcasting",
+      "Innate Sorcery"
+    ]
+  },
+  "warlock": {
+    "name": "Warlock",
+    "hitDie": 8,
+    "primary": [
+      "cha"
+    ],
+    "saves": [
+      "wis",
+      "cha"
+    ],
+    "armorTraining": [
+      "light"
+    ],
+    "kit": {
+      "armor": "leather",
+      "shield": false,
+      "weapon": "sickle",
+      "gp": 15
+    },
+    "playable": false,
+    "features": [
+      "Eldritch Invocations",
+      "Pact Magic"
+    ]
+  },
+  "wizard": {
+    "name": "Wizard",
+    "hitDie": 6,
+    "primary": [
+      "int"
+    ],
+    "saves": [
+      "int",
+      "wis"
+    ],
+    "armorTraining": [],
+    "kit": {
+      "armor": null,
+      "shield": false,
+      "weapon": "quarterstaff",
+      "gp": 5
+    },
+    "playable": true,
+    "features": [
+      "Spellcasting",
+      "Ritual Adept",
+      "Arcane Recovery"
+    ]
+  }
+}

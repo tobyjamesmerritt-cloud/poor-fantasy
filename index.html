@@ -12,6 +12,9 @@
         <div class="menu">
           <button class="menu-btn">Game</button>
           <div class="menu-panel">
+            <button id="menu-new-game">New game…</button>
+            <button data-command='{"type":"partyScreen"}'>Party roster…</button>
+            <hr />
             <button data-command='{"type":"worldMap"}'>World map</button>
             <button data-command='{"type":"newFight"}'>New test fight</button>
             <button data-command='{"type":"restart"}'>Restart this fight <small>(same dice)</small></button>
@@ -86,6 +89,7 @@
         </div>
       </div>
       <section id="log" aria-live="polite"></section>
+      <section id="party-screen"></section>
     </main>
 
     <!-- On-screen pad: shown on touch devices only -->

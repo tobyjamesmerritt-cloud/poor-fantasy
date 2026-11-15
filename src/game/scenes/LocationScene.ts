@@ -10,7 +10,8 @@
 import * as Phaser from 'phaser';
 import type { Command, CommandBus } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
-import { encounters, locationContent, party, partyStats } from '../../content/encounters';
+import { encounters, locationContent } from '../../content/encounters';
+import { statsOf } from '../../content/characters';
 import { loadLocationMap } from '../../content/locationMap';
 import { loadTravelMap, type TiledMap } from '../../content/world';
 import {
@@ -129,7 +130,7 @@ export class LocationScene extends Phaser.Scene {
     hud.setCombatControls(false);
     hud.setOutcome('none');
     hud.setEndTurnHint(false);
-    hud.setNames(party.map((p) => ({ name: p.name, side: 'party' as const })));
+    hud.setNames(this.deps.game.roster.map((p) => ({ name: p.name, side: 'party' as const })));
     hud.setPlace(null);
     if (!resuming) this.say(locationContent[id]?.intro ?? `You enter ${this.name}.`);
     else {
@@ -243,7 +244,7 @@ export class LocationScene extends Phaser.Scene {
     this.deps.hud.setPlace(null);
     this.pose = p;
     this.deps.game.time += MINUTES.locationStep;
-    for (const name of passTime(this.deps.game.party, partyStats, this.deps.game.time)) this.say(`${name} comes round (1 HP).`);
+    for (const name of passTime(this.deps.game.party, statsOf(this.deps.game.roster), this.deps.game.time)) this.say(`${name} comes round (1 HP).`);
     this.render();
   }
 
@@ -299,9 +300,12 @@ export class LocationScene extends Phaser.Scene {
         kind: BUILDING_LABEL[spot.building!] ?? 'Building',
         description: spot.description,
         actions: [
-          spot.building === 'inn'
-            ? { label: 'Take rooms and rest', command: { type: 'camp', site: { kind: 'inn', name: spot.name, risk: 0 } } }
-            : { label: 'Trade, heal — coming in M4' },
+          ...(spot.building === 'inn'
+            ? [
+                { label: 'Take rooms and rest', command: { type: 'camp', site: { kind: 'inn', name: spot.name, risk: 0 } } as Command },
+                { label: 'Party roster (recruit, dismiss)', command: { type: 'partyScreen' } as Command },
+              ]
+            : [{ label: 'Trade, heal — coming in M4' }]),
           { label: 'Leave', command: { type: 'leavePlace' } },
         ],
       });

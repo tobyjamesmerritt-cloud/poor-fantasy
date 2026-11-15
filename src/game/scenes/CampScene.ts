@@ -8,7 +8,7 @@ import type { Command, CommandBus } from '../../engine/commands';
 import type { Rng } from '../../engine/rng';
 import type { GameState } from '../../engine/state';
 import { assets } from '../../content/assets';
-import { party, partyStats } from '../../content/encounters';
+import { membersOf, statsOf } from '../../content/characters';
 import { partyRows } from '../partyView';
 import { formatCoins } from '../../rules/party';
 import { type CampSite, canRest, innCost, isInn, rest, type RestKind } from '../../rules/rest';
@@ -67,7 +67,7 @@ export class CampScene extends Phaser.Scene {
     hud.setCombatControls(false);
     hud.setOutcome('none');
     hud.setPlace(null);
-    hud.setNames(party.map((p) => ({ name: p.name, side: 'party' as const })));
+    hud.setNames(this.deps.game.roster.map((p) => ({ name: p.name, side: 'party' as const })));
     this.bg = this.add.graphics().setDepth(0);
     this.fire = this.add.graphics().setDepth(2);
     this.drawBackground();
@@ -107,7 +107,7 @@ export class CampScene extends Phaser.Scene {
 
   private input0() {
     const g = this.deps.game;
-    return { party: g.party, stats: partyStats, now: g.time, lastLongRest: g.lastLongRest, coins: g.coins, site: this.deps.site };
+    return { party: g.party, stats: statsOf(g.roster), now: g.time, lastLongRest: g.lastLongRest, coins: g.coins, site: this.deps.site };
   }
 
   private rest(kind: RestKind): void {
@@ -175,7 +175,7 @@ export class CampScene extends Phaser.Scene {
     for (const s of this.sprites) s.destroy();
     this.sprites = [];
     const inn = isInn(this.deps.site);
-    const members = party.map((p) => ({ def: p, now: this.deps.game.party.find((s) => s.id === p.id)! }));
+    const members = membersOf(this.deps.game.roster).map((p) => ({ def: p, now: this.deps.game.party.find((s) => s.id === p.id)! }));
     const alive = members.filter((m) => !m.now.dead);
     alive.forEach((m, i) => {
       const ref = assets.sprites[m.def.sprite];

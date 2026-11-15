@@ -37,6 +37,7 @@ export interface RosterEntry {
   maxHp: number;
   sprite: SpriteCss;
   state?: 'ok' | 'out' | 'dead';
+  cls?: string; // class name
 }
 
 export interface PartyRow {
@@ -277,7 +278,7 @@ export class Hud {
             el(
               'div',
               e.state === 'dead' ? 'muted' : '',
-              `${e.name}  ${e.state === 'dead' ? 'dead' : e.state === 'out' ? `${e.hp}/${e.maxHp} · unconscious` : `${e.hp}/${e.maxHp}`}`,
+              `${e.name}${e.cls ? ` (${e.cls})` : ''}  ${e.state === 'dead' ? 'dead' : e.state === 'out' ? `${e.hp}/${e.maxHp} · unconscious` : `${e.hp}/${e.maxHp}`}`,
               el('div', 'bar', fill),
             ),
           );
