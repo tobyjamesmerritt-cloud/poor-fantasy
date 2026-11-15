@@ -11,6 +11,7 @@ import {
   nodeOf,
   openTalk,
   questStage,
+  questSteps,
   type Request,
   run,
   runTriggers,
@@ -216,5 +217,19 @@ describe('Mother Ilse tends the fallen (once, after the shrine)', () => {
     expect(hooksAt(g, questData, 'millbrook/Shrine of the Dawn').some((h) => h.dialog === 'shrine-door')).toBe(false);
     g.party[3].dead = true;
     expect(hooksAt(g, questData, 'millbrook/Shrine of the Dawn').some((h) => h.dialog === 'shrine-door')).toBe(true);
+  });
+});
+
+describe('quest journal', () => {
+  it('lists steps up to the current stage, earlier ones ticked, and the next tip', () => {
+    const g = fresh();
+    g.flags['quest:ale'] = 'return-parts';
+    const r = questSteps(g, questData.quests.ale, 'ale');
+    expect(r.steps.map((s) => s.done)).toEqual([true, true, false]);
+    expect(r.next).toMatch(/Odo/);
+    g.flags['quest:ale'] = 'done';
+    const d = questSteps(g, questData.quests.ale, 'ale');
+    expect(d.steps.every((s) => s.done)).toBe(true);
+    expect(d.next).toBeUndefined();
   });
 });

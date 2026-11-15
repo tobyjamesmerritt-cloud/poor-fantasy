@@ -1,12 +1,15 @@
 /**
- * Quest journal (HTML dialog): every quest the party has started, its current
- * stage text, recommended level and difficulty. Read-only.
+ * Quest journal (HTML dialog). The list: quests in progress, then finished ones —
+ * name and a one-line summary each. Click a name for the details: where things
+ * stand, the steps so far (ticked) and what to do next. Everything comes from
+ * quests.json (summary, stages, tips). Read-only.
  */
 import type { GameState } from '../engine/state';
-import { type QuestData, questStage } from '../rules/quests';
+import { type QuestData, questStage, questSteps } from '../rules/quests';
 
 export class JournalDialog {
   private dlg: HTMLDialogElement;
+  private game!: GameState;
 
   constructor(private data: QuestData) {
     const d = document.getElementById('journal-dialog');
@@ -15,53 +18,58 @@ export class JournalDialog {
   }
 
   show(game: GameState): void {
-    const started = Object.entries(this.data.quests).filter(([id]) => questStage(game, id) !== 'none');
-    const active = started.filter(([id]) => questStage(game, id) !== 'done');
-    const done = started.filter(([id]) => questStage(game, id) === 'done');
-    const entry = ([id, q]: (typeof started)[number]) => {
-      const stage = questStage(game, id);
-      const li = document.createElement('li');
-      li.className = `journal-quest ${stage === 'done' ? 'done' : ''}`;
-      const head = document.createElement('div');
-      head.className = 'journal-head';
-      head.textContent = `${q.name}`;
-      const meta = document.createElement('small');
-      meta.textContent = ` · ${q.difficulty} · level ${q.level}`;
-      head.append(meta);
-      const text = document.createElement('p');
-      text.textContent = q.stages[stage] ?? '';
-      li.append(head, text);
-      return li;
-    };
-    const section = (title: string, items: typeof started, empty: string) => {
-      const h = document.createElement('h3');
-      h.textContent = title;
-      if (!items.length) {
-        const p = document.createElement('p');
-        p.className = 'small muted';
-        p.textContent = empty;
-        return [h, p];
-      }
-      const ul = document.createElement('ul');
-      ul.className = 'journal-list';
-      ul.append(...items.map(entry));
-      return [h, ul];
-    };
-    const title = document.createElement('h2');
-    title.textContent = 'Quest journal';
-    const close = document.createElement('button');
-    close.textContent = 'Close';
-    close.className = 'close';
-    close.addEventListener('click', () => this.dlg.close());
-    const buttons = document.createElement('div');
-    buttons.className = 'ps-buttons';
-    buttons.append(close);
-    this.dlg.replaceChildren(
-      title,
-      ...section('Current', active, 'No quests yet. Talk to people in Millbrook — the reeve has troubles.'),
-      ...section('Finished', done, 'None yet.'),
-      buttons,
-    );
-    this.dlg.showModal();
+    this.game = game;
+    this.list();
+    if (!this.dlg.open) this.dlg.showModal();
   }
+
+  private list(): void {
+    const g = this.game;
+    const started = Object.entries(this.data.quests).filter(([id]) => questStage(g, id) !== 'none');
+    const active = started.filter(([id]) => questStage(g, id) !== 'done');
+    const done = started.filter(([id]) => questStage(g, id) === 'done');
+    const row = ([id, q]: (typeof started)[number]) =>
+      el('li', questStage(g, id) === 'done' ? 'jr-row done' : 'jr-row', btn(q.name, () => this.details(id), 'name-link jr-name'), el('span', 'jr-summary', q.summary));
+    const section = (title: string, items: typeof started, empty: string) => [
+      el('h3', '', title),
+      items.length ? el('ul', 'jr-list', ...items.map(row)) : el('p', 'small muted', empty),
+    ];
+    this.dlg.replaceChildren(
+      el('h2', '', 'Quest journal'),
+      ...section('In progress', active, 'No quests yet. Talk to people in Millbrook — the reeve has troubles.'),
+      ...(done.length ? section('Done', done, '') : []),
+      el('div', 'ps-buttons', btn('Close', () => this.dlg.close(), 'close')),
+    );
+  }
+
+  private details(id: string): void {
+    const g = this.game;
+    const q = this.data.quests[id];
+    const finished = questStage(g, id) === 'done';
+    const { steps, now } = questSteps(g, q, id);
+    this.dlg.replaceChildren(
+      el('h2', '', q.name),
+      el('div', 'small muted', `${finished ? 'Done' : 'In progress'} · level ${q.level} · ${q.difficulty}`),
+      el('p', '', now),
+      steps.length
+        ? el('ul', 'jr-steps', ...steps.map((s) => el('li', s.done ? 'done' : 'now', s.done ? `✓ ${s.text}` : `▸ Next: ${s.text}`)))
+        : el('span', ''),
+      el('div', 'ps-buttons', btn('◀ All quests', () => this.list()), btn('Close', () => this.dlg.close(), 'close')),
+    );
+  }
+}
+
+function el(tag: string, cls: string, ...children: (Node | string)[]): HTMLElement {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  for (const c of children) e.append(typeof c === 'string' ? document.createTextNode(c) : c);
+  return e;
+}
+
+function btn(label: string, onClick: () => void, cls = ''): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.textContent = label;
+  if (cls) b.className = cls;
+  b.addEventListener('click', onClick);
+  return b;
 }

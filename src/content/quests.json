@@ -1,11 +1,16 @@
 {
-  "_note": "Quest content (rules/quests.ts). quests: journal entries by stage; dialogs: conversations (entry picks the first node whose condition holds); hooks: where content attaches — \"<location>/<building spot name>\" buttons, or \"site:<id>\" on the world map (fires on arrival or when the party bumps into a blocking site); sites: blocking and icons for world-map sites (positions in world.json, type site); triggers: fire once when their condition becomes true. Quest progress is the flag quest:<id> (stage, \"none\" before it starts, \"done\" at the end). Fights scale to the party (party size − 1, rules/scaling.ts); a fight action may override the difficulty and tweak monsters.",
+  "_note": "Quest content (rules/quests.ts). quests: the journal — summary (one line), stages (stage id → where things stand, in order) and tips (stage id → the short next step; past steps show ticked); dialogs: conversations (entry picks the first node whose condition holds); hooks: where content attaches — \"<location>/<building spot name>\" buttons, or \"site:<id>\" on the world map (fires on arrival or when the party bumps into a blocking site); sites: blocking and icons for world-map sites (positions in world.json, type site); triggers: fire once when their condition becomes true. Quest progress is the flag quest:<id> (stage, \"none\" before it starts, \"done\" at the end). Fights scale to the party (party size − 1, rules/scaling.ts); a fight action may override the difficulty and tweak monsters.",
 
   "quests": {
     "rats": {
       "name": "The Rats of Millbrook",
+      "summary": "Rats have overrun Millbrook's shrine.",
       "level": "1",
       "difficulty": "easy",
+      "tips": {
+        "accepted": "Clear the rats out of the Shrine of the Dawn — Mother Ilse will let you in.",
+        "cleared": "Tell Reeve Tamsin in her hall."
+      },
       "stages": {
         "accepted": "Reeve Tamsin Holt wants the rats cleared out of the Shrine of the Dawn, south-west of Millbrook's market. Mother Ilse will let you in.",
         "cleared": "The shrine is quiet at last. Tell the reeve in her hall.",
@@ -14,8 +19,14 @@
     },
     "ale": {
       "name": "Dry Taps",
+      "summary": "The Leaky Bucket has run out of ale.",
       "level": "1–2",
       "difficulty": "medium",
+      "tips": {
+        "find-brewery": "Find the brewery in the hills north-west of Millbrook.",
+        "find-parts": "Search the old shack east of Millbrook, by the river, for brewing parts.",
+        "return-parts": "Bring the spigot parts to Brewmaster Odo at the brewery."
+      },
       "stages": {
         "find-brewery": "The Leaky Bucket has no ale: the brewery stopped sending barrels. The innkeeper thinks it lies in the hills to the north-west of Millbrook.",
         "find-parts": "Brewmaster Odo's main spigot has cracked and he can't pay the smith. He thinks an old shack to the east, by the river, may still hold brewing parts.",
@@ -25,8 +36,12 @@
     },
     "troll": {
       "name": "The Troll Toll",
+      "summary": "A troll holds the broken bridge to the east.",
       "level": "3",
       "difficulty": "hard",
+      "tips": {
+        "met": "Get past the troll: fight it at level 3, soften it with ale — or tempt it away with a drier home full of rats."
+      },
       "stages": {
         "met": "A troll has torn up the old bridge over the river and squats there with its rats. Nobody crosses east. Fighting it is deadly below level 3 — perhaps there is another way.",
         "done": "The troll is gone and Millbrook's carpenters have mended the bridge. The road east is open."

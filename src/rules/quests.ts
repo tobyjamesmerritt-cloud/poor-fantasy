@@ -111,9 +111,23 @@ export interface Trigger {
 
 export interface QuestDef {
   name: string;
+  summary: string; // one line for the journal list
   level: string; // recommended level, shown in the journal
   difficulty: 'easy' | 'medium' | 'hard';
-  stages: Record<string, string>; // stage id → journal text
+  stages: Record<string, string>; // stage id → journal text, in order
+  tips?: Record<string, string>; // stage id → the short next step (the journal's checklist)
+}
+
+/** A quest's checklist for the journal: every step up to the current stage (earlier ones done) and what to do now. */
+export function questSteps(g: GameState, q: QuestDef, id: string): { steps: { text: string; done: boolean }[]; now: string; next?: string } {
+  const stage = questStage(g, id);
+  const order = Object.keys(q.stages);
+  const at = order.indexOf(stage);
+  const steps = order
+    .slice(0, at + 1)
+    .filter((s) => q.tips?.[s])
+    .map((s) => ({ text: q.tips![s], done: s !== stage }));
+  return { steps, now: q.stages[stage] ?? '', next: q.tips?.[stage] };
 }
 
 export interface QuestData {
@@ -371,6 +385,10 @@ export function choose(g: GameState, t: Talk, index: number, ctx: ActionContext,
 /** Problems in quest data (references to dialogs, nodes, quests, stages, encounters, items). */
 export function validateQuests(data: QuestData, known: { encounters: string[]; locations: string[]; isItem: (ref: string) => boolean }): string[] {
   const errors: string[] = [];
+  for (const [id, q] of Object.entries(data.quests)) {
+    if (!q.summary) errors.push(`quest "${id}": needs a one-line summary`);
+    for (const s of Object.keys(q.tips ?? {})) if (!q.stages[s]) errors.push(`quest "${id}": tip for unknown stage "${s}"`);
+  }
   const checkCond = (c: Condition | undefined, where: string) => {
     if (!c) return;
     if ('all' in c) return c.all.forEach((x) => checkCond(x, where));

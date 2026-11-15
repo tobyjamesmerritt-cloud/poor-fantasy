@@ -1010,22 +1010,41 @@ button.danger {
   max-height: 88vh;
   overflow-y: auto;
 }
-.journal-list {
+.jr-list,
+.jr-steps {
   list-style: none;
   padding: 0;
+  margin: 0.2rem 0 0.6rem;
 }
-.journal-quest {
-  border-top: 1px solid #333;
-  padding: 0.4rem 0;
+.jr-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.2rem 0;
+  border-top: 1px solid #2a2a2a;
 }
-.journal-quest.done {
-  opacity: 0.7;
+.jr-row.done {
+  opacity: 0.6;
 }
-.journal-head {
+.name-link.jr-name {
   color: var(--gold);
+  white-space: nowrap;
 }
-.journal-head small {
-  color: #aaa;
+.jr-name:hover {
+  text-decoration: underline;
+}
+.jr-summary {
+  font-size: 0.9rem;
+  color: #ccc;
+}
+.jr-steps li {
+  padding: 0.15rem 0;
+}
+.jr-steps li.done {
+  opacity: 0.6;
+}
+.jr-steps li.now {
+  color: var(--gold);
 }
 
 /* Pack dialog */
