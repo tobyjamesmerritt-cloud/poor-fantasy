@@ -265,7 +265,7 @@ main {
 }
 #turn-buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 0.4rem;
 }
 
@@ -355,6 +355,10 @@ main {
 #banner.defeat h1 {
   color: #e74c3c;
   text-shadow: 0 0 1.2rem #7a0000;
+}
+#banner.fled h1 {
+  color: #8ecbff;
+  text-shadow: 0 0 1.2rem #0a3d6b;
 }
 #banner.victory h1 {
   color: var(--gold);

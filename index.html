@@ -34,6 +34,14 @@
                 <option value="large">Large</option>
               </select>
             </label>
+            <label title="What happens to fallen characters when the party flees over a map edge. Applies from the next fight."
+              >Difficulty
+              <select id="pref-difficulty">
+                <option value="hard">Hard — the fallen are left behind</option>
+                <option value="normal">Normal — carry the fallen out</option>
+                <option value="casual">Casual — the whole party escapes</option>
+              </select>
+            </label>
             <hr />
             <label class="disabled"><input type="checkbox" disabled /> Sound <small>coming — DND-33</small></label>
             <label class="disabled"><input type="checkbox" disabled /> Music <small>coming — DND-34</small></label>
@@ -57,6 +65,7 @@
         <div id="turn-buttons">
           <button data-command='{"type":"endTurn"}'>End turn</button>
           <button data-command='{"type":"undo"}' title="Backspace or U">⟲ Rewind</button>
+          <button id="flee-btn" data-command='{"type":"flee"}' title="F, or step off the map edge">⇥ Flee</button>
         </div>
       </aside>
       <div id="stage">
@@ -110,6 +119,8 @@
         <li>Click an enemy (sword cursor) to walk up and attack.</li>
         <li>Click a fallen ally (open hand) to try to stabilise them.</li>
         <li>Space ends the turn early. Backspace or U rewinds the last action.</li>
+        <li>Flee: from a square on the map edge, step off the edge (or press F / the Flee button).</li>
+        <li>Walk into a stable fallen ally to pick them up and carry them out (moving costs double). Preferences → Difficulty decides who must be carried.</li>
       </ul>
       <button class="close">Close</button>
     </dialog>

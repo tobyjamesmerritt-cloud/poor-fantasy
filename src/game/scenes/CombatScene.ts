@@ -18,6 +18,9 @@ import {
   startCombat,
   step,
   turnExhausted,
+  canFlee,
+  flee,
+  onField,
   unitAt,
 } from '../../rules/combat';
 import { assets, cellSize, cursorCss } from '../../content/assets';
@@ -94,7 +97,7 @@ export class CombatScene extends Phaser.Scene {
 
   create(): void {
     this.rng = createRng(this.deps.seed);
-    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc));
+    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc), this.deps.prefs.get().difficulty);
     this.cameras.main.setZoom(1).setScroll(0, 0);
 
     this.deps.hud.setNames(this.state.units);
@@ -252,7 +255,7 @@ export class CombatScene extends Phaser.Scene {
   private handle(cmd: Command): void {
     if (this.busy) return; // walking or handing over the turn
     let before: string | null = null;
-    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn') && this.state.outcome === 'ongoing') {
+    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee') && this.state.outcome === 'ongoing') {
       before = JSON.stringify(this.state);
       this.history.push({ state: this.state, rng: this.rng.state });
     }
@@ -270,6 +273,9 @@ export class CombatScene extends Phaser.Scene {
       }
       case 'endTurn':
         endTurn(this.state, this.rng);
+        break;
+      case 'flee':
+        if (activeUnit(this.state).side === 'party') flee(this.state, this.rng);
         break;
       default:
         return; // navigation commands are handled in main.ts
@@ -351,17 +357,24 @@ export class CombatScene extends Phaser.Scene {
     for (const u of state.units) {
       const up = isUp(u);
       const down = isDown(u);
-      this.sprites
+      const sprite = this.sprites
         .get(u.id)!
+        .setVisible(!u.fled)
         .setPosition(u.x * TILE + TILE / 2, u.y * TILE + TILE / 2)
         .setAngle(up ? 0 : 90) // lying on the ground
         .setAlpha(up ? 1 : down ? 0.8 : 0.3)
-        .setDepth(up ? 2 : 1.5);
+        .setDepth(up ? 2 : 1.5)
+        .setScale(assets.scale);
+      if (u.carriedBy) {
+        // shown small, slung over the carrier's shoulder
+        sprite.setScale(assets.scale * 0.5).setPosition(u.x * TILE + TILE - 10, u.y * TILE + 10).setDepth(2.5).setAlpha(1);
+      }
       this.tags
         .get(u.id)
         ?.setPosition(u.x * TILE + TILE - 2, u.y * TILE + 1)
-        .setVisible(up);
-      if (down) this.drawDeathSaves(u);
+        .setVisible(up && !u.fled);
+      if (u.fled) continue;
+      if (down && onField(u)) this.drawDeathSaves(u);
 
       if (u === active) {
         overlay.lineStyle(3, 0xf1c40f, 1);
@@ -386,9 +399,9 @@ export class CombatScene extends Phaser.Scene {
     const hud = this.deps.hud;
     hud.setLog(state.log);
     const party = state.units.filter((u) => u.side === 'party');
-    const standing = party.filter(isUp).length;
-    const downed = party.filter(isDown).length;
-    const slain = party.length - standing - downed;
+    const standing = party.filter((u) => isUp(u) && !u.fled).length;
+    const downed = party.filter((u) => isDown(u) && !u.fled).length;
+    const slain = party.filter((u) => u.dead).length;
     const tally = [`${standing} standing`, downed && `${downed} down`, slain && `${slain} dead`]
       .filter(Boolean)
       .join(', ');
@@ -396,8 +409,11 @@ export class CombatScene extends Phaser.Scene {
       state.outcome,
       state.outcome === 'victory'
         ? `${tally} after ${state.round} rounds · seed ${this.deps.seed}`
-        : `Fell in round ${state.round} (${tally}) · seed ${this.deps.seed}`,
+        : state.outcome === 'fled'
+          ? `${retreatSummary(party)} · round ${state.round} · seed ${this.deps.seed}`
+          : `Fell in round ${state.round} (${tally}) · seed ${this.deps.seed}`,
     );
+    hud.setFlee(active?.side === 'party' && !this.busy ? canFlee(state) : null);
     hud.setActive(active && active.side === 'party' ? this.card(active) : null);
     hud.setEndTurnHint(!!active && active.side === 'party' && (state.actionUsed || state.movesLeft <= 0));
     hud.setStatus(
@@ -406,4 +422,13 @@ export class CombatScene extends Phaser.Scene {
         : `Combat · Round ${state.round} · ${active!.name} · seed ${this.deps.seed}`,
     );
   }
+}
+
+/** "Escaped: Fighter, Rogue · Left behind: Cleric (unconscious), Wizard (dead)" */
+function retreatSummary(party: readonly Unit[]): string {
+  const escaped = party.filter((u) => u.fled).map((u) => u.name);
+  const behind = party.filter((u) => !u.fled).map((u) => `${u.name} (${u.dead ? 'dead' : 'unconscious'})`);
+  return [`Escaped: ${escaped.join(', ') || 'nobody'}`, behind.length ? `Left behind: ${behind.join(', ')}` : '']
+    .filter(Boolean)
+    .join(' · ');
 }

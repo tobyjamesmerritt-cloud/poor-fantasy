@@ -84,6 +84,13 @@ export class Hud {
     this.statusEl.textContent = text;
   }
 
+  /** Enable the Flee button only when the active character may flee; the tooltip says why not. */
+  setFlee(state: { ok: boolean; reason?: string } | null): void {
+    const btn = must('flee-btn') as HTMLButtonElement;
+    btn.disabled = !state?.ok;
+    btn.title = state?.ok ? 'Flee over the map edge (F)' : (state?.reason ?? 'Flee: stand on the map edge');
+  }
+
   /** Highlight the End turn button when the active unit has used its action or movement. */
   setEndTurnHint(on: boolean): void {
     document
@@ -92,7 +99,7 @@ export class Hud {
   }
 
   /** Full-board victory/defeat banner; hidden while combat is ongoing. */
-  setOutcome(outcome: 'ongoing' | 'victory' | 'defeat' | 'none', detail = ''): void {
+  setOutcome(outcome: 'ongoing' | 'victory' | 'defeat' | 'fled' | 'none', detail = ''): void {
     const banner = must('banner');
     if (outcome === 'ongoing' || outcome === 'none') {
       banner.hidden = true;
@@ -101,7 +108,8 @@ export class Hud {
     }
     if (!banner.hidden && banner.classList.contains(outcome)) return; // don't replay the animation
     banner.className = `overlay ${outcome}`;
-    must('banner-title').textContent = outcome === 'victory' ? 'Victory!' : 'The party has fallen';
+    must('banner-title').textContent =
+      outcome === 'victory' ? 'Victory!' : outcome === 'fled' ? 'Retreat!' : 'The party has fallen';
     must('banner-sub').textContent = detail;
     banner.hidden = false;
   }

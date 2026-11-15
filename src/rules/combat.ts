@@ -7,6 +7,8 @@
  * 0 HP rules for characters (Unconscious, Death Saving Throws, Instant Death,
  * Stable), stabilising an ally with the Help action (DC 10 Wisdom (Medicine)).
  * Monsters die at 0 HP. Simple enemy AI. Victory/defeat.
+ * Retreat: characters escape by stepping off a map edge; fallen allies can be
+ * carried out (see RetreatRule for the three difficulty settings).
  * Not yet: opportunity attacks, bonus actions, reactions, spells, conditions.
  */
 import type { Direction } from '../engine/commands';
@@ -16,6 +18,15 @@ import type { Rng } from '../engine/rng';
 import { resolveAttack } from './attack';
 
 export type Side = 'party' | 'enemy';
+
+/**
+ * What happens to fallen characters when the party flees (Preferences → Difficulty).
+ * hard:   anyone may flee at any time; whoever is left on the field is lost.
+ * normal: the last character standing can't flee while an unconscious ally is
+ *         still on the field — carry them out first.
+ * casual: when one character flees, the whole party escapes.
+ */
+export type RetreatRule = 'hard' | 'normal' | 'casual';
 export type Trait = 'pack-tactics';
 
 export interface Unit {
@@ -38,6 +49,9 @@ export interface Unit {
   deathSaves: { successes: number; failures: number };
   stable: boolean;
   dead: boolean;
+  fled?: boolean; // left the battle over a map edge
+  carrying?: string; // id of the fallen ally this unit carries
+  carriedBy?: string; // id of the unit carrying this one (off the grid while carried)
 }
 
 export interface CombatState {
@@ -49,7 +63,8 @@ export interface CombatState {
   round: number;
   movesLeft: number;
   actionUsed: boolean;
-  outcome: 'ongoing' | 'victory' | 'defeat';
+  outcome: 'ongoing' | 'victory' | 'defeat' | 'fled';
+  retreat: RetreatRule;
   log: string[];
 }
 
@@ -57,8 +72,23 @@ export interface CombatState {
 export const isUp = (u: Unit): boolean => u.hp > 0 && !u.dead;
 /** A character at 0 HP who is not dead (Unconscious, possibly Stable). */
 export const isDown = (u: Unit): boolean => u.side === 'party' && u.hp <= 0 && !u.dead;
+/** Standing on the grid: not fled and not being carried. */
+export const onField = (u: Unit): boolean => !u.fled && !u.carriedBy;
 
-export function startCombat(rng: Rng, width: number, height: number, units: Unit[]): CombatState {
+/**
+ * Movement cost per square. Carrying a fallen ally costs 1 extra square per
+ * square (SRD 5.2 Grappled condition: moving a creature you hold costs
+ * 1 extra foot per foot unless it is Tiny or two sizes smaller).
+ */
+export const stepCost = (u: Unit): number => (u.carrying ? 2 : 1);
+
+export function startCombat(
+  rng: Rng,
+  width: number,
+  height: number,
+  units: Unit[],
+  retreat: RetreatRule = 'normal',
+): CombatState {
   const rolled = units.map((u) => ({ id: u.id, init: rollD20(rng).kept + u.initBonus, tie: u.initBonus }));
   rolled.sort((a, b) => b.init - a.init || b.tie - a.tie);
   const state: CombatState = {
@@ -71,6 +101,7 @@ export function startCombat(rng: Rng, width: number, height: number, units: Unit
     movesLeft: 0,
     actionUsed: false,
     outcome: 'ongoing',
+    retreat,
     log: ['Roll for initiative! ' + rolled.map((r) => `${nameOf(units, r.id)} ${r.init}`).join(', ')],
   };
   beginTurn(state);
@@ -90,12 +121,13 @@ export function unitById(state: CombatState, id: string): Unit {
 
 /** The unit occupying a square. Unconscious characters still occupy theirs; corpses do not. */
 export function unitAt(state: CombatState, x: number, y: number): Unit | undefined {
-  return state.units.find((u) => (isUp(u) || isDown(u)) && u.x === x && u.y === y);
+  return state.units.find((u) => (isUp(u) || isDown(u)) && onField(u) && u.x === x && u.y === y);
 }
 
 /**
  * Move the active unit one square. Moving into an enemy attacks it; moving
- * into an unconscious ally tries to stabilise them (Help action).
+ * into an unconscious ally tries to stabilise them (Help action), or picks
+ * them up if they are already stable. Stepping off a map edge flees.
  * Returns false when the step is not allowed.
  */
 export function step(state: CombatState, rng: Rng, dir: Direction): boolean {
@@ -104,7 +136,16 @@ export function step(state: CombatState, rng: Rng, dir: Direction): boolean {
   const [dx, dy] = DIRECTION_VECTORS[dir];
   const nx = u.x + dx;
   const ny = u.y + dy;
-  if (nx < 0 || ny < 0 || nx >= state.width || ny >= state.height) return false;
+  if (nx < 0 || ny < 0 || nx >= state.width || ny >= state.height) {
+    if (u.side !== 'party') return false;
+    const check = canFlee(state);
+    if (!check.ok) {
+      state.log.push(check.reason);
+      return true; // the explanation is a change worth showing
+    }
+    flee(state, rng);
+    return true;
+  }
 
   const occupant = unitAt(state, nx, ny);
   if (occupant) {
@@ -117,13 +158,92 @@ export function step(state: CombatState, rng: Rng, dir: Direction): boolean {
       helpStabilise(state, rng, u, occupant);
       return true;
     }
+    if (isDown(occupant) && !u.carrying) {
+      pickUp(state, u, occupant);
+      return true;
+    }
     return false;
   }
-  if (state.movesLeft <= 0) return false;
+  if (state.movesLeft < stepCost(u)) return false;
   u.x = nx;
   u.y = ny;
-  state.movesLeft -= 1;
+  state.movesLeft -= stepCost(u);
+  if (u.carrying) Object.assign(unitById(state, u.carrying), { x: nx, y: ny });
   return true;
+}
+
+/** Lift a fallen, stable ally onto your shoulders (takes your action). */
+function pickUp(state: CombatState, u: Unit, target: Unit): void {
+  state.actionUsed = true;
+  u.carrying = target.id;
+  target.carriedBy = u.id;
+  Object.assign(target, { x: u.x, y: u.y });
+  state.log.push(`${u.name} lifts ${target.name} onto their shoulders (moving costs double).`);
+}
+
+/** Put a carried ally down on the nearest free square (the carrier fell, or the ally woke up). */
+function drop(state: CombatState, carrier: Unit): void {
+  if (!carrier.carrying) return;
+  const carried = unitById(state, carrier.carrying);
+  carrier.carrying = undefined;
+  carried.carriedBy = undefined;
+  for (let r = 0; r <= Math.max(state.width, state.height); r++) {
+    for (let y = carrier.y - r; y <= carrier.y + r; y++) {
+      for (let x = carrier.x - r; x <= carrier.x + r; x++) {
+        if (x < 0 || y < 0 || x >= state.width || y >= state.height || unitAt(state, x, y)) continue;
+        Object.assign(carried, { x, y });
+        state.log.push(`${carried.name} is put down.`);
+        return;
+      }
+    }
+  }
+}
+
+/** Whether the active character may flee this turn, and why not. */
+export function canFlee(state: CombatState): { ok: true } | { ok: false; reason: string } {
+  if (state.outcome !== 'ongoing') return { ok: false, reason: 'The battle is over.' };
+  const u = activeUnit(state);
+  if (u.side !== 'party' || !isUp(u)) return { ok: false, reason: 'Only a conscious character can flee.' };
+  const onEdge = u.x === 0 || u.y === 0 || u.x === state.width - 1 || u.y === state.height - 1;
+  if (!onEdge) return { ok: false, reason: `${u.name} must reach the edge of the map to flee.` };
+  if (state.movesLeft < stepCost(u)) return { ok: false, reason: `${u.name} has no movement left to flee.` };
+  if (state.retreat === 'normal') {
+    const othersStanding = state.units.some((o) => o !== u && o.side === 'party' && isUp(o) && onField(o));
+    const leftBehind = state.units.filter((o) => o.side === 'party' && isDown(o) && onField(o));
+    if (!othersStanding && leftBehind.length) {
+      return {
+        ok: false,
+        reason: `${u.name} won't abandon ${leftBehind.map((o) => o.name).join(', ')} — carry them out first.`,
+      };
+    }
+  }
+  return { ok: true };
+}
+
+/** The active character leaves the battle over the map edge (with anyone they carry). */
+export function flee(state: CombatState, rng: Rng): void {
+  const check = canFlee(state);
+  if (!check.ok) {
+    state.log.push(check.reason);
+    return;
+  }
+  const u = activeUnit(state);
+  u.fled = true;
+  if (u.carrying) {
+    const carried = unitById(state, u.carrying);
+    carried.fled = true;
+    state.log.push(`${u.name} flees the battle, carrying ${carried.name} to safety!`);
+  } else {
+    state.log.push(`${u.name} flees the battle!`);
+  }
+  if (state.retreat === 'casual') {
+    for (const o of state.units) if (o.side === 'party' && !o.dead) o.fled = true;
+    state.log.push('The whole party falls back with them.');
+  }
+  checkOutcome(state);
+  if (state.outcome !== 'ongoing') return;
+  advance(state, rng);
+  runEnemyTurn(state, rng);
 }
 
 export function endTurn(state: CombatState, rng: Rng): void {
@@ -146,11 +266,12 @@ function advance(state: CombatState, rng: Rng): void {
       state.log.push(`— Round ${state.round} —`);
     }
     const u = activeUnit(state);
-    if (u.dead || (u.side === 'enemy' && u.hp <= 0)) continue;
+    if (u.dead || u.fled || (u.side === 'enemy' && u.hp <= 0)) continue;
     if (isDown(u)) {
       if (!u.stable) deathSave(state, rng, u);
       if (state.outcome !== 'ongoing') return;
       if (!isUp(u)) continue;
+      if (u.carriedBy) drop(state, unitById(state, u.carriedBy)); // woke up: back on their feet
     }
     beginTurn(state);
     return;
@@ -227,7 +348,7 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit): voi
   // Pack Tactics: Advantage if an ally of the attacker within 5 ft of the target isn't Incapacitated.
   const packAdvantage =
     attacker.traits.includes('pack-tactics') &&
-    state.units.some((o) => o !== attacker && o.side === attacker.side && isUp(o) && chebyshev(o, target) === 1);
+    state.units.some((o) => o !== attacker && o.side === attacker.side && isUp(o) && onField(o) && chebyshev(o, target) === 1);
   const mode = resolveRollMode(packAdvantage ? 1 : 0, 0);
   const r = resolveAttack(rng, { attackBonus: attacker.attackBonus, targetAc: target.ac, damage: attacker.damage, mode });
   state.actionUsed = true;
@@ -239,6 +360,7 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit): voi
   }
   const verb = r.critical ? 'CRITS' : 'hits';
   state.log.push(`${attacker.name} ${verb} ${target.name} for ${r.damage}${adv}` + applyDamage(target, r.damage));
+  if (!isUp(target) && target.carrying) drop(state, target);
   checkOutcome(state);
 }
 
@@ -261,9 +383,14 @@ function checkOutcome(state: CombatState): void {
   if (!state.units.some((u) => u.side === 'enemy' && isUp(u))) {
     state.outcome = 'victory';
     state.log.push('Victory!');
-  } else if (!state.units.some((u) => u.side === 'party' && isUp(u))) {
-    state.outcome = 'defeat';
-    state.log.push('The party has fallen…');
+  } else if (!state.units.some((u) => u.side === 'party' && isUp(u) && onField(u))) {
+    if (state.units.some((u) => u.side === 'party' && u.fled)) {
+      state.outcome = 'fled';
+      state.log.push('The party retreats!');
+    } else {
+      state.outcome = 'defeat';
+      state.log.push('The party has fallen…');
+    }
   }
 }
 
@@ -289,7 +416,7 @@ export function runEnemyTurn(state: CombatState, rng: Rng): void {
 
 function nearest(state: CombatState, from: Unit, side: Side): Unit | undefined {
   return state.units
-    .filter((u) => u.side === side && isUp(u))
+    .filter((u) => u.side === side && isUp(u) && onField(u))
     .sort((a, b) => chebyshev(from, a) - chebyshev(from, b))[0];
 }
 
@@ -334,7 +461,8 @@ function searchMoves(state: CombatState): Map<number, PathNode> {
   const key = (x: number, y: number) => y * state.width + x;
   nodes.set(key(start.x, start.y), { x: start.x, y: start.y, cost: 0, prev: null, dir: null });
   let frontier = [key(start.x, start.y)];
-  for (let cost = 1; cost <= state.movesLeft && frontier.length; cost++) {
+  const per = stepCost(start);
+  for (let cost = per; cost <= state.movesLeft && frontier.length; cost += per) {
     const next: number[] = [];
     for (const k of frontier) {
       const p = nodes.get(k)!;
@@ -382,7 +510,8 @@ export function planMoveTo(state: CombatState, x: number, y: number): Direction[
     const n = nodes.get(y * state.width + x);
     return n && n.cost > 0 ? pathFrom(nodes, y * state.width + x) : null;
   }
-  const canTarget = target.side !== u.side || (isDown(target) && !target.stable);
+  // enemies: attack · dying ally: stabilise · stable ally: pick up (one at a time)
+  const canTarget = target.side !== u.side || (isDown(target) && (!target.stable || !u.carrying));
   if (!canTarget || state.actionUsed) return null;
   let best: PathNode | undefined;
   for (const n of nodes.values()) {
@@ -404,8 +533,10 @@ export function planMoveTo(state: CombatState, x: number, y: number): Direction[
  */
 export function turnExhausted(state: CombatState): boolean {
   if (state.outcome !== 'ongoing') return false;
-  if (state.actionUsed) return true;
-  return state.movesLeft <= 0 && !hasTargetInReach(state);
+  const u = activeUnit(state);
+  const canWalk = state.movesLeft >= stepCost(u);
+  if (state.actionUsed) return !(u.carrying && canWalk); // a carrier gets to walk their load away
+  return !canWalk && !hasTargetInReach(state);
 }
 
 /** Something the active unit could use its action on right now: an adjacent enemy, or a dying ally to stabilise. */
@@ -415,6 +546,7 @@ function hasTargetInReach(state: CombatState): boolean {
     (t) =>
       t !== u &&
       chebyshev(t, u) === 1 &&
-      ((t.side !== u.side && isUp(t)) || (t.side === u.side && isDown(t) && !t.stable && !t.dead)),
+      onField(t) &&
+      ((t.side !== u.side && isUp(t)) || (t.side === u.side && isDown(t) && (!t.stable || !u.carrying))),
   );
 }

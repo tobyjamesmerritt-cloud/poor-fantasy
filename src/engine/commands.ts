@@ -12,6 +12,7 @@ export type Command =
   | { type: 'step'; dir: 'forward' | 'back' | 'left' | 'right' } // inside a location, keeps facing
   | { type: 'attack'; targetId: string }
   | { type: 'endTurn' }
+  | { type: 'flee' } // leave the battle from a map-edge square
   | { type: 'undo' } // rewind one player action (debug now; patron-god mechanic later, DND-27)
   | { type: 'fight'; encounter: string; origin?: string } // start an encounter (origin = map location id)
   | { type: 'newFight' } // rerun the current encounter with fresh dice

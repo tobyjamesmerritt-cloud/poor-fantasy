@@ -3,15 +3,17 @@
  * mode, storage disabled) fall back to defaults silently.
  */
 export type TextSize = 'small' | 'normal' | 'large';
+export type Difficulty = 'hard' | 'normal' | 'casual'; // retreat rules, see rules/combat.ts RetreatRule
 
 export interface Prefs {
   grid: boolean; // faint grid lines on the combat map
   autoEndTurn: boolean; // hand over the turn automatically when nothing is left to do
   textSize: TextSize;
+  difficulty: Difficulty; // applies from the next fight
 }
 
 const KEY = 'poor-fantasy.prefs';
-const DEFAULTS: Prefs = { grid: true, autoEndTurn: true, textSize: 'normal' };
+const DEFAULTS: Prefs = { grid: true, autoEndTurn: true, textSize: 'normal', difficulty: 'normal' };
 const TEXT_PX: Record<TextSize, string> = { small: '15px', normal: '17px', large: '20px' };
 
 type Listener = (p: Prefs) => void;

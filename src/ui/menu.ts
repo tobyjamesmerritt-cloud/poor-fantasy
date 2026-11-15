@@ -3,7 +3,7 @@
  * Menu items that trigger game actions use data-command like other buttons
  * (wired in Hud); this module only handles opening/closing and preferences.
  */
-import type { PrefsStore, TextSize } from './prefs';
+import type { PrefsStore, Difficulty, TextSize } from './prefs';
 
 export function initMenu(prefs: PrefsStore): void {
   const menus = [...document.querySelectorAll<HTMLElement>('.menu')];
@@ -29,16 +29,19 @@ export function initMenu(prefs: PrefsStore): void {
   const grid = document.getElementById('pref-grid') as HTMLInputElement;
   const autoEnd = document.getElementById('pref-autoend') as HTMLInputElement;
   const text = document.getElementById('pref-text') as HTMLSelectElement;
+  const difficulty = document.getElementById('pref-difficulty') as HTMLSelectElement;
   const sync = () => {
     const p = prefs.get();
     grid.checked = p.grid;
     autoEnd.checked = p.autoEndTurn;
     text.value = p.textSize;
+    difficulty.value = p.difficulty;
   };
   sync();
   grid.addEventListener('change', () => prefs.set('grid', grid.checked));
   autoEnd.addEventListener('change', () => prefs.set('autoEndTurn', autoEnd.checked));
   text.addEventListener('change', () => prefs.set('textSize', text.value as TextSize));
+  difficulty.addEventListener('change', () => prefs.set('difficulty', difficulty.value as Difficulty));
 
   // Dialogs
   for (const [btnId, dlgId] of [
