@@ -153,11 +153,15 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /** Start the adventure with the current line-up: everyone restored, starting coins from their kits. */
+const POTION = 'consumable:potion-of-healing';
+const STARTING_POTIONS = 2; // house rule: a new party starts with two Potions of Healing
+
 function beginAdventure(): void {
   const { roster, bench } = gameState;
   Object.assign(gameState, newGameState(gameState.seed), { roster, bench });
   restoreAll(gameState, freshOf);
   gameState.coins = startingCoins(gameState.roster);
+  gameState.inventory[POTION] = STARTING_POTIONS;
 }
 
 let sheetSizes: Record<string, { width: number; height: number }> = {};
@@ -369,7 +373,6 @@ new ResizeObserver(() => {
 }).observe(document.getElementById('game')!);
 
 /** Fight results go back onto the persistent party. */
-const POTION = 'consumable:potion-of-healing';
 
 function onFightEnd(state: CombatState): void {
   gameState.time += combatMinutes(state.round);
