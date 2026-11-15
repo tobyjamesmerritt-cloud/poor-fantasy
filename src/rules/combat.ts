@@ -9,12 +9,16 @@
  * Monsters die at 0 HP. Simple enemy AI. Victory/defeat.
  * Retreat: characters escape by stepping off a map edge; fallen allies can be
  * carried out (see RetreatRule for the three difficulty settings).
- * Not yet: opportunity attacks, bonus actions, reactions, spells, conditions.
+ * Spells (rules/spells.ts) use the hooks here: effects with SRD durations
+ * ("until the start/end of your next turn", Concentration), Temporary Hit
+ * Points, and the one-spell-slot-per-turn rule.
+ * Not yet: opportunity attacks, reactions, most conditions.
  */
 import type { Direction } from '../engine/commands';
 import { DIRECTION_VECTORS } from '../engine/commands';
 import { resolveRollMode, rollD20 } from '../engine/dice';
 import type { Rng } from '../engine/rng';
+import type { Ability } from '../engine/state';
 import { resolveAttack } from './attack';
 
 export type Side = 'party' | 'enemy';
@@ -28,6 +32,34 @@ export type Side = 'party' | 'enemy';
  */
 export type RetreatRule = 'hard' | 'normal' | 'casual';
 export type Trait = 'pack-tactics';
+
+/**
+ * Lasting effects on a unit. `owner` is whoever caused it; `ends` says when it
+ * stops: at the start or end of the owner's turn (`skip` = turns to let pass
+ * first, so "the end of your next turn" is ends 'end', skip 1), or when the
+ * owner's Concentration ends.
+ */
+export type EffectKind = 'bless' | 'shield-of-faith' | 'guided' | 'slowed' | 'poisoned' | 'blinded' | 'no-heal';
+export interface Effect {
+  kind: EffectKind;
+  owner: string;
+  ends: 'start' | 'end' | 'concentration';
+  skip?: number;
+}
+
+/** What a spellcaster brings into a fight (built by rules/spells.ts from the character sheet). */
+export interface CasterInfo {
+  classId: string;
+  ability: Ability;
+  mod: number; // spellcasting ability modifier
+  attack: number; // spell attack bonus
+  dc: number; // spell save DC
+  level: number; // character level (cantrip damage)
+  cantrips: string[];
+  prepared: string[];
+  slots: number[]; // slots left per level (index 0 = level 1)
+  maxSlots: number[];
+}
 
 export interface Unit {
   id: string;
@@ -53,6 +85,13 @@ export interface Unit {
   fled?: boolean; // left the battle over a map edge
   carrying?: string; // id of the fallen ally this unit carries
   carriedBy?: string; // id of the unit carrying this one (off the grid while carried)
+  saves?: Partial<Record<Ability, number>>; // saving throw bonuses (missing = +0)
+  tempHp?: number; // Temporary Hit Points, lost before real ones
+  effects?: Effect[];
+  concentration?: { spell: string; name: string; round: number; rounds: number };
+  caster?: CasterInfo;
+  unarmoredAc?: number; // AC with Mage Armor (13 + Dex, + shield) — characters wearing no armour only
+  mageArmor?: boolean;
 }
 
 export interface CombatState {
@@ -66,7 +105,8 @@ export interface CombatState {
   actionUsed: boolean;
   outcome: 'ongoing' | 'victory' | 'defeat' | 'fled';
   retreat: RetreatRule;
-  bonusUsed: boolean; // this turn's Bonus Action (only potions use it so far; DND-10)
+  bonusUsed: boolean; // this turn's Bonus Action (potions, some spells)
+  slotUsed: boolean; // SRD 5.2: only one spell slot may be expended per turn
   potions: number; // Potions of Healing in the party pack
   log: string[];
 }
@@ -107,6 +147,7 @@ export function startCombat(
     outcome: 'ongoing',
     retreat,
     bonusUsed: false,
+    slotUsed: false,
     potions,
     log: ['Roll for initiative! ' + rolled.map((r) => `${nameOf(units, r.id)} ${r.init}`).join(', ')],
   };
@@ -264,6 +305,7 @@ export function endTurn(state: CombatState, rng: Rng): void {
  * Throws"); unless that restores them, their turn passes.
  */
 function advance(state: CombatState, rng: Rng): void {
+  if (state.order.length) expireEffects(state, activeUnit(state).id, 'end');
   for (let guard = 0; guard < state.order.length * 3; guard++) {
     state.turnIndex += 1;
     if (state.turnIndex >= state.order.length) {
@@ -286,10 +328,144 @@ function advance(state: CombatState, rng: Rng): void {
 
 function beginTurn(state: CombatState): void {
   const u = activeUnit(state);
-  state.movesLeft = u.speed;
+  expireEffects(state, u.id, 'start');
+  if (u.concentration && state.round - u.concentration.round >= u.concentration.rounds) {
+    endConcentration(state, u, 'runs out');
+  }
+  // Ray of Frost: Speed −10 ft (2 squares)
+  state.movesLeft = hasEffect(u, 'slowed') ? Math.max(0, u.speed - 2) : u.speed;
   state.actionUsed = false;
   state.bonusUsed = false;
+  state.slotUsed = false;
   if (u.side === 'party') state.log.push(`▶ ${u.name}'s turn.`);
+}
+
+// ---------------------------------------------------------------------------
+// Effects, Concentration, damage and healing
+// ---------------------------------------------------------------------------
+
+export const hasEffect = (u: Unit, kind: EffectKind): boolean => !!u.effects?.some((e) => e.kind === kind);
+
+/** Armor Class right now (Shield of Faith: +2). */
+export const acOf = (u: Unit): number => u.ac + (hasEffect(u, 'shield-of-faith') ? 2 : 0);
+
+/** Put an effect on a unit, replacing the same effect from the same source. */
+export function addEffect(target: Unit, effect: Effect): void {
+  target.effects = [...(target.effects ?? []).filter((e) => !(e.kind === effect.kind && e.owner === effect.owner)), effect];
+}
+
+/** Effects tied to `ownerId`'s turn start or end run out (or count down). */
+function expireEffects(state: CombatState, ownerId: string, at: 'start' | 'end'): void {
+  for (const u of state.units) {
+    if (!u.effects?.length) continue;
+    u.effects = u.effects.filter((e) => {
+      if (e.owner !== ownerId || e.ends !== at) return true;
+      if (e.skip) {
+        e.skip -= 1;
+        return true;
+      }
+      return false;
+    });
+  }
+}
+
+/** The caster stops concentrating: every effect they keep up ends. */
+export function endConcentration(state: CombatState, caster: Unit, why: string): void {
+  if (!caster.concentration) return;
+  for (const u of state.units) u.effects = u.effects?.filter((e) => !(e.owner === caster.id && e.ends === 'concentration'));
+  state.log.push(`${caster.name}'s ${caster.concentration.name} ${why === 'runs out' ? 'runs out' : `ends (${why})`}.`);
+  caster.concentration = undefined;
+}
+
+/** Bless: +1d4 to attack rolls and saving throws. Returns the d4 (0 without Bless). */
+export function blessBonus(rng: Rng, u: Unit): number {
+  return hasEffect(u, 'bless') ? rng.int(1, 4) : 0;
+}
+
+/** Is an enemy of `u` within 5 ft who can see it (not Blinded) and isn't Incapacitated? */
+export function hostileAdjacent(state: CombatState, u: Unit): boolean {
+  return state.units.some((o) => o.side !== u.side && isUp(o) && onField(o) && chebyshev(o, u) === 1 && !hasEffect(o, 'blinded'));
+}
+
+/**
+ * Advantage / Disadvantage on an attack roll (SRD 5.2): Pack Tactics, a
+ * Guiding Bolt mark (used up by this attack), Blinded or Poisoned attackers,
+ * Blinded targets, ranged attacks with an enemy within 5 ft.
+ */
+export function attackMode(state: CombatState, attacker: Unit, target: Unit, ranged: boolean) {
+  let adv = 0;
+  let dis = 0;
+  const notes: string[] = [];
+  if (
+    attacker.traits.includes('pack-tactics') &&
+    state.units.some((o) => o !== attacker && o.side === attacker.side && isUp(o) && onField(o) && chebyshev(o, target) === 1)
+  ) {
+    adv++;
+    notes.push('pack tactics');
+  }
+  if (hasEffect(target, 'guided')) {
+    adv++;
+    notes.push('guided');
+    target.effects = target.effects!.filter((e) => e.kind !== 'guided');
+  }
+  if (hasEffect(target, 'blinded')) {
+    adv++;
+    notes.push('target blinded');
+  }
+  if (hasEffect(attacker, 'poisoned')) {
+    dis++;
+    notes.push('poisoned');
+  }
+  if (hasEffect(attacker, 'blinded')) {
+    dis++;
+    notes.push('blinded');
+  }
+  if (ranged && hostileAdjacent(state, attacker)) {
+    dis++;
+    notes.push('enemy in reach');
+  }
+  return { mode: resolveRollMode(adv, dis), notes };
+}
+
+/**
+ * Deal damage and log it: Temporary Hit Points soak first, then the 0 HP
+ * rules (applyDamage). A concentrating target makes a Constitution save
+ * (DC 10 or half the damage, max 30) or loses Concentration; dropping to
+ * 0 HP ends it. Someone carrying an ally drops them.
+ */
+export function hurt(state: CombatState, rng: Rng, target: Unit, amount: number, line: string): void {
+  let soaked = 0;
+  if (target.tempHp && amount > 0) {
+    soaked = Math.min(target.tempHp, amount);
+    target.tempHp -= soaked;
+    amount -= soaked;
+  }
+  const temp = soaked ? ` [${soaked} absorbed by temporary HP]` : '';
+  state.log.push(line + temp + (amount > 0 ? applyDamage(target, amount) : '.'));
+  if (!isUp(target) && target.carrying) drop(state, target);
+  if (target.concentration) {
+    if (!isUp(target)) endConcentration(state, target, target.dead ? 'dead' : 'unconscious');
+    else if (amount > 0) {
+      const dc = Math.min(30, Math.max(10, Math.floor(amount / 2)));
+      const bless = blessBonus(rng, target);
+      const total = rng.int(1, 20) + (target.saves?.con ?? 0) + bless;
+      if (total < dc) endConcentration(state, target, `Constitution save ${total} vs DC ${dc}`);
+      else state.log.push(`${target.name} keeps concentrating (${total} vs DC ${dc}).`);
+    }
+  }
+}
+
+/** Regain hit points (not while Chill Touch stops it). Waking up resets death saves. Returns HP gained. */
+export function healUnit(target: Unit, amount: number): number {
+  if (target.dead || hasEffect(target, 'no-heal')) return 0;
+  const before = Math.max(0, target.hp);
+  const wasDown = target.hp <= 0;
+  target.hp = Math.min(target.maxHp, before + amount);
+  if (wasDown && target.hp > 0) {
+    target.deathSaves = { successes: 0, failures: 0 };
+    target.stable = false;
+  }
+  return target.hp - before;
 }
 
 /** d20: 10+ success, 1 = two failures, 20 = regain 1 HP. Three successes: Stable; three failures: dead. */
@@ -352,22 +528,20 @@ export function applyDamage(target: Unit, amount: number): string {
 }
 
 function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit): void {
-  // Pack Tactics: Advantage if an ally of the attacker within 5 ft of the target isn't Incapacitated.
-  const packAdvantage =
-    attacker.traits.includes('pack-tactics') &&
-    state.units.some((o) => o !== attacker && o.side === attacker.side && isUp(o) && onField(o) && chebyshev(o, target) === 1);
-  const mode = resolveRollMode(packAdvantage ? 1 : 0, 0);
-  const r = resolveAttack(rng, { attackBonus: attacker.attackBonus, targetAc: target.ac, damage: attacker.damage, mode });
+  const { mode, notes } = attackMode(state, attacker, target, false);
+  const bless = blessBonus(rng, attacker);
+  if (bless) notes.push(`bless +${bless}`);
+  const ac = acOf(target);
+  const r = resolveAttack(rng, { attackBonus: attacker.attackBonus + bless, targetAc: ac, damage: attacker.damage, mode });
   state.actionUsed = true;
   state.movesLeft = 0; // simplification until DND-10: attacking ends movement
-  const adv = mode === 'advantage' ? ' [pack tactics]' : '';
+  const adv = notes.length ? ` [${notes.join(', ')}]` : '';
   if (!r.hit) {
-    state.log.push(`${attacker.name} misses ${target.name} (${r.attackTotal} vs AC ${target.ac})${adv}.`);
+    state.log.push(`${attacker.name} misses ${target.name} (${r.attackTotal} vs AC ${ac})${adv}.`);
     return;
   }
   const verb = r.critical ? 'CRITS' : 'hits';
-  state.log.push(`${attacker.name} ${verb} ${target.name} for ${r.damage}${adv}` + applyDamage(target, r.damage));
-  if (!isUp(target) && target.carrying) drop(state, target);
+  hurt(state, rng, target, r.damage, `${attacker.name} ${verb} ${target.name} for ${r.damage}${adv}`);
   checkOutcome(state);
 }
 
@@ -385,7 +559,7 @@ function helpStabilise(state: CombatState, rng: Rng, helper: Unit, target: Unit)
   }
 }
 
-function checkOutcome(state: CombatState): void {
+export function checkOutcome(state: CombatState): void {
   if (state.outcome !== 'ongoing') return;
   if (!state.units.some((u) => u.side === 'enemy' && isUp(u))) {
     state.outcome = 'victory';
@@ -543,7 +717,7 @@ export function turnExhausted(state: CombatState): boolean {
   const u = activeUnit(state);
   const canWalk = state.movesLeft >= stepCost(u);
   if (state.actionUsed) return !(u.carrying && canWalk); // a carrier gets to walk their load away
-  return !canWalk && !hasTargetInReach(state);
+  return !canWalk && !hasTargetInReach(state) && !u.caster; // a caster can still cast from where they stand
 }
 
 /** Something the active unit could use its action on right now: an adjacent enemy, or a dying ally to stabilise. */
@@ -576,13 +750,8 @@ export function usePotion(state: CombatState, rng: Rng, targetId: string): boole
   const target = potionTargets(state).find((t) => t.id === targetId);
   if (!target) return false;
   const u = activeUnit(state);
-  const heal = rng.int(1, 4) + rng.int(1, 4) + 2;
   const wasDown = target.hp <= 0;
-  target.hp = Math.min(target.maxHp, Math.max(0, target.hp) + heal);
-  if (wasDown) {
-    target.deathSaves = { successes: 0, failures: 0 };
-    target.stable = false;
-  }
+  const heal = healUnit(target, rng.int(1, 4) + rng.int(1, 4) + 2);
   state.potions -= 1;
   state.bonusUsed = true;
   const who = target === u ? `${u.name} drinks a Potion of Healing` : `${u.name} gives ${target.name} a Potion of Healing`;

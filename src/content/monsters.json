@@ -1,5 +1,5 @@
 {
-  "_note": "Stat blocks from SRD 5.2 (CC-BY-4.0). Speeds in 5-ft squares; flying treated as walking until flight rules exist. hp = the stat block's fixed average.",
+  "_note": "Stat blocks from SRD 5.2 (CC-BY-4.0). Speeds in 5-ft squares; flying treated as walking until flight rules exist. hp = the stat block's fixed average. saves = saving throw bonuses (the stat block's Save column).",
   "giant-rat": {
     "name": "Giant Rat",
     "sprite": "giant-rat",
@@ -10,8 +10,24 @@
     "hpDice": "2d6",
     "speed": 6,
     "initBonus": 3,
-    "attack": { "name": "Bite", "bonus": 5, "damage": ["1d4+3"] },
-    "traits": ["pack-tactics"]
+    "saves": {
+      "str": -2,
+      "dex": 5,
+      "con": 0,
+      "int": -4,
+      "wis": 0,
+      "cha": -3
+    },
+    "attack": {
+      "name": "Bite",
+      "bonus": 5,
+      "damage": [
+        "1d4+3"
+      ]
+    },
+    "traits": [
+      "pack-tactics"
+    ]
   },
   "giant-wolf-spider": {
     "name": "Giant Wolf Spider",
@@ -23,7 +39,22 @@
     "hpDice": "2d8+2",
     "speed": 8,
     "initBonus": 3,
-    "attack": { "name": "Bite", "bonus": 5, "damage": ["1d4+3", "2d4"] },
+    "saves": {
+      "str": 1,
+      "dex": 3,
+      "con": 1,
+      "int": -4,
+      "wis": 1,
+      "cha": -3
+    },
+    "attack": {
+      "name": "Bite",
+      "bonus": 5,
+      "damage": [
+        "1d4+3",
+        "2d4"
+      ]
+    },
     "traits": []
   },
   "giant-bat": {
@@ -36,7 +67,21 @@
     "hpDice": "4d10",
     "speed": 12,
     "initBonus": 3,
-    "attack": { "name": "Bite", "bonus": 5, "damage": ["1d6+3"] },
+    "saves": {
+      "str": 2,
+      "dex": 3,
+      "con": 0,
+      "int": -4,
+      "wis": 1,
+      "cha": -2
+    },
+    "attack": {
+      "name": "Bite",
+      "bonus": 5,
+      "damage": [
+        "1d6+3"
+      ]
+    },
     "traits": []
   },
   "giant-spider": {
@@ -49,7 +94,22 @@
     "hpDice": "4d10+4",
     "speed": 6,
     "initBonus": 3,
-    "attack": { "name": "Bite", "bonus": 5, "damage": ["1d8+3", "2d6"] },
+    "saves": {
+      "str": 2,
+      "dex": 3,
+      "con": 1,
+      "int": -4,
+      "wis": 0,
+      "cha": -3
+    },
+    "attack": {
+      "name": "Bite",
+      "bonus": 5,
+      "damage": [
+        "1d8+3",
+        "2d6"
+      ]
+    },
     "traits": []
   }
 }

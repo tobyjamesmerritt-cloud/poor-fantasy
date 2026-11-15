@@ -1,5 +1,5 @@
 {
-  "_note": "SRD 5.2 classes, level 1. kit = combat-relevant part of starting equipment option A (+ its GP). playable=false entries are data for later (DND backlog: remaining classes); verify their kits against the SRD before enabling. weaponTraining: simple | martial | martial-finesse-light (Rogue: Martial weapons with the Finesse or Light property). featuresByLevel: SRD 5.2 class table names for levels 2-5 (playable classes); only Ability Score Improvement is in effect so far.",
+  "_note": "SRD 5.2 classes, level 1. kit = combat-relevant part of starting equipment option A (+ its GP). playable=false entries are data for later (DND backlog: remaining classes); verify their kits against the SRD before enabling. weaponTraining: simple | martial | martial-finesse-light (Rogue: Martial weapons with the Finesse or Light property). featuresByLevel: SRD 5.2 class table names for levels 2-5 (playable classes); only Ability Score Improvement is in effect so far. spellcasting: SRD 5.2 class table (cantrips known, prepared spells, slots per level 1-5; index = class level - 1); recommended = default picks among spells the game implements (src/content/spells.json).",
   "barbarian": {
     "name": "Barbarian",
     "hitDie": 12,
@@ -102,6 +102,56 @@
       "5": [
         "Sear Undead"
       ]
+    },
+    "spellcasting": {
+      "ability": "wis",
+      "cantrips": [
+        3,
+        3,
+        3,
+        4,
+        4
+      ],
+      "prepared": [
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "slots": [
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4,
+          2
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          4,
+          3,
+          2
+        ]
+      ],
+      "recommended": {
+        "cantrips": [
+          "sacred-flame",
+          "spare-the-dying"
+        ],
+        "prepared": [
+          "bless",
+          "cure-wounds",
+          "guiding-bolt",
+          "shield-of-faith"
+        ]
+      }
     }
   },
   "druid": {
@@ -450,6 +500,70 @@
       "5": [
         "Memorize Spell"
       ]
+    },
+    "spellcasting": {
+      "ability": "int",
+      "cantrips": [
+        3,
+        3,
+        3,
+        4,
+        4
+      ],
+      "prepared": [
+        4,
+        5,
+        6,
+        7,
+        9
+      ],
+      "slots": [
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4,
+          2
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          4,
+          3,
+          2
+        ]
+      ],
+      "spellbook": {
+        "start": 6,
+        "perLevel": 2
+      },
+      "arcaneRecovery": true,
+      "recommended": {
+        "cantrips": [
+          "fire-bolt",
+          "ray-of-frost",
+          "shocking-grasp"
+        ],
+        "spellbook": [
+          "mage-armor",
+          "magic-missile",
+          "thunderwave",
+          "burning-hands",
+          "false-life",
+          "ice-knife"
+        ],
+        "prepared": [
+          "mage-armor",
+          "magic-missile",
+          "thunderwave",
+          "burning-hands"
+        ]
+      }
     }
   }
 }

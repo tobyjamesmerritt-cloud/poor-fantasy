@@ -9,10 +9,12 @@ import type { Rng } from '../engine/rng';
 import type { Ability, AbilityScores, CharacterSheet } from '../engine/state';
 import { ABILITIES, averageHitDie, type CharacterData, deriveStats, finalScores, MAX_LEVEL } from './character';
 import { XP_FOR_LEVEL } from './rewards';
+import { checkSpellChoices, type SpellChoices, spellChoices } from './spells';
 
 export interface LevelUpChoice {
   hp: 'roll' | 'average';
   asi?: Partial<AbilityScores>; // level 4: +2 to one ability, or +1 to two (none above 20)
+  spells?: SpellChoices; // casters: cantrips, spellbook and prepared spells at the new level
 }
 
 export const xpForNext = (sheet: CharacterSheet): number | null =>
@@ -49,6 +51,15 @@ export function levelUp(sheet: CharacterSheet, choice: LevelUpChoice, rng: Rng, 
   const why = checkAsi(sheet, choice.asi);
   if (why) return why;
   const cls = data.classes[sheet.classId];
+  const sc = cls.spellcasting;
+  if (sc && choice.spells) {
+    // new spells: checked at the new level; a Wizard's spellbook only grows
+    const next = { ...sheet, level: sheet.level + 1, cantrips: choice.spells.cantrips, prepared: choice.spells.prepared, ...(sc.spellbook ? { spellbook: choice.spells.spellbook } : {}) };
+    const errs = checkSpellChoices(next, sc, data.spells);
+    if (errs.length) return errs[0];
+    const old = spellChoices(sheet, sc, data.spells).spellbook;
+    if (sc.spellbook && old.some((id) => !choice.spells!.spellbook.includes(id))) return 'Spells stay in the spellbook once learned.';
+  }
   const before = deriveStats(sheet, data).hp;
   const roll = choice.hp === 'roll' ? rng.int(1, cls.hitDie) : averageHitDie(cls.hitDie);
   if (needsAsi(sheet) && choice.asi) {
@@ -58,6 +69,11 @@ export function levelUp(sheet: CharacterSheet, choice: LevelUpChoice, rng: Rng, 
   }
   sheet.level += 1;
   sheet.hpGains = [...(sheet.hpGains ?? []), roll];
+  if (sc && choice.spells) {
+    sheet.cantrips = [...choice.spells.cantrips];
+    sheet.prepared = [...choice.spells.prepared];
+    if (sc.spellbook) sheet.spellbook = [...choice.spells.spellbook];
+  }
   return {
     level: sheet.level,
     roll,

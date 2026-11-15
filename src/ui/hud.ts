@@ -32,6 +32,22 @@ export interface ActiveCard {
   potions: number;
   bonusUsed: boolean;
   potionTargets: { id: string; name: string; self: boolean }[];
+  tempHp?: number;
+  effects?: string[]; // "Blessed", "Slowed", …
+  concentration?: string; // spell being concentrated on
+  slots?: { level: number; left: number; max: number }[];
+  spells?: CardSpell[];
+  aiming?: { name: string; picked: number; count: number; hint: string; canCastNow: boolean };
+}
+
+export interface CardSpell {
+  id: string;
+  name: string;
+  level: number;
+  detail: string; // "cantrip · action · 120 ft"
+  summary: string;
+  levels: number[];
+  reason?: string;
 }
 
 export interface RosterEntry {
@@ -172,7 +188,7 @@ export class Hud {
       'dl',
       'stats',
       el('dt', '', 'HP'),
-      el('dd', '', `${card.hp}/${card.maxHp}`),
+      el('dd', '', `${card.hp}/${card.maxHp}${card.tempHp ? ` +${card.tempHp}` : ''}`),
       el('div', 'bar', hpFill),
       el('dt', '', 'AC'),
       el('dd', '', String(card.ac)),
@@ -190,10 +206,63 @@ export class Hud {
           `⚔ ${card.attackName} +${card.attackBonus} · ${card.damage}`,
           el('small', '', card.actionUsed ? 'used this turn' : 'click an enemy · or a fallen ally'),
         ),
-        el('div', 'action disabled', '✦ Spells', el('small', '', 'coming — DND-23')),
+        ...(card.effects?.length || card.concentration
+          ? [el('div', 'effects', [...(card.effects ?? []), card.concentration ? `concentrating: ${card.concentration}` : ''].filter(Boolean).join(' · '))]
+          : []),
+        ...(card.spells ? [this.spellAction(card)] : []),
         this.potionAction(card),
       ),
     );
+  }
+
+  private spellsOpen = true;
+
+  /** Spell list: pick a spell (and slot level), then targets on the grid. */
+  private spellAction(card: ActiveCard): HTMLElement {
+    const pips = (card.slots ?? []).map((s) => `L${s.level} ${'●'.repeat(s.left)}${'○'.repeat(s.max - s.left)}`).join('  ');
+    const head = el('button', 'spell-head', `✦ Spells ${this.spellsOpen ? '▾' : '▸'}`, el('span', 'slot-pips', pips)) as HTMLButtonElement;
+    head.title = 'Show or hide your spells';
+    const box = el('div', 'action spells', head);
+    head.addEventListener('click', () => {
+      this.spellsOpen = !this.spellsOpen;
+      this.setActive(card);
+    });
+    if (card.aiming) {
+      const a = card.aiming;
+      const cancel = el('button', '', 'Cancel') as HTMLButtonElement;
+      cancel.addEventListener('click', () => this.bus.dispatch({ type: 'cancel' }));
+      const row = el('div', 'potion-row');
+      if (a.canCastNow) {
+        const now = el('button', '', 'Cast now') as HTMLButtonElement;
+        now.addEventListener('click', () => this.bus.dispatch({ type: 'confirm' }));
+        row.append(now);
+      }
+      row.append(cancel);
+      box.append(el('div', 'aiming', `Casting ${a.name}`, el('small', '', a.hint)), row);
+      return box;
+    }
+    if (!this.spellsOpen) return box;
+    const list = el('div', 'spell-list');
+    for (const s of card.spells ?? []) {
+      const row = el('div', s.reason ? 'spell disabled' : 'spell');
+      row.title = `${s.summary}${s.reason ? `\n\n${s.reason}` : ''}`;
+      const name = el('button', 'spell-name', s.name, el('small', '', s.reason ?? s.detail)) as HTMLButtonElement;
+      name.disabled = !!s.reason;
+      name.addEventListener('click', () => this.bus.dispatch({ type: 'aimSpell', spellId: s.id, slot: s.levels[0] }));
+      row.append(name);
+      if (!s.reason && s.level > 0 && s.levels.length > 1) {
+        // cast with a higher slot
+        for (const lv of s.levels.slice(1)) {
+          const up = el('button', 'upcast', `L${lv}`) as HTMLButtonElement;
+          up.title = `Cast with a level ${lv} slot`;
+          up.addEventListener('click', () => this.bus.dispatch({ type: 'aimSpell', spellId: s.id, slot: lv }));
+          row.append(up);
+        }
+      }
+      list.append(row);
+    }
+    box.append(list);
+    return box;
   }
 
   /**

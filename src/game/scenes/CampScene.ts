@@ -8,7 +8,7 @@ import type { Command, CommandBus } from '../../engine/commands';
 import type { Rng } from '../../engine/rng';
 import type { GameState } from '../../engine/state';
 import { assets } from '../../content/assets';
-import { membersOf, statsOf } from '../../content/characters';
+import { characterData, membersOf, statsOf } from '../../content/characters';
 import { partyRows } from '../partyView';
 import { formatCoins } from '../../rules/party';
 import { type CampSite, canRest, innCost, isInn, rest, type RestKind } from '../../rules/rest';
@@ -120,6 +120,7 @@ export class CampScene extends Phaser.Scene {
     const r = rest(kind, this.input0(), this.deps.rng);
     g.time += r.minutes;
     g.coins -= r.coinsSpent;
+    if (r.lastLongRest !== g.lastLongRest) g.flags['spells:prepare'] = true; // a finished Long Rest: casters may re-prepare
     g.lastLongRest = r.lastLongRest;
     this.busy = true;
     this.say(kind === 'long' ? 'The party settles down for the night…' : 'The party rests for an hour…');
@@ -162,6 +163,9 @@ export class CampScene extends Phaser.Scene {
       actions: [
         { label: 'Short rest (1 hour)', command: { type: 'rest', kind: 'short' }, disabledReason: why('short') },
         { label: `Long rest (8 hours${cost})`, command: { type: 'rest', kind: 'long' }, disabledReason: why('long') },
+        ...(g.roster.some((r) => characterData.classes[r.classId]?.spellcasting)
+          ? [{ label: g.flags['spells:prepare'] ? 'Spells — prepare & cast…' : 'Spells — cast…', command: { type: 'openSpells' } as Command }]
+          : []),
         { label: isInn(site) ? 'Leave the inn' : 'Break camp', command: { type: 'breakCamp' } },
       ],
     });

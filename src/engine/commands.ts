@@ -45,9 +45,19 @@ export type Command =
   | { type: 'unequipItem'; characterId: string; slot: 'armor' | 'shield' }
   | { type: 'templeHeal' }
   | { type: 'templeRaise'; characterId: string }
-  | { type: 'levelUp'; characterId: string; hp: 'roll' | 'average'; asi?: Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>> } // after a fight: back to where it started (location or world map)
+  | {
+      type: 'levelUp';
+      characterId: string;
+      hp: 'roll' | 'average';
+      asi?: Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>>;
+      spells?: { cantrips: string[]; spellbook: string[]; prepared: string[] };
+    } // after a fight: back to where it started (location or world map)
   | { type: 'leavePlace' } // close the location panel on the map
   | { type: 'confirm' }
+  | { type: 'aimSpell'; spellId: string; slot: number } // combat: pick targets on the grid next (cantrips: slot 0)
+  | { type: 'openSpells' } // spells dialog (camp, party screen)
+  | { type: 'castOutside'; casterId: string; spellId: string; slot: number; targetIds: string[] }
+  | { type: 'prepareSpells'; characterId: string; prepared: string[] }
   | { type: 'cancel' }
   | { type: 'menu'; option: string }
   | { type: 'debug'; text: string };

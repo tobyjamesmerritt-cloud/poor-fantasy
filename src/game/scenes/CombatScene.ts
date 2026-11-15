@@ -25,7 +25,11 @@ import {
   flee,
   onField,
   unitAt,
+  acOf,
+  type EffectKind,
 } from '../../rules/combat';
+import { areaSquares, castOptions, castSpell, targetingOf, validTargets } from '../../rules/spells';
+import { spells } from '../../content/characters';
 import { assets, cellSize, cursorCss } from '../../content/assets';
 import { buildUnits, encounters, type EncounterDef, type PartyMemberDef } from '../../content/encounters';
 import type { ActiveCard, Hud } from '../../ui/hud';
@@ -54,7 +58,26 @@ export interface CombatSceneDeps {
   party?: PartyMemberState[]; // persistent party: current HP, who is dead (omit = everyone fresh)
   onEnd?: (state: CombatState) => void; // once, when the fight is won, lost or fled
   potions?: number; // Potions of Healing in the party pack
+  now?: number; // game time (Mage Armor still running?)
 }
+
+/** A spell being aimed: picks so far (creature spells may pick several). */
+interface Aim {
+  spellId: string;
+  slot: number;
+  picks: { x: number; y: number }[];
+  hover: { x: number; y: number } | null;
+}
+
+const EFFECT_NAMES: Record<EffectKind, string> = {
+  bless: 'Blessed',
+  'shield-of-faith': 'Shield of Faith',
+  guided: 'Guided',
+  slowed: 'Slowed',
+  poisoned: 'Poisoned',
+  blinded: 'Blinded',
+  'no-heal': "Can't heal",
+};
 
 /** One side of a grid square on the edge of the movement range: from (x1,y1) to (x2,y2) in pixels. */
 interface Edge {
@@ -80,6 +103,8 @@ export class CombatScene extends Phaser.Scene {
   private busy = false;
   private history = new History<{ state: CombatState; rng: number }>();
   private cleanups: (() => void)[] = [];
+  private aim: Aim | null = null;
+  private aimLayer!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('combat');
@@ -91,6 +116,7 @@ export class CombatScene extends Phaser.Scene {
     this.tags.clear();
     this.cursor = '';
     this.busy = false;
+    this.aim = null;
     this.history = new History();
     this.victoryReported = false;
     const enc = encounters[deps.encounter];
@@ -104,7 +130,7 @@ export class CombatScene extends Phaser.Scene {
 
   create(): void {
     this.rng = createRng(this.deps.seed);
-    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, this.deps.members, this.deps.party), this.deps.prefs.get().difficulty, this.deps.potions ?? 0);
+    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, this.deps.members, this.deps.party, this.deps.now ?? 0), this.deps.prefs.get().difficulty, this.deps.potions ?? 0);
     this.cameras.main.setZoom(1).setScroll(0, 0);
 
     this.deps.hud.setNames(this.state.units);
@@ -115,6 +141,7 @@ export class CombatScene extends Phaser.Scene {
     this.drawGrid();
     this.ants = this.add.graphics().setDepth(0.6);
     this.overlay = this.add.graphics().setDepth(4); // above sprites so HP bars stay visible
+    this.aimLayer = this.add.graphics().setDepth(3.5); // spell targets and areas, over the sprites
     for (const u of this.state.units) this.createUnitSprite(u);
     this.setCursor('default');
 
@@ -134,7 +161,16 @@ export class CombatScene extends Phaser.Scene {
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       this.deps.bus.dispatch({ type: 'moveTo', x: Math.floor(p.worldX / TILE), y: Math.floor(p.worldY / TILE) });
     });
-    this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.updateCursor(p));
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (this.aim) {
+        const at = { x: Math.floor(p.worldX / TILE), y: Math.floor(p.worldY / TILE) };
+        if (this.aim.hover?.x !== at.x || this.aim.hover?.y !== at.y) {
+          this.aim.hover = at;
+          this.drawAim();
+        }
+      }
+      this.updateCursor(p);
+    });
 
     this.redraw();
   }
@@ -222,12 +258,40 @@ export class CombatScene extends Phaser.Scene {
   }
 
   private card(u: Unit): ActiveCard {
+    const c = u.caster;
+    const options = c ? castOptions(this.state, spells) : [];
+    const aiming = this.aim ? this.aimInfo() : undefined;
     return {
       name: u.name,
       side: u.side,
       hp: u.hp,
       maxHp: u.maxHp,
-      ac: u.ac,
+      ac: acOf(u),
+      tempHp: u.tempHp,
+      effects: (u.effects ?? []).map((e) => EFFECT_NAMES[e.kind]),
+      concentration: u.concentration?.name,
+      ...(c
+        ? {
+            slots: c.maxSlots.map((max, i) => ({ level: i + 1, max, left: c.slots[i] })),
+            spells: options.map((o) => ({
+              id: o.id,
+              name: o.spell.name,
+              level: o.spell.level,
+              detail: [
+                o.spell.level ? `level ${o.spell.level}` : 'cantrip',
+                o.spell.time === 'bonus' ? 'bonus action' : 'action',
+                o.spell.range === 0 ? 'self' : o.spell.range === 5 ? 'touch' : `${o.spell.range} ft`,
+                o.spell.concentration ? 'concentration' : '',
+              ]
+                .filter(Boolean)
+                .join(' · '),
+              summary: o.spell.summary,
+              levels: o.levels,
+              reason: o.reason,
+            })),
+            aiming,
+          }
+        : {}),
       attackName: u.attackName,
       attackBonus: u.attackBonus,
       damage: u.damage.join(' + '),
@@ -248,6 +312,10 @@ export class CombatScene extends Phaser.Scene {
     }
     const x = Math.floor(p.worldX / TILE);
     const y = Math.floor(p.worldY / TILE);
+    if (this.aim) {
+      const ok = validTargets(this.state, spells, this.aim.spellId, this.aim.slot).some((q) => q.x === x && q.y === y);
+      return this.setCursor(ok ? 'attack' : 'default');
+    }
     const target = unitAt(this.state, x, y);
     const plan = planMoveTo(this.state, x, y);
     if (!plan) this.setCursor('default');
@@ -265,6 +333,16 @@ export class CombatScene extends Phaser.Scene {
   private handle(cmd: Command): void {
     if (this.busy) return; // walking or handing over the turn
     let before: string | null = null;
+    if (this.aim) {
+      // Aiming a spell: grid clicks pick targets; Enter casts with the picks so far; Esc cancels.
+      if (cmd.type === 'moveTo') return this.pick(cmd.x, cmd.y);
+      if (cmd.type === 'confirm') return this.release();
+      if (cmd.type === 'move') return;
+      this.aim = null; // anything else (Esc, another spell, end turn, rewind…) stops aiming
+      this.drawAim();
+      if (cmd.type === 'cancel') return this.redraw();
+    }
+    if (cmd.type === 'aimSpell') return this.startAim(cmd.spellId, cmd.slot);
     if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee' || cmd.type === 'usePotion') && this.state.outcome === 'ongoing') {
       before = JSON.stringify(this.state);
       this.history.push({ state: this.state, rng: this.rng.state });
@@ -296,6 +374,103 @@ export class CombatScene extends Phaser.Scene {
     // A blocked step (wall, no moves left) changes nothing: don't leave an empty rewind point.
     if (before !== null && JSON.stringify(this.state) === before) this.history.pop();
     this.afterAction();
+  }
+
+  // -------------------------------------------------------------------------
+  // Spells: aim, pick targets, cast
+  // -------------------------------------------------------------------------
+
+  private startAim(spellId: string, slot: number): void {
+    const u = activeUnit(this.state);
+    const option = castOptions(this.state, spells).find((o) => o.id === spellId);
+    if (u.side !== 'party' || !option || option.reason || !option.levels.includes(slot)) return;
+    this.aim = { spellId, slot, picks: [], hover: null };
+    const t = targetingOf(option.spell, slot, u.caster!.level);
+    // Self-only spells need no aiming.
+    if (t.kind === 'self') {
+      this.aim.picks.push({ x: u.x, y: u.y });
+      return this.release();
+    }
+    this.drawAim();
+    this.redraw();
+  }
+
+  private aimTargeting() {
+    const a = this.aim!;
+    return targetingOf(spells[a.spellId], a.slot, activeUnit(this.state).caster!.level);
+  }
+
+  private aimInfo(): NonNullable<ActiveCard['aiming']> {
+    const a = this.aim!;
+    const spell = spells[a.spellId];
+    const t = this.aimTargeting();
+    const name = `${spell.name}${a.slot > spell.level && spell.level > 0 ? ` (level ${a.slot})` : ''}`;
+    const hint =
+      t.kind === 'creatures'
+        ? t.count > 1
+          ? `Click ${t.side === 'enemy' ? 'enemies' : 'allies'}: ${a.picks.length}/${t.count} picked${t.repeat ? ' (the same one again is fine)' : ''}.`
+          : `Click ${t.side === 'enemy' ? 'an enemy' : 'an ally'} in range (highlighted).`
+        : t.kind === 'point'
+          ? 'Click where it should burst — the orange squares are hit, friends included.'
+          : t.kind === 'direction'
+            ? 'Click a square to aim it — the orange squares are hit, friends included.'
+            : 'Click an empty square within range.';
+    return { name, picked: a.picks.length, count: t.kind === 'creatures' ? t.count : 1, hint, canCastNow: t.kind === 'creatures' && t.count > 1 && a.picks.length > 0 };
+  }
+
+  private pick(x: number, y: number): void {
+    const a = this.aim!;
+    if (!validTargets(this.state, spells, a.spellId, a.slot).some((q) => q.x === x && q.y === y)) return;
+    const t = this.aimTargeting();
+    if (t.kind === 'creatures') {
+      if (!t.repeat && a.picks.some((p) => p.x === x && p.y === y)) {
+        a.picks = a.picks.filter((p) => p.x !== x || p.y !== y); // click again to un-pick
+      } else a.picks.push({ x, y });
+      if (a.picks.length < t.count) {
+        this.drawAim();
+        return this.redraw();
+      }
+    } else a.picks = [{ x, y }];
+    this.release();
+  }
+
+  /** Cast with the picks so far. */
+  private release(): void {
+    const a = this.aim;
+    if (!a || !a.picks.length) return;
+    this.aim = null;
+    this.drawAim();
+    this.history.push({ state: this.state, rng: this.rng.state });
+    if (!castSpell(this.state, this.rng, spells, a.spellId, a.slot, a.picks)) this.history.pop();
+    this.afterAction();
+  }
+
+  /** Valid targets (blue), area preview under the pointer (orange), picks so far (gold). */
+  private drawAim(): void {
+    const g = this.aimLayer.clear();
+    const a = this.aim;
+    if (!a) return;
+    const valid = validTargets(this.state, spells, a.spellId, a.slot);
+    const t = this.aimTargeting();
+    const showValid = t.kind === 'creatures' || t.kind === 'square' || t.kind === 'point';
+    if (showValid) {
+      // creatures: a bright frame around each target; squares: a light wash over the range
+      g.fillStyle(0x4aa3ff, 0.16);
+      g.lineStyle(3, 0x6fc3ff, 1);
+      for (const p of valid) {
+        if (t.kind === 'creatures') g.strokeRect(p.x * TILE + 2, p.y * TILE + 2, TILE - 4, TILE - 4);
+        else g.fillRect(p.x * TILE + 1, p.y * TILE + 1, TILE - 2, TILE - 2);
+      }
+    }
+    const h = a.hover;
+    if (h && (t.kind === 'point' || t.kind === 'direction') && valid.some((p) => p.x === h.x && p.y === h.y)) {
+      g.fillStyle(0xff7a1a, 0.42);
+      for (const p of areaSquares(this.state, activeUnit(this.state), spells[a.spellId], h)) g.fillRect(p.x * TILE + 1, p.y * TILE + 1, TILE - 2, TILE - 2);
+    }
+    g.lineStyle(3, 0xf1c40f, 1);
+    a.picks.forEach((p, i) => {
+      g.strokeRect(p.x * TILE + 3 + i * 2, p.y * TILE + 3 + i * 2, TILE - 6 - i * 4, TILE - 6 - i * 4);
+    });
   }
 
   /** Restore the moment before the last player action, dice included. */
@@ -365,7 +540,7 @@ export class CombatScene extends Phaser.Scene {
     overlay.clear();
     this.grid.setVisible(this.deps.prefs.get().grid);
     const active = state.outcome === 'ongoing' ? activeUnit(state) : undefined;
-    this.antEdges = active?.side === 'party' && !this.busy ? this.movementEdges() : [];
+    this.antEdges = active?.side === 'party' && !this.busy && !this.aim ? this.movementEdges() : [];
 
     for (const u of state.units) {
       const up = isUp(u);

@@ -16,7 +16,21 @@ import {
   derive,
   MAX_PARTY,
   PORTRAITS,
+  spells,
 } from '../content/characters';
+import {
+  cantripsKnown,
+  classSpells,
+  maxSpellLevel,
+  preparedCount,
+  preparePool,
+  slotsAt,
+  spellbookSize,
+  type SpellChoices,
+  spellChoices,
+  spellNumbers,
+} from '../rules/spells';
+import { spellPicker } from './spellPicker';
 import {
   ABILITIES,
   ABILITY_NAMES,
@@ -62,7 +76,7 @@ export class PartyScreen {
   private game!: GameState;
   private newGame = false;
   private draft: Draft | null = null;
-  private levelling: { id: string; hp: 'roll' | 'average'; asi: Partial<AbilityScores> } | null = null;
+  private levelling: { id: string; hp: 'roll' | 'average'; asi: Partial<AbilityScores>; spells?: SpellChoices } | null = null;
   private message = '';
 
   constructor(private deps: PartyScreenDeps) {
@@ -131,6 +145,9 @@ export class PartyScreen {
                 })
                 .then((yes) => yes && this.send({ type: 'readyMadeParty' }));
             })
+          : null,
+        !this.newGame && roster.some((s) => characterData.classes[s.classId]?.spellcasting)
+          ? button('✦ Spells…', () => this.send({ type: 'openSpells' }))
           : null,
         button(
           this.newGame ? 'Begin the adventure ▶' : 'Done',
@@ -202,8 +219,57 @@ export class PartyScreen {
 
   private startLevelUp(s: CharacterSheet): void {
     this.draft = null;
-    this.levelling = { id: s.id, hp: 'average', asi: {} };
+    const sc = characterData.classes[s.classId].spellcasting;
+    // suggested spells at the new level: everything known so far, topped up to the new limits
+    const next = { ...s, level: s.level + 1 };
+    this.levelling = { id: s.id, hp: 'average', asi: {}, ...(sc ? { spells: spellChoices(next, sc, spells, true) } : {}) };
     this.render();
+  }
+
+  /** Spell pickers for a sheet at its level: cantrips, spellbook (Wizard) and prepared spells. */
+  private spellPickers(s: CharacterSheet, c: SpellChoices, onChange: (c: SpellChoices) => void, lockPrepared = false, lockAll = false): HTMLElement | null {
+    const sc = characterData.classes[s.classId]?.spellcasting;
+    if (!sc) return null;
+    const maxLevel = maxSpellLevel(sc, s.level);
+    const n = spellNumbers(finalScores(s)[sc.ability], 2 + Math.floor((s.level - 1) / 4));
+    const slots = slotsAt(sc, s.level).map((k, i) => `L${i + 1} ×${k}`).join(', ');
+    return div(
+      'ps-spells',
+      h('h3', '', 'Spells'),
+      h('p', 'small muted', `${ABILITY_NAMES[sc.ability]} casts: spell attack ${signed(n.attack)}, save DC ${n.dc} · slots ${slots} (back after a Long Rest).`),
+      spellPicker(spells, {
+        title: 'Cantrips (at will)',
+        pool: classSpells(spells, s.classId, 'cantrips'),
+        chosen: c.cantrips,
+        max: cantripsKnown(sc, s.level),
+        locked: lockAll,
+        onChange: (v) => onChange({ ...c, cantrips: v }),
+      }),
+      sc.spellbook
+        ? spellPicker(spells, {
+            title: 'Spellbook',
+            hint: 'The spells you know. Each level adds two more.',
+            pool: classSpells(spells, s.classId, 'leveled', maxLevel),
+            chosen: c.spellbook,
+            max: spellbookSize(sc, s.level),
+            locked: lockAll,
+            onChange: (v) => onChange({ ...c, spellbook: v, prepared: c.prepared.filter((id) => v.includes(id)) }),
+          })
+        : null,
+      spellPicker(spells, {
+        title: 'Prepared spells',
+        hint: lockPrepared
+          ? 'Change these at camp after a Long Rest.'
+          : sc.spellbook
+            ? 'Ready to cast from your spellbook; change them after a Long Rest.'
+            : 'Ready to cast; change them after a Long Rest.',
+        pool: preparePool(s, sc, spells, c),
+        chosen: c.prepared,
+        max: preparedCount(sc, s.level),
+        locked: lockPrepared || lockAll,
+        onChange: (v) => onChange({ ...c, prepared: v }),
+      }),
+    );
   }
 
   /** Level-up panel: Hit Points (roll or fixed), Ability Score Improvement at level 4, new features. */
@@ -271,10 +337,21 @@ export class PartyScreen {
       features.length
         ? h('ul', 'ps-traits', ...features.map((f) => h('li', IMPLEMENTED.includes(f) ? 'ok' : 'muted', `${IMPLEMENTED.includes(f) ? '✓ ' : ''}${f}${IMPLEMENTED.includes(f) ? '' : ' (not in the game yet)'}`)))
         : h('p', 'small muted', 'None at this level.'),
+      l.spells
+        ? this.spellPickers({ ...s, level: next, ...l.spells }, l.spells, (c) => {
+            l.spells = c;
+            this.render();
+          })
+        : null,
       asiError ? h('div', 'ps-errors', asiError) : null,
       div(
         'ps-buttons',
-        button(`Level up to ${next}`, () => this.send({ type: 'levelUp', characterId: s.id, hp: l.hp, asi: asiNeeded ? l.asi : undefined }), asiError ?? undefined, 'primary'),
+        button(
+          `Level up to ${next}`,
+          () => this.send({ type: 'levelUp', characterId: s.id, hp: l.hp, asi: asiNeeded ? l.asi : undefined, spells: l.spells }),
+          asiError ?? undefined,
+          'primary',
+        ),
         button('Not now', () => {
           this.levelling = null;
           this.render();
@@ -394,6 +471,9 @@ export class PartyScreen {
       s.classId,
       (v) => {
         s.classId = v;
+        delete s.cantrips; // a new class starts from its recommended spells
+        delete s.spellbook;
+        delete s.prepared;
         if (d.method !== 'points') s.scores = suggest(v, d.pool);
         this.render();
       },
@@ -490,6 +570,7 @@ export class PartyScreen {
             ...derived.notes.map((n) => h('div', 'warn small', n)),
           )
         : null,
+      this.editorSpells(d, locked),
       errors.length ? h('ul', 'ps-errors', ...errors.map((e) => h('li', '', e))) : null,
       div(
         'ps-buttons',
@@ -499,6 +580,26 @@ export class PartyScreen {
           this.render();
         }),
       ),
+    );
+  }
+
+  /** New characters choose their spells here; during an adventure they're shown, and prepared at camp. */
+  private editorSpells(d: Draft, locked: boolean): HTMLElement | null {
+    const s = d.sheet;
+    const sc = characterData.classes[s.classId]?.spellcasting;
+    if (!sc || !characterData.classes[s.classId].playable) return null;
+    const c = spellChoices(s, sc, spells);
+    return this.spellPickers(
+      s,
+      c,
+      (next) => {
+        s.cantrips = next.cantrips;
+        if (sc.spellbook) s.spellbook = next.spellbook;
+        s.prepared = next.prepared;
+        this.render();
+      },
+      locked,
+      locked,
     );
   }
 

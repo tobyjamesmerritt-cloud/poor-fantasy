@@ -7,7 +7,7 @@ import { assertTransition } from './modes';
 
 const START_TIME = 8 * 60; // day 1, 08:00
 
-export const SAVE_VERSION = 8; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench) · v7 inventory, XP · v8 XP and levels on the character sheet
+export const SAVE_VERSION = 9; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench) · v7 inventory, XP · v8 XP and levels on the character sheet · v9 spells (sheet choices, slots used, temp HP)
 
 export interface GameState {
   version: number;
@@ -47,6 +47,10 @@ export interface CharacterSheet {
   xp?: number; // experience points (kept with the character across games)
   hpGains?: number[]; // Hit Die result for each level after the first (level 2 = index 0), before Con
   asi?: Partial<AbilityScores>; // Ability Score Improvement(s) taken at level 4
+  // Spellcasters (rules/spells.ts). Absent = the class's recommended picks.
+  cantrips?: string[]; // spell ids (content/spells.json)
+  spellbook?: string[]; // Wizard: level 1+ spells in the spellbook
+  prepared?: string[]; // level 1+ spells prepared (changed after a Long Rest)
 }
 
 /** Equipped items (ids in content/gear.json). */
@@ -69,6 +73,16 @@ export interface PartyMemberState {
   hitDice: number; // unspent Hit Point Dice (level 1: max 1)
   dead: boolean;
   wakesAt: number | null; // unconscious + stable: game time they regain 1 HP (SRD: after 1d4 hours)
+  tempHp?: number; // Temporary Hit Points (last until used up or a Long Rest)
+  spells?: SpellState; // casters only
+}
+
+/** A caster's magic between fights (rules/spells.ts). */
+export interface SpellState {
+  used: number[]; // spell slots expended per slot level (index 0 = level 1); a Long Rest clears them
+  recovered?: boolean; // Wizard Arcane Recovery used since the last Long Rest
+  prayed?: boolean; // had Prayer of Healing since the last Long Rest
+  mageArmorUntil?: number; // game time Mage Armor ends
 }
 
 export function newGameState(seed: number): GameState {

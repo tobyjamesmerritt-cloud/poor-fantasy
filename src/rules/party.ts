@@ -5,6 +5,7 @@
 import type { PartyMemberState } from '../engine/state';
 import type { Rng } from '../engine/rng';
 import type { CombatState, RetreatRule } from './combat';
+import { type CasterStats, spellsAfterCombat } from './spells';
 
 /** The fixed stats the rules need about a character. */
 export interface MemberStats {
@@ -14,6 +15,8 @@ export interface MemberStats {
   hitDie: number; // die size, e.g. 10 for d10
   conMod: number;
   level?: number; // default 1; = number of Hit Point Dice
+  caster?: CasterStats['caster']; // spellcasters
+  noArmor?: boolean; // wears no armour (Mage Armor)
 }
 
 export const levelOf = (m: MemberStats): number => m.level ?? 1;
@@ -70,6 +73,7 @@ export function afterCombat(
     }
     p.hp = Math.max(0, u.hp);
     p.dead = u.dead;
+    spellsAfterCombat(p, u, now);
     if (p.dead) {
       p.wakesAt = null;
       if (combat.outcome !== 'defeat') notes.push(`${name} is dead.`);

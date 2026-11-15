@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { characterData, derive, pregens } from '../src/content/characters';
 import { createRng } from '../src/engine/rng';
 import { makeSave, parseSave } from '../src/engine/save';
-import { newGameState } from '../src/engine/state';
+import { newGameState, SAVE_VERSION } from '../src/engine/state';
 import { startCombat } from '../src/rules/combat';
 import { buy, equip, equipProblem, type Purse, sell, sellPrice, unequip } from '../src/rules/items';
 import { freshParty } from '../src/rules/party';
@@ -91,7 +91,7 @@ describe('save migration', () => {
     const env = parseSave(JSON.stringify(old));
     expect(env.state.inventory).toEqual({});
     expect(env.state.party[0]).toMatchObject({ hp: 4 });
-    expect(env.state.version).toBe(8);
+    expect(env.state.version).toBe(SAVE_VERSION);
   });
 });
 

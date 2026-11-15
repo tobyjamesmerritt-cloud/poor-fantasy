@@ -5,6 +5,7 @@
  * letter suffixes ("Giant Rat A", "Giant Rat B").
  */
 import { parseDice } from '../engine/dice';
+import { slotsLeft } from '../rules/spells';
 import type { PartyMemberState } from '../engine/state';
 import type { Trait, Unit } from '../rules/combat';
 import type { MemberStats } from '../rules/party';
@@ -29,6 +30,7 @@ export interface MonsterDef {
   hpDice: string;
   speed: number;
   initBonus: number;
+  saves: Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>>; // saving throw bonuses
   attack: { name: string; bonus: number; damage: string[] };
   traits: string[];
 }
@@ -80,6 +82,7 @@ export function validateMonsters(defs: Record<string, MonsterDef>): Record<strin
       }
     }
     for (const t of m.traits) if (!KNOWN_TRAITS.includes(t)) errors.push(`${where}: unknown trait "${t}"`);
+    if (!m.saves || ['str', 'dex', 'con', 'int', 'wis', 'cha'].some((a) => !Number.isInteger(m.saves[a as 'str']))) errors.push(`${where}: saves needs all six abilities`);
   }
   if (errors.length) throw new Error('Invalid monsters.json:\n- ' + errors.join('\n- '));
   return defs;
@@ -104,12 +107,14 @@ export function encounterBudget(e: EncounterDef, partySize = party.length): { lo
 
 /**
  * Combat units for an encounter. `status` (the persistent party) sets current
- * HP: the dead stay home; unconscious characters lie stable at their start square.
+ * HP, spell slots left, temporary HP and Mage Armor (still running at `now`):
+ * the dead stay home; unconscious characters lie stable at their start square.
  */
 export function buildUnits(
   e: EncounterDef,
   members: readonly PartyMemberDef[] = party,
   status?: readonly PartyMemberState[],
+  time = 0,
 ): Unit[] {
   const errors: string[] = [];
   const seen = new Set<string>();
@@ -133,12 +138,16 @@ export function buildUnits(
     const start = e.partyStart[i] ?? { x: -1, y: -1 };
     occupy(start.x, start.y, p.name);
     if (!assets.sprites[p.sprite]) errors.push(`${p.name}: unknown sprite "${p.sprite}"`);
-    const { hitDie: _hd, conMod: _con, ...combatStats } = p;
+    const { hitDie: _hd, conMod: _con, caster, ...combatStats } = p;
     const hp = now ? Math.max(0, now.hp) : p.hp;
+    const warded = p.unarmoredAc !== undefined && (now?.spells?.mageArmorUntil ?? -1) > time;
     partyUnits.push({
       ...combatStats,
       ...start,
       hp,
+      ...(caster ? { caster: { ...caster, slots: slotsLeft(caster.maxSlots, now?.spells), cantrips: [...caster.cantrips], prepared: [...caster.prepared] } } : {}),
+      ...(now?.tempHp ? { tempHp: now.tempHp } : {}),
+      ...(warded ? { ac: p.unarmoredAc!, mageArmor: true } : {}),
       side: 'party',
       maxHp: p.hp,
       traits: [],
@@ -174,6 +183,7 @@ export function buildUnits(
       ac: m.ac,
       speed: m.speed,
       initBonus: m.initBonus,
+      saves: m.saves,
       attackName: m.attack.name,
       attackBonus: m.attack.bonus,
       damage: m.attack.damage,

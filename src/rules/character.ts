@@ -9,6 +9,7 @@
  */
 import type { Rng } from '../engine/rng';
 import type { Ability, AbilityScores, CharacterSheet, Gear } from '../engine/state';
+import { checkSpellChoices, type SpellcastingDef, type Spells } from './spells';
 
 export const ABILITIES: readonly Ability[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 export const ABILITY_NAMES: Record<Ability, string> = {
@@ -28,13 +29,14 @@ export interface ClassDef {
   name: string;
   hitDie: number; // d10 = 10
   primary: Ability[]; // SRD "Primary Ability"
-  saves: Ability[]; // saving throw proficiencies (not used yet)
+  saves: Ability[]; // saving throw proficiencies
   armorTraining: string[]; // light | medium | heavy | shields
   kit: { armor: string | null; shield: boolean; weapon: string; gp: number }; // starting equipment option A (combat-relevant part)
   weaponTraining: ('simple' | 'martial' | 'martial-finesse-light')[];
   playable: boolean; // false = data only, not offered yet
   features?: string[]; // level-1 features by name (not in effect yet unless noted in rules)
   featuresByLevel?: Record<string, string[]>; // level → feature names gained
+  spellcasting?: SpellcastingDef; // casters (rules/spells.ts)
 }
 
 export interface SpeciesDef {
@@ -84,6 +86,7 @@ export interface CharacterData {
   shield: { name: string; cost: number };
   weapons: Record<string, WeaponDef>;
   consumables: Record<string, ConsumableDef>;
+  spells: Spells;
 }
 
 /** What a character has equipped: their own choice, or the class kit until they change it. */
@@ -189,6 +192,8 @@ export function validateSheet(sheet: CharacterSheet, data: CharacterData): strin
   if (cls && sheet.hpGains?.some((g) => !Number.isInteger(g) || g < 1 || g > cls.hitDie)) errors.push('A hit point increase is out of range.');
   const asiTotal = Object.values(sheet.asi ?? {}).reduce((a, b) => a + (b ?? 0), 0);
   if (asiTotal > (sheet.level >= 4 ? 2 : 0)) errors.push('Too many Ability Score Improvements for this level.');
+  if (cls?.spellcasting) errors.push(...checkSpellChoices(sheet, cls.spellcasting, data.spells));
+  else if (sheet.cantrips?.length || sheet.prepared?.length || sheet.spellbook?.length) errors.push(`${cls?.name ?? 'This class'} can't cast spells yet.`);
   return errors;
 }
 
@@ -205,13 +210,15 @@ export interface DerivedStats {
   hitDie: number;
   conMod: number;
   scores: AbilityScores;
+  saves: Record<Ability, number>; // saving throw bonuses (proficient: + Proficiency Bonus)
+  unarmoredAc?: number; // wearing no armour: AC under Mage Armor (13 + Dex, + shield)
   notes: string[]; // e.g. "Chain Mail: Speed −10 ft (Strength 13 needed)"
 }
 
 export const PROFICIENCY_BONUS_L1 = 2;
 
 /** Species traits and feats that already change the numbers (the rest are listed but not in effect yet). */
-export const IMPLEMENTED: readonly string[] = ['Alert', 'Dwarven Toughness', 'Ability Score Improvement'];
+export const IMPLEMENTED: readonly string[] = ['Alert', 'Dwarven Toughness', 'Ability Score Improvement', 'Spellcasting', 'Arcane Recovery'];
 
 export function deriveStats(sheet: CharacterSheet, data: CharacterData): DerivedStats {
   const cls = data.classes[sheet.classId];
@@ -232,7 +239,8 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
   const armor = gear.armor ? data.armor[gear.armor] : null;
   let ac = 10 + mod('dex');
   if (armor) ac = armor.base + (armor.dexMax === null ? mod('dex') : Math.min(armor.dexMax, mod('dex')));
-  if (gear.shield && trainedWithArmor(cls, 'shield')) ac += 2; // SRD 5.2: shield AC only with training
+  const shieldAc = gear.shield && trainedWithArmor(cls, 'shield') ? 2 : 0; // SRD 5.2: shield AC only with training
+  ac += shieldAc;
 
   // Speed: species; heavy armor without the Strength it needs costs 10 ft.
   let speedFt = species.speed;
@@ -254,9 +262,13 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
   let initBonus = mod('dex');
   if (bg.feat === 'Alert') initBonus += proficiencyBonus(sheet.level);
 
+  const saves = Object.fromEntries(ABILITIES.map((a) => [a, mod(a) + (cls.saves.includes(a) ? pb : 0)])) as Record<Ability, number>;
+
   return {
     hp,
     ac,
+    saves,
+    unarmoredAc: armor ? undefined : 13 + mod('dex') + shieldAc,
     speed: Math.floor(speedFt / 5),
     initBonus,
     attackName: weapon.name,

@@ -1,0 +1,180 @@
+{
+  "_note": "SRD 5.2 spells (CC-BY-4.0) the game implements so far: numbers from the SRD, summaries in our own words. Ranges and areas in feet. Only Cleric and Wizard can cast yet (DND-23); Paladin and Ranger spells follow as data. effect.kind: attack | save | missiles | heal | buff | stabilize | teleport | ward | temp-hp. where: combat | any (also outside fights) | rest (outside fights only).",
+  "sacred-flame": {
+    "name": "Sacred Flame", "level": 0, "school": "Evocation", "classes": ["cleric"],
+    "time": "action", "range": 60, "where": "combat",
+    "effect": { "kind": "save", "save": "dex", "damage": "1d8", "type": "radiant", "half": false, "area": { "shape": "single" } },
+    "summary": "Radiant flame strikes a creature within 60 ft: Dexterity save or 1d8 radiant damage."
+  },
+  "spare-the-dying": {
+    "name": "Spare the Dying", "level": 0, "school": "Necromancy", "classes": ["cleric"],
+    "time": "action", "range": 15, "where": "combat",
+    "effect": { "kind": "stabilize" },
+    "summary": "A dying ally within 15 ft (30 ft from level 5) becomes Stable."
+  },
+  "fire-bolt": {
+    "name": "Fire Bolt", "level": 0, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 120, "where": "combat",
+    "effect": { "kind": "attack", "attack": "ranged", "damage": "1d10", "type": "fire" },
+    "summary": "Ranged spell attack, 120 ft: 1d10 fire damage."
+  },
+  "ray-of-frost": {
+    "name": "Ray of Frost", "level": 0, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 60, "where": "combat",
+    "effect": { "kind": "attack", "attack": "ranged", "damage": "1d8", "type": "cold", "rider": "slowed" },
+    "summary": "Ranged spell attack, 60 ft: 1d8 cold damage and the target's Speed drops by 10 ft until your next turn."
+  },
+  "chill-touch": {
+    "name": "Chill Touch", "level": 0, "school": "Necromancy", "classes": ["wizard"],
+    "time": "action", "range": 5, "where": "combat",
+    "effect": { "kind": "attack", "attack": "melee", "damage": "1d10", "type": "necrotic", "rider": "no-heal" },
+    "summary": "Melee spell attack: 1d10 necrotic damage; the target can't regain hit points until the end of your next turn."
+  },
+  "shocking-grasp": {
+    "name": "Shocking Grasp", "level": 0, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 5, "where": "combat",
+    "effect": { "kind": "attack", "attack": "melee", "damage": "1d8", "type": "lightning" },
+    "summary": "Melee spell attack: 1d8 lightning damage (it also stops Opportunity Attacks, which the game doesn't have yet)."
+  },
+  "acid-splash": {
+    "name": "Acid Splash", "level": 0, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 60, "where": "combat",
+    "effect": { "kind": "save", "save": "dex", "damage": "1d6", "type": "acid", "half": false, "area": { "shape": "sphere", "size": 5 } },
+    "summary": "An acid bubble bursts at a point within 60 ft: everyone within 5 ft of it makes a Dexterity save or takes 1d6 acid."
+  },
+  "poison-spray": {
+    "name": "Poison Spray", "level": 0, "school": "Necromancy", "classes": ["wizard"],
+    "time": "action", "range": 30, "where": "combat",
+    "effect": { "kind": "attack", "attack": "ranged", "damage": "1d12", "type": "poison" },
+    "summary": "Ranged spell attack, 30 ft: 1d12 poison damage."
+  },
+  "bless": {
+    "name": "Bless", "level": 1, "school": "Enchantment", "classes": ["cleric"],
+    "time": "action", "range": 30, "where": "combat", "concentration": true,
+    "effect": { "kind": "buff", "buff": "bless", "targets": 3, "upcastTargets": 1 },
+    "summary": "Up to three allies within 30 ft add 1d4 to attack rolls and saving throws (concentration, 1 minute). One more ally per slot level above 1."
+  },
+  "cure-wounds": {
+    "name": "Cure Wounds", "level": 1, "school": "Abjuration", "classes": ["cleric"],
+    "time": "action", "range": 5, "where": "any",
+    "effect": { "kind": "heal", "dice": "2d8", "addMod": true, "targets": 1, "upcast": "2d8" },
+    "summary": "Touch: an ally regains 2d8 + your Wisdom modifier hit points (+2d8 per slot level above 1)."
+  },
+  "guiding-bolt": {
+    "name": "Guiding Bolt", "level": 1, "school": "Evocation", "classes": ["cleric"],
+    "time": "action", "range": 120, "where": "combat",
+    "effect": { "kind": "attack", "attack": "ranged", "damage": "4d6", "type": "radiant", "upcast": "1d6", "rider": "guided" },
+    "summary": "Ranged spell attack, 120 ft: 4d6 radiant, and the next attack against the target before your next turn ends has Advantage."
+  },
+  "healing-word": {
+    "name": "Healing Word", "level": 1, "school": "Abjuration", "classes": ["cleric"],
+    "time": "bonus", "range": 60, "where": "any",
+    "effect": { "kind": "heal", "dice": "2d4", "addMod": true, "targets": 1, "upcast": "2d4" },
+    "summary": "Bonus Action, 60 ft: an ally regains 2d4 + your Wisdom modifier hit points (+2d4 per slot level above 1)."
+  },
+  "inflict-wounds": {
+    "name": "Inflict Wounds", "level": 1, "school": "Necromancy", "classes": ["cleric"],
+    "time": "action", "range": 5, "where": "combat",
+    "effect": { "kind": "save", "save": "con", "damage": "2d10", "type": "necrotic", "half": true, "upcast": "1d10", "area": { "shape": "single" } },
+    "summary": "Touch: Constitution save, 2d10 necrotic damage (half on a success; +1d10 per slot level above 1)."
+  },
+  "shield-of-faith": {
+    "name": "Shield of Faith", "level": 1, "school": "Abjuration", "classes": ["cleric"],
+    "time": "bonus", "range": 60, "where": "combat", "concentration": true,
+    "effect": { "kind": "buff", "buff": "shield-of-faith", "targets": 1 },
+    "summary": "Bonus Action, 60 ft: an ally gets +2 AC (concentration, 10 minutes)."
+  },
+  "prayer-of-healing": {
+    "name": "Prayer of Healing", "level": 2, "school": "Abjuration", "classes": ["cleric"],
+    "time": "10 minutes", "range": 30, "where": "rest",
+    "effect": { "kind": "heal", "dice": "2d8", "addMod": false, "targets": 5, "upcast": "1d8", "shortRest": true },
+    "summary": "10 minutes, outside fights: up to five allies gain the benefits of a Short Rest and regain 2d8 hit points. Each can benefit once per Long Rest."
+  },
+  "mass-healing-word": {
+    "name": "Mass Healing Word", "level": 3, "school": "Abjuration", "classes": ["cleric"],
+    "time": "bonus", "range": 60, "where": "any",
+    "effect": { "kind": "heal", "dice": "2d4", "addMod": true, "targets": 6, "upcast": "1d4" },
+    "summary": "Bonus Action, 60 ft: up to six allies each regain 2d4 + your Wisdom modifier hit points."
+  },
+  "burning-hands": {
+    "name": "Burning Hands", "level": 1, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 0, "where": "combat",
+    "effect": { "kind": "save", "save": "dex", "damage": "3d6", "type": "fire", "half": true, "upcast": "1d6", "area": { "shape": "cone", "size": 15 } },
+    "summary": "A 15-ft cone of flame: Dexterity save, 3d6 fire damage (half on a success). Allies in the cone are hit too."
+  },
+  "color-spray": {
+    "name": "Color Spray", "level": 1, "school": "Illusion", "classes": ["wizard"],
+    "time": "action", "range": 0, "where": "combat",
+    "effect": { "kind": "save", "save": "con", "half": false, "rider": "blinded", "area": { "shape": "cone", "size": 15 } },
+    "summary": "A 15-ft cone of dazzling light: Constitution save or Blinded until the end of your next turn."
+  },
+  "false-life": {
+    "name": "False Life", "level": 1, "school": "Necromancy", "classes": ["wizard"],
+    "time": "action", "range": 0, "where": "any",
+    "effect": { "kind": "temp-hp", "dice": "2d4+4", "upcastFlat": 5 },
+    "summary": "You gain 2d4 + 4 temporary hit points (+5 per slot level above 1). They last until used up or a Long Rest."
+  },
+  "ice-knife": {
+    "name": "Ice Knife", "level": 1, "school": "Conjuration", "classes": ["wizard"],
+    "time": "action", "range": 60, "where": "combat",
+    "effect": {
+      "kind": "attack", "attack": "ranged", "damage": "1d10", "type": "piercing",
+      "burst": { "save": "dex", "damage": "2d6", "type": "cold", "upcast": "1d6", "size": 5 }
+    },
+    "summary": "Ranged spell attack, 60 ft: 1d10 piercing; hit or miss, the shard bursts — the target and everyone within 5 ft make a Dexterity save or take 2d6 cold."
+  },
+  "mage-armor": {
+    "name": "Mage Armor", "level": 1, "school": "Abjuration", "classes": ["wizard"],
+    "time": "action", "range": 5, "where": "any",
+    "effect": { "kind": "ward", "ward": "mage-armor", "hours": 8 },
+    "summary": "Touch an ally wearing no armor: their base AC becomes 13 + Dexterity modifier for 8 hours."
+  },
+  "magic-missile": {
+    "name": "Magic Missile", "level": 1, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 120, "where": "combat",
+    "effect": { "kind": "missiles", "count": 3, "damage": "1d4+1", "type": "force" },
+    "summary": "Three darts that never miss, 120 ft: 1d4 + 1 force each, at one target or several (+1 dart per slot level above 1)."
+  },
+  "ray-of-sickness": {
+    "name": "Ray of Sickness", "level": 1, "school": "Necromancy", "classes": ["wizard"],
+    "time": "action", "range": 60, "where": "combat",
+    "effect": { "kind": "attack", "attack": "ranged", "damage": "2d8", "type": "poison", "upcast": "1d8", "rider": "poisoned" },
+    "summary": "Ranged spell attack, 60 ft: 2d8 poison, and the target is Poisoned (Disadvantage on attacks) until the end of your next turn."
+  },
+  "thunderwave": {
+    "name": "Thunderwave", "level": 1, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 0, "where": "combat",
+    "effect": { "kind": "save", "save": "con", "damage": "2d8", "type": "thunder", "half": true, "upcast": "1d8", "push": 10, "area": { "shape": "cube", "size": 15 } },
+    "summary": "A 15-ft cube of thunder from you: Constitution save, 2d8 thunder and pushed 10 ft away (half damage and no push on a success)."
+  },
+  "misty-step": {
+    "name": "Misty Step", "level": 2, "school": "Conjuration", "classes": ["wizard"],
+    "time": "bonus", "range": 30, "where": "combat",
+    "effect": { "kind": "teleport" },
+    "summary": "Bonus Action: teleport up to 30 ft to an empty square."
+  },
+  "scorching-ray": {
+    "name": "Scorching Ray", "level": 2, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 120, "where": "combat",
+    "effect": { "kind": "attack", "attack": "ranged", "damage": "2d6", "type": "fire", "rays": 3 },
+    "summary": "Three rays, 120 ft: a ranged spell attack each for 2d6 fire, at one target or several (+1 ray per slot level above 2)."
+  },
+  "shatter": {
+    "name": "Shatter", "level": 2, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 60, "where": "combat",
+    "effect": { "kind": "save", "save": "con", "damage": "3d8", "type": "thunder", "half": true, "upcast": "1d8", "area": { "shape": "sphere", "size": 10 } },
+    "summary": "A burst of sound at a point within 60 ft: everyone within 10 ft makes a Constitution save, 3d8 thunder (half on a success)."
+  },
+  "fireball": {
+    "name": "Fireball", "level": 3, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 150, "where": "combat",
+    "effect": { "kind": "save", "save": "dex", "damage": "8d6", "type": "fire", "half": true, "upcast": "1d6", "area": { "shape": "sphere", "size": 20 } },
+    "summary": "An explosion at a point within 150 ft: everyone within 20 ft makes a Dexterity save, 8d6 fire (half on a success). Mind your friends."
+  },
+  "lightning-bolt": {
+    "name": "Lightning Bolt", "level": 3, "school": "Evocation", "classes": ["wizard"],
+    "time": "action", "range": 0, "where": "combat",
+    "effect": { "kind": "save", "save": "dex", "damage": "8d6", "type": "lightning", "half": true, "upcast": "1d6", "area": { "shape": "line", "size": 100 } },
+    "summary": "A 100-ft line of lightning from you: Dexterity save, 8d6 lightning (half on a success)."
+  }
+}

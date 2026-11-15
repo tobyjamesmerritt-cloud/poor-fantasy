@@ -6,6 +6,8 @@
  * Long Rest: 8 hours. Regain all HP and all spent Hit Point Dice. You need at
  *   least 1 HP to benefit, and must wait 16 hours after finishing one before
  *   starting another. Interrupted after at least 1 hour: Short Rest benefits.
+ * Spell slots come back on a Long Rest; a Wizard's Arcane Recovery after a
+ *   Short Rest (rules/spells.ts). Temporary Hit Points end with a Long Rest.
  * Inn: a Modest room costs 5 sp per person per night; no ambushes in town.
  * Camping outside is free but risky (house rule: chance of an ambush per rest,
  *   by terrain; a Short Rest carries a quarter of the Long Rest risk).
@@ -13,6 +15,7 @@
 import type { PartyMemberState } from '../engine/state';
 import type { Rng } from '../engine/rng';
 import { levelOf, type MemberStats, nameOf, passTime } from './party';
+import { arcaneRecovery, longRestSpells } from './spells';
 
 export type RestKind = 'short' | 'long';
 export type SiteKind = 'forest' | 'meadow' | 'rocks' | 'riverside' | 'cave' | 'ruins' | 'inn';
@@ -98,12 +101,23 @@ export function rest(kind: RestKind, r: RestInput, rng: Rng): RestResult {
       const s = statsOf(r.stats, p.id);
       p.hp = s.hp;
       p.hitDice = levelOf(s);
+      delete p.tempHp;
+      longRestSpells(p);
     }
-    log.push('The party wakes refreshed: hit points and Hit Dice restored.');
+    log.push(
+      r.stats.some((s) => s.caster)
+        ? 'The party wakes refreshed: hit points, Hit Dice and spell slots restored.'
+        : 'The party wakes refreshed: hit points and Hit Dice restored.',
+    );
   } else if (benefit === 'short') {
     for (const p of r.party) {
       if (!eligible.has(p.id)) continue;
-      spendHitDice(p, statsOf(r.stats, p.id), rng, log);
+      const s = statsOf(r.stats, p.id);
+      spendHitDice(p, s, rng, log);
+      if (s.caster?.arcaneRecovery) {
+        const got = arcaneRecovery(p, levelOf(s));
+        if (got.length) log.push(`${s.name} studies their spellbook and recovers ${got.map((l) => `a level ${l}`).join(' and ')} slot (Arcane Recovery).`);
+      }
     }
     if (kind === 'long') log.push('The rest was cut short, but the first hour still did some good.');
   }

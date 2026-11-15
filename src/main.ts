@@ -27,6 +27,9 @@ import { awardXp, takeTreasure } from './rules/rewards';
 import { canLevelUp, levelUp } from './rules/levelling';
 import { describeTreasure, treasure } from './content/treasure';
 import { addCharacter, benchMember, deleteCharacter, joinParty, restoreAll, useReadyMade } from './rules/roster';
+import { SpellsDialog } from './ui/spellsDialog';
+import { castOutside } from './rules/spells';
+import { spendHitDice } from './rules/rest';
 import './ui/style.css';
 
 // ?seed=123 in the URL jumps straight into the test fight with those dice — paste it into bug reports.
@@ -156,6 +159,16 @@ document.getElementById('menu-new-game')!.addEventListener('click', () => {
 });
 
 const shopScreen = new ShopScreen(bus);
+const spellsDialog = new SpellsDialog(bus);
+const PREPARE_FLAG = 'spells:prepare'; // set at camp after a Long Rest, cleared on leaving camp
+
+/** Redraw whatever is on screen after a change made from a dialog. */
+function refreshScreen(): void {
+  const mode = document.body.dataset.mode;
+  if (mode === 'shop') shopScreen.refresh();
+  else if (mode === 'party') partyScreen.refresh();
+  else if (mode !== 'combat') show(returnTo);
+}
 
 const saveDialog = new SaveDialog({
   summaries: () => SLOTS.map((slot) => store.summary(slot)),
@@ -276,6 +289,7 @@ function show(key: SceneKey): void {
       members: membersOf(gameState.roster),
       party: gameState.party,
       potions: gameState.inventory[POTION] ?? 0,
+      now: gameState.time,
       onEnd: onFightEnd,
     };
   } else {
@@ -329,6 +343,7 @@ bus.subscribe((cmd) => {
         origin = cmd.origin;
       }
       seed = randomSeed();
+      delete gameState.flags[PREPARE_FLAG];
       show('combat');
       break;
     case 'restart':
@@ -357,8 +372,43 @@ bus.subscribe((cmd) => {
       show('camp');
       break;
     case 'breakCamp':
+      delete gameState.flags[PREPARE_FLAG];
       show(campReturn);
       break;
+    case 'openSpells':
+      if (document.body.dataset.mode === 'combat') break;
+      spellsDialog.show(gameState, document.body.dataset.mode === 'camp' && !!gameState.flags[PREPARE_FLAG]);
+      break;
+    case 'prepareSpells': {
+      const sheet = gameState.roster.find((r) => r.id === cmd.characterId);
+      if (!sheet || !gameState.flags[PREPARE_FLAG]) break;
+      const errors = checkSheet({ ...sheet, prepared: cmd.prepared });
+      if (errors.length) {
+        spellsDialog.refresh(errors[0]);
+        break;
+      }
+      sheet.prepared = [...cmd.prepared];
+      persistLibrary(); // prepared spells live on the character sheet
+      spellsDialog.refresh(`${sheet.name} prepares ${cmd.prepared.length} spell${cmd.prepared.length === 1 ? '' : 's'}.`, sheet.id);
+      break;
+    }
+    case 'castOutside': {
+      const stats = statsOf(gameState.roster);
+      const caster = stats.find((s) => s.id === cmd.casterId);
+      if (!caster) break;
+      const r = castOutside(characterData.spells, cmd.spellId, cmd.slot, caster, gameState.party, stats, cmd.targetIds, gameState.time, exploreRng, (p, s, log) =>
+        spendHitDice(p, s, exploreRng, log),
+      );
+      if (!r.ok) {
+        spellsDialog.refresh(r.reason);
+        break;
+      }
+      gameState.time += r.minutes;
+      notices.push(...r.log);
+      refreshScreen();
+      spellsDialog.refresh(r.log.join(' '));
+      break;
+    }
     case 'partyScreen':
       newGameMode = false;
       partyReturn = returnTo;
@@ -486,7 +536,7 @@ bus.subscribe((cmd) => {
       const benched = gameState.bench.find((b) => b.sheet.id === cmd.characterId);
       const sheet = inParty ?? benched?.sheet;
       if (!sheet) break;
-      const r = levelUp(sheet, { hp: cmd.hp, asi: cmd.asi }, exploreRng, characterData);
+      const r = levelUp(sheet, { hp: cmd.hp, asi: cmd.asi, spells: cmd.spells }, exploreRng, characterData);
       if (typeof r === 'string') {
         partyScreen.refresh(undefined, r);
         break;
