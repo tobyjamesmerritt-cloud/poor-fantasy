@@ -19,7 +19,7 @@ import { questData, wandering } from '../../content/quests';
 import { wanderingCheck, zoneAt } from '../../rules/wandering';
 import type { Rng } from '../../engine/rng';
 import { hooksAt, siteBlocks, siteIcon, siteVisible } from '../../rules/quests';
-import { formatClock, MINUTES } from '../../rules/time';
+import { darkness, formatClock, MINUTES } from '../../rules/time';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
 import { preloadSheets } from '../spriteCss';
@@ -37,10 +37,14 @@ export interface WorldSceneDeps {
   rng: Rng; // exploration dice (random encounters)
 }
 
+const NIGHT_COLOUR = 0x0a0f2e;
+const NIGHT_ALPHA = 0.6; // how dark full night gets
+
 export class WorldScene extends Phaser.Scene {
   private deps!: WorldSceneDeps;
   private map!: TravelMap;
   private token!: Phaser.GameObjects.Image;
+  private night!: Phaser.GameObjects.Rectangle;
   private pos = { x: 0, y: 0 };
   private busy = false;
   private log: string[] = [];
@@ -74,6 +78,8 @@ export class WorldScene extends Phaser.Scene {
     const saved = this.deps.game.world;
     this.pos = saved ? { ...saved } : { ...this.map.start };
     const ref = assets.sprites['party-token'];
+    // night: a dark blue wash over the land and sites (the party token stays on top, lantern-lit)
+    this.night = this.add.rectangle(0, 0, this.map.width * TILE, this.map.height * TILE, NIGHT_COLOUR).setOrigin(0, 0).setDepth(4);
     this.token = this.add.image(0, 0, ref.sheet, ref.frame).setScale(WORLD_SCALE).setDepth(5);
     this.placeToken();
     this.drawSites();
@@ -212,11 +218,12 @@ export class WorldScene extends Phaser.Scene {
       purse: formatCoins(g.coins),
       clock: formatClock(g.time),
       encamp: { type: 'encamp' },
-    }, g.partyName || 'The party');
+    }, g.partyName);
   }
 
   private placeToken(): void {
     this.token.setPosition(this.pos.x * TILE + TILE / 2, this.pos.y * TILE + TILE / 2);
+    this.night.setAlpha(NIGHT_ALPHA * darkness(this.deps.game.time));
     this.deps.game.world = { x: this.pos.x, y: this.pos.y };
   }
 

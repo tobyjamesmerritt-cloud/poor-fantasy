@@ -15,3 +15,15 @@ export function formatClock(minutes: number): string {
   const mm = String(m % 60).padStart(2, '0');
   return `Day ${day} · ${hh}:${mm}`;
 }
+
+/**
+ * How dark it is outdoors, 0 (day) to 1 (night), for drawing only: full dark
+ * 21:00–05:00, dawn 05:00–07:00 and dusk 18:00–21:00 fade in between.
+ */
+export function darkness(minutes: number): number {
+  const h = (((minutes % 1440) + 1440) % 1440) / 60;
+  if (h >= 21 || h < 5) return 1;
+  if (h < 7) return (7 - h) / 2; // dawn
+  if (h >= 18) return (h - 18) / 3; // dusk
+  return 0;
+}

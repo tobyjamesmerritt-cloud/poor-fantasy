@@ -33,7 +33,7 @@ import {
   viewFaces,
   locationCampCheck,
 } from '../../rules/location';
-import { formatClock, MINUTES } from '../../rules/time';
+import { darkness, formatClock, MINUTES } from '../../rules/time';
 import { formatCoins, passTime } from '../../rules/party';
 import { healCost, templeHeal, templeRaise, type TemplePrices } from '../../rules/services';
 import servicesRaw from '../../content/services.json';
@@ -52,6 +52,10 @@ const CELL = 16 * MAP_SCALE;
 const MAX_DEPTH = 4;
 const F = PANE / 4; // focal length: the near edge of your own square fills the pane
 const Z_NEAR = 0.25;
+
+const NIGHT_COLOUR = 0x0a0f2e;
+const NIGHT_ALPHA = 0.55; // how dark full night gets outdoors
+const NIGHT_SKY = 0x0b1230;
 
 type Style = 'cave' | 'ruins' | 'town';
 const STYLES: Record<Style, { ceiling: number; floor: number; fog: number; minLight: number; sky?: boolean }> = {
@@ -85,6 +89,7 @@ export class LocationScene extends Phaser.Scene {
   private pose!: Pose;
   private view!: Phaser.GameObjects.Graphics;
   private arrow!: Phaser.GameObjects.Graphics;
+  private night!: Phaser.GameObjects.Rectangle;
   private leader?: Phaser.GameObjects.Image; // the party's first (living) member stands for the party on the map
   private busy = false;
   private log: string[] = [];
@@ -131,6 +136,8 @@ export class LocationScene extends Phaser.Scene {
     this.view = this.add.graphics().setDepth(0);
     this.arrow = this.add.graphics().setDepth(4);
     this.leader = undefined;
+    // night under an open sky: a dark blue wash over the 3D view and the map (the party stays lit)
+    this.night = this.add.rectangle(0, 0, PANE * 2, PANE, NIGHT_COLOUR).setOrigin(0, 0).setDepth(2).setAlpha(0);
 
     // Resume where the party stood (back from a fight), or walk in at the entrance.
     const saved = this.deps.game.location;
@@ -389,6 +396,7 @@ export class LocationScene extends Phaser.Scene {
     game.location = { id: this.deps.locationId, ...this.pose };
     this.drawView();
     this.drawArrow();
+    this.night.setAlpha(STYLES[this.style].sky ? NIGHT_ALPHA * darkness(game.time) : 0);
     const where = `${this.pose.x},${this.pose.y} ${FACING_NAME[this.pose.facing]}`;
     const clock = formatClock(game.time);
     this.deps.hud.setStatus(`${this.name} · ${where} · ${clock}`);
@@ -437,7 +445,8 @@ export class LocationScene extends Phaser.Scene {
 
     // Background: darkest far colour, then floor/ceiling bands from far to near.
     g.fillStyle(shade(st.floor, light(MAX_DEPTH + 1)), 1).fillRect(0, cy, PANE, cy);
-    g.fillStyle(st.sky ? st.ceiling : shade(st.ceiling, light(MAX_DEPTH + 1)), 1).fillRect(0, 0, PANE, cy);
+    const sky = st.sky ? mix(st.ceiling, NIGHT_SKY, darkness(this.deps.game.time)) : shade(st.ceiling, light(MAX_DEPTH + 1));
+    g.fillStyle(sky, 1).fillRect(0, 0, PANE, cy);
     const bounds = [MAX_DEPTH + 0.5];
     for (let z = MAX_DEPTH - 0.5; z >= 0.5; z--) bounds.push(z);
     bounds.push(Z_NEAR);
@@ -488,6 +497,12 @@ const quad = (a: { x: number; top: number; bottom: number }, b: { x: number; top
 ];
 
 /** Multiply an RGB colour by a brightness factor. */
+/** Blend two colours: t = 0 → a, 1 → b. */
+function mix(a: number, b: number, t: number): number {
+  const ch = (s: number) => Math.round(((a >> s) & 0xff) * (1 - t) + ((b >> s) & 0xff) * t);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
 function shade(rgb: number, k: number): number {
   const c = (v: number) => Math.max(0, Math.min(255, Math.round(v * k)));
   return (c((rgb >> 16) & 0xff) << 16) | (c((rgb >> 8) & 0xff) << 8) | c(rgb & 0xff);
