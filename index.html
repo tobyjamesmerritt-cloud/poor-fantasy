@@ -55,9 +55,6 @@
           <div class="menu-panel">
             <button id="open-controls">Controls</button>
             <button id="open-about">About Poor Fantasy</button>
-            <hr />
-            <button data-command='{"type":"debug","text":"gold"}'>Debug: +100 gp <small>testing</small></button>
-            <button data-command='{"type":"debug","text":"xp"}'>Debug: +300 XP each <small>testing</small></button>
           </div>
         </div>
       </nav>
@@ -173,6 +170,12 @@
         <li>Art: Kenney (www.kenney.nl) — Tiny Dungeon, Tiny Battle, Cursor Pack — CC0.</li>
         <li>Engine: Phaser (MIT licence).</li>
       </ul>
+      <h3>Debug (for testing)</h3>
+      <div class="debug-buttons">
+        <button data-command='{"type":"debug","text":"gold"}'>+100 gp</button>
+        <button data-command='{"type":"debug","text":"xp"}'>+300 XP each</button>
+      </div>
+      <p id="about-debug-note" class="hint" aria-live="polite"></p>
       <button class="close">Close</button>
     </dialog>
 

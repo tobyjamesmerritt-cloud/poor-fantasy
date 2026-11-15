@@ -22,7 +22,7 @@ import { ShopScreen } from './ui/shopScreen';
 import { buy, equip, sell, unequip } from './rules/items';
 import { loadSheetSizes, spriteCssFromSizes } from './game/spriteCss';
 import type { CombatState } from './rules/combat';
-import { afterCombat, afterDefeat, combatMinutes, freshParty, isConscious } from './rules/party';
+import { afterCombat, afterDefeat, combatMinutes, formatCoins, freshParty, isConscious } from './rules/party';
 import { awardXp, takeTreasure } from './rules/rewards';
 import { canLevelUp, levelUp } from './rules/levelling';
 import { describeTreasure, treasure } from './content/treasure';
@@ -463,14 +463,17 @@ bus.subscribe((cmd) => {
       const mode = document.body.dataset.mode;
       if (mode === 'combat') {
         hud.setStatus('Debug options are not available during a fight.');
+        debugNote('Not available during a fight.');
         break;
       }
       if (cmd.text === 'gold') {
         gameState.coins += 100 * 100;
         notices.push('Debug: +100 gp.');
+        debugNote(`+100 gp — purse now ${formatCoins(gameState.coins)}.`);
       } else if (cmd.text === 'xp') {
         for (const r of gameState.roster) r.xp = (r.xp ?? 0) + 300;
         persistLibrary();
+        debugNote(`+300 XP each — ${gameState.roster.map((r) => `${r.name} ${r.xp}`).join(', ')}.`);
         notices.push('Debug: +300 XP for everyone in the party. Level up from Game → Party roster.');
       } else break;
       if (mode === 'shop') shopScreen.refresh(notices.pop());
@@ -534,3 +537,9 @@ loadSheetSizes()
 
 // Debug handle for the browser console during playtests.
 (window as unknown as { pf: unknown }).pf = { game, bus, gameState, get seed() { return seed; } };
+
+/** Feedback line inside the About dialog's debug section. */
+function debugNote(text: string): void {
+  const el = document.getElementById('about-debug-note');
+  if (el) el.textContent = text;
+}

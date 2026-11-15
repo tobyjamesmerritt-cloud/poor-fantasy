@@ -830,3 +830,7 @@ button.danger {
   margin-bottom: 0.6rem;
   border-radius: 6px;
 }
+
+/* About dialog: debug (testing) buttons */
+#about .debug-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+#about-debug-note { min-height: 1.2em; font-size: 0.9em; opacity: 0.85; }
