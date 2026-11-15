@@ -545,7 +545,7 @@ body[data-mode='party'] main > :not(#party-screen) {
 }
 body[data-mode='party'] #party-screen {
   display: grid;
-  grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);
+  grid-template-columns: minmax(20rem, 32rem) minmax(0, 1fr);
   gap: 1rem;
   min-height: 0;
   overflow: auto;
@@ -574,6 +574,9 @@ body[data-mode='party'] #touchpad {
   align-items: center;
   padding: 0.35rem;
   border-bottom: 1px solid #222;
+}
+.ps-row.bench {
+  opacity: 0.85;
 }
 .ps-row.editing {
   background: #1d1a10;

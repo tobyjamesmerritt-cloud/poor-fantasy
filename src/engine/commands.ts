@@ -29,9 +29,11 @@ export type Command =
   | { type: 'breakCamp' }
   | { type: 'partyScreen' } // open the party roster (menu, inn)
   | { type: 'newGame' } // start over: empty party screen
-  | { type: 'quickStart' } // new game with the pregenerated party
+  | { type: 'readyMadeParty' } // fill the party with the pregenerated six (current members go to the bench)
   | { type: 'saveCharacter'; sheet: CharacterSheet } // create or update (validated by main.ts)
-  | { type: 'removeCharacter'; id: string }
+  | { type: 'benchCharacter'; id: string } // party → bench (keeps condition)
+  | { type: 'joinParty'; id: string } // bench → party
+  | { type: 'deleteCharacter'; id: string } // bench → gone
   | { type: 'moveCharacter'; id: string; by: -1 | 1 }
   | { type: 'closePartyScreen' } // begin the adventure / back to the game // after a fight: back to where it started (location or world map)
   | { type: 'leavePlace' } // close the location panel on the map

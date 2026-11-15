@@ -8,7 +8,7 @@
  * (only name and portrait change); new recruits are created in full.
  */
 import type { Command, CommandBus } from '../engine/commands';
-import type { Ability, AbilityScores, CharacterSheet, GameState } from '../engine/state';
+import type { Ability, AbilityScores, CharacterSheet, GameState, PartyMemberState } from '../engine/state';
 import {
   characterData,
   checkSheet,
@@ -62,7 +62,7 @@ export class PartyScreen {
   show(game: GameState, newGame: boolean): void {
     this.game = game;
     this.newGame = newGame;
-    if (this.draft && !game.roster.some((s) => s.id === this.draft!.sheet.id) && !this.draft.isNew) this.draft = null;
+    if (this.draft && !this.draft.isNew && !this.findSheet(this.draft.sheet.id)) this.draft = null;
     this.render();
   }
 
@@ -70,6 +70,10 @@ export class PartyScreen {
   refresh(saved?: string): void {
     if (saved && this.draft?.sheet.id === saved) this.draft = null;
     this.render();
+  }
+
+  private findSheet(id: string): CharacterSheet | undefined {
+    return this.game.roster.find((s) => s.id === id) ?? this.game.bench.find((b) => b.sheet.id === id)?.sheet;
   }
 
   private send(cmd: Command): void {
@@ -80,26 +84,35 @@ export class PartyScreen {
 
   private render(): void {
     const roster = this.game.roster;
+    const bench = this.game.bench;
+    const full = roster.length >= MAX_PARTY;
     const left = div(
       'ps-roster',
       h('h2', '', this.newGame ? 'Create your party' : 'The party'),
       h(
         'p',
         'muted small',
-        this.newGame
-          ? `Up to ${MAX_PARTY} adventurers. Order is marching order: the first ones stand in front.`
-          : 'Rename, change portraits, reorder, or recruit and dismiss members.',
+        `The party: up to ${MAX_PARTY}, in marching order (the first ones stand in front). Make as many characters as you like — the rest wait in the pool below.`,
       ),
-      ...roster.map((s, i) => this.rosterRow(s, i)),
+      h('h3', '', `Party (${roster.length}/${MAX_PARTY})`),
+      ...roster.map((s, i) => this.partyRow(s, i)),
       roster.length ? null : h('p', 'muted', 'Nobody yet.'),
+      h('h3', '', `Character pool (${bench.length})`),
+      ...bench.map((b) => this.benchRow(b.sheet, b.state, full)),
+      bench.length ? null : h('p', 'muted small', 'Empty. Characters you bench or create beyond six wait here.'),
       div(
         'ps-buttons',
-        button('＋ New character', () => this.startNew(), roster.length >= MAX_PARTY ? 'The party is full (6).' : undefined),
-        this.newGame ? button('Quick start (ready-made party)', () => this.send({ type: 'quickStart' })) : null,
+        button('＋ New character', () => this.startNew()),
+        this.newGame
+          ? button('Use ready-made party', () => {
+              const msg = roster.length ? 'Fill the party with the six ready-made characters? Current members move to the pool.' : '';
+              if (!msg || confirm(msg)) this.send({ type: 'readyMadeParty' });
+            })
+          : null,
         button(
           this.newGame ? 'Begin the adventure ▶' : 'Done',
           () => this.send({ type: 'closePartyScreen' }),
-          roster.some((s) => !this.game.party.find((p) => p.id === s.id)?.dead) ? undefined : 'You need at least one living character.',
+          roster.some((s) => !this.game.party.find((p) => p.id === s.id)?.dead) ? undefined : 'You need at least one living character in the party.',
           'primary',
         ),
       ),
@@ -108,31 +121,44 @@ export class PartyScreen {
     this.root.replaceChildren(left, right);
   }
 
-  private rosterRow(s: CharacterSheet, i: number): HTMLElement {
+  private summary(s: CharacterSheet, now: PartyMemberState | null): HTMLElement {
     const d = derive(s);
-    const now = this.game.party.find((p) => p.id === s.id);
     const status = now?.dead ? ' · dead' : now && now.hp <= 0 ? ' · unconscious' : '';
+    return div(
+      'ps-who',
+      h('div', 'name party', s.name),
+      h('div', 'small', `${characterData.species[s.speciesId].name} ${className(s)} · ${characterData.backgrounds[s.backgroundId].name}`),
+      h('div', 'small muted', `HP ${now ? now.hp : d.hp}/${d.hp} · AC ${d.ac} · ${d.attackName} ${signed(d.attackBonus)}${status}`),
+    );
+  }
+
+  private partyRow(s: CharacterSheet, i: number): HTMLElement {
+    const now = this.game.party.find((p) => p.id === s.id) ?? null;
     return div(
       `ps-row${this.draft?.sheet.id === s.id ? ' editing' : ''}`,
       this.portrait(s.sprite, 48),
-      div(
-        'ps-who',
-        h('div', 'name party', s.name),
-        h(
-          'div',
-          'small',
-          `${characterData.species[s.speciesId].name} ${className(s)} · ${characterData.backgrounds[s.backgroundId].name}`,
-        ),
-        h('div', 'small muted', `HP ${now ? now.hp : d.hp}/${d.hp} · AC ${d.ac} · ${d.attackName} ${signed(d.attackBonus)}${status}`),
-      ),
+      this.summary(s, now),
       div(
         'ps-row-buttons',
         button('↑', () => this.send({ type: 'moveCharacter', id: s.id, by: -1 }), i === 0 ? 'Already first' : undefined),
         button('↓', () => this.send({ type: 'moveCharacter', id: s.id, by: 1 }), i === this.game.roster.length - 1 ? 'Already last' : undefined),
         button('Edit', () => this.startEdit(s)),
-        button('✕', () => {
-          const msg = this.newGame ? `Remove ${s.name}?` : `Dismiss ${s.name} from the party for good?`;
-          if (confirm(msg)) this.send({ type: 'removeCharacter', id: s.id });
+        button('Bench', () => this.send({ type: 'benchCharacter', id: s.id })),
+      ),
+    );
+  }
+
+  private benchRow(s: CharacterSheet, state: PartyMemberState | null, full: boolean): HTMLElement {
+    return div(
+      `ps-row bench${this.draft?.sheet.id === s.id ? ' editing' : ''}`,
+      this.portrait(s.sprite, 48),
+      this.summary(s, state),
+      div(
+        'ps-row-buttons',
+        button('Join', () => this.send({ type: 'joinParty', id: s.id }), full ? 'The party is full (6) — bench someone first.' : undefined),
+        button('Edit', () => this.startEdit(s)),
+        button('Delete', () => {
+          if (confirm(`Delete ${s.name} for good?`)) this.send({ type: 'deleteCharacter', id: s.id });
         }),
       ),
     );
@@ -144,6 +170,7 @@ export class PartyScreen {
       h('h2', '', 'Making a character'),
       h('p', '', 'Follow the current D&D steps (SRD 5.2): choose a class, a species and a background, then generate ability scores.'),
       h('ul', '', ...[
+        'Make as many characters as you like; up to six adventure together. Bench and Join swap them in and out.',
         'Class sets Hit Points, armour and weapon. Fighter, Paladin, Rogue, Cleric, Ranger and Wizard for now — the other six SRD classes come later.',
         'Species sets speed and special traits.',
         'Background raises three abilities (+2/+1 or +1/+1/+1) and gives an Origin feat.',
@@ -158,7 +185,7 @@ export class PartyScreen {
   // -------------------------------------------------------------------------
 
   private startNew(): void {
-    const used = new Set(this.game.roster.map((s) => s.id));
+    const used = new Set([...this.game.roster.map((s) => s.id), ...this.game.bench.map((b) => b.sheet.id)]);
     let n = 1;
     while (used.has(`c${n}`)) n++;
     const scores = byValue(this.deps.rollScores());

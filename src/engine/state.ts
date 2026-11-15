@@ -7,7 +7,7 @@ import { assertTransition } from './modes';
 
 const START_TIME = 8 * 60; // day 1, 08:00
 
-export const SAVE_VERSION = 5; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets (roster)
+export const SAVE_VERSION = 6; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench)
 
 export interface GameState {
   version: number;
@@ -20,6 +20,7 @@ export interface GameState {
   time: number; // game clock in minutes since midnight of day 1 (see rules/time.ts)
   roster: CharacterSheet[]; // who is in the party, in marching order (derived stats: rules/character.ts)
   party: PartyMemberState[]; // current condition of each member (same ids as the roster)
+  bench: BenchEntry[]; // created characters not in the party (any number)
   coins: number; // party purse in copper pieces (100 cp = 1 gp)
   lastLongRest: number | null; // game time a Long Rest finished (16-hour wait before the next)
 }
@@ -43,6 +44,12 @@ export interface CharacterSheet {
   level: number;
 }
 
+/** A character waiting outside the party; `state` null = never adventured (fresh when they join). */
+export interface BenchEntry {
+  sheet: CharacterSheet;
+  state: PartyMemberState | null;
+}
+
 /** What changes about a character between fights. Fixed stats live in content/party.json. */
 export interface PartyMemberState {
   id: string;
@@ -64,6 +71,7 @@ export function newGameState(seed: number): GameState {
     time: START_TIME,
     roster: [], // filled at startup (quick start) or on the party screen
     party: [],
+    bench: [],
     coins: 60 * 100, // 60 gp to start (placeholder until character creation, M2)
     lastLongRest: null,
   };

@@ -24,7 +24,7 @@ const strip = <T>(raw: unknown): T => {
   return rest as T;
 };
 
-export const MAX_PARTY = 6;
+export { MAX_PARTY } from '../rules/roster';
 
 export const characterData: CharacterData = (() => {
   const gear = strip<{ armor: CharacterData['armor']; weapons: CharacterData['weapons'] }>(gearRaw);

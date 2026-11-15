@@ -10,12 +10,13 @@ import { Hud } from './ui/hud';
 import { initMenu } from './ui/menu';
 import { PrefsStore } from './ui/prefs';
 import { BOARD, DEFAULT_ENCOUNTER } from './content/encounters';
-import { characterData, checkSheet, derive, MAX_PARTY, membersOf, pregens, startingCoins, statsOf } from './content/characters';
+import { characterData, checkSheet, derive, membersOf, pregens, startingCoins, statsOf } from './content/characters';
 import { roll4d6DropLowest, startingCopper } from './rules/character';
 import { PartyScreen } from './ui/partyScreen';
 import { loadSheetSizes, spriteCssFromSizes } from './game/spriteCss';
 import type { CombatState } from './rules/combat';
 import { afterCombat, afterDefeat, combatMinutes, freshParty, isConscious } from './rules/party';
+import { addCharacter, benchMember, deleteCharacter, joinParty, restoreAll, useReadyMade } from './rules/roster';
 import './ui/style.css';
 
 // ?seed=123 in the URL jumps straight into the test fight with those dice — paste it into bug reports.
@@ -41,14 +42,14 @@ let partyReturn: ReturnScene = 'world';
 const exploreRng = createRng(gameState.seed ^ 0x5eed); // rests, ambushes, ability rolls (combat has its own seeded Rng)
 initMenu(prefs);
 
-/** Use a roster as a brand-new party: fresh health, starting coins from class + background kits. */
-function beginWith(roster: readonly CharacterSheet[]): void {
-  const fresh = newGameState(gameState.seed);
-  Object.assign(gameState, fresh, {
-    roster: structuredClone([...roster]),
-    party: freshParty(statsOf(roster)),
-    coins: startingCoins(roster),
-  });
+const freshOf = (sheet: CharacterSheet) => freshParty(statsOf([sheet]))[0];
+
+/** Start the adventure with the current line-up: everyone restored, starting coins from their kits. */
+function beginAdventure(): void {
+  const { roster, bench } = gameState;
+  Object.assign(gameState, newGameState(gameState.seed), { roster, bench });
+  restoreAll(gameState, freshOf);
+  gameState.coins = startingCoins(gameState.roster);
 }
 
 let sheetSizes: Record<string, { width: number; height: number }> = {};
@@ -149,10 +150,8 @@ function handleDefeat(d: NonNullable<typeof defeat>): void {
   gameState.world = null; // the map's start square, by Millbrook
   notices.push(...d.notes);
   if (d.gameOver) {
-    newGameMode = true;
-    gameState.roster = [];
-    gameState.party = [];
-    show('party'); // a new band of adventurers
+    newGameMode = true; // the same heroes may try again — or recruit new ones
+    show('party');
     return;
   }
   show('world');
@@ -211,42 +210,53 @@ bus.subscribe((cmd) => {
       partyReturn = returnTo;
       show('party');
       break;
-    case 'newGame':
+    case 'newGame': {
       newGameMode = true;
-      Object.assign(gameState, newGameState(randomSeed()));
+      const { roster, bench } = gameState; // the character pool survives a new game
+      Object.assign(gameState, newGameState(randomSeed()), { roster, bench });
+      restoreAll(gameState, freshOf);
       show('party');
       break;
-    case 'quickStart':
-      beginWith(pregens);
-      newGameMode = false;
-      notices.push('The party sets out into the Vale.');
-      show('world');
+    }
+    case 'readyMadeParty':
+      if (!newGameMode) break;
+      useReadyMade(gameState, pregens, freshOf);
+      partyScreen.refresh();
       break;
     case 'saveCharacter': {
-      const errors = checkSheet(cmd.sheet);
+      if (checkSheet(cmd.sheet).length) break;
       const i = gameState.roster.findIndex((r) => r.id === cmd.sheet.id);
-      if (errors.length || (i < 0 && gameState.roster.length >= MAX_PARTY)) break;
+      const b = gameState.bench.find((e) => e.sheet.id === cmd.sheet.id);
+      // During play only name and portrait of an existing character may change (the screen enforces it too).
+      const edited = (old: CharacterSheet) => (newGameMode ? cmd.sheet : { ...old, name: cmd.sheet.name, sprite: cmd.sheet.sprite });
       if (i >= 0) {
-        const old = gameState.roster[i];
-        // During play only name and portrait may change (the party screen enforces it; double-check here).
-        gameState.roster[i] = newGameMode ? cmd.sheet : { ...old, name: cmd.sheet.name, sprite: cmd.sheet.sprite };
+        gameState.roster[i] = edited(gameState.roster[i]);
         const st = gameState.party.find((p) => p.id === cmd.sheet.id);
         if (st && newGameMode) Object.assign(st, { hp: derive(gameState.roster[i]).hp, hitDice: 1 });
+      } else if (b) {
+        b.sheet = edited(b.sheet);
+        if (newGameMode) b.state = null;
       } else {
-        gameState.roster.push(cmd.sheet);
-        gameState.party.push(freshParty(statsOf([cmd.sheet]))[0]);
+        const where = addCharacter(gameState, cmd.sheet, freshOf);
         if (!newGameMode) {
           const cp = startingCopper(cmd.sheet, characterData);
           gameState.coins += cp;
-          notices.push(`${cmd.sheet.name} joins the party, bringing ${cp / 100} gp.`);
+          notices.push(`${cmd.sheet.name} ${where === 'party' ? 'joins the party' : 'waits at the inn'}, bringing ${cp / 100} gp.`);
         }
       }
       partyScreen.refresh(cmd.sheet.id);
       break;
     }
-    case 'removeCharacter':
-      gameState.roster = gameState.roster.filter((r) => r.id !== cmd.id);
-      gameState.party = gameState.party.filter((p) => p.id !== cmd.id);
+    case 'benchCharacter':
+      benchMember(gameState, cmd.id);
+      partyScreen.refresh();
+      break;
+    case 'joinParty':
+      joinParty(gameState, cmd.id, freshOf);
+      partyScreen.refresh();
+      break;
+    case 'deleteCharacter':
+      deleteCharacter(gameState, cmd.id);
       partyScreen.refresh();
       break;
     case 'moveCharacter': {
@@ -260,7 +270,7 @@ bus.subscribe((cmd) => {
     case 'closePartyScreen':
       if (!gameState.party.some((p) => !p.dead)) break;
       if (newGameMode) {
-        beginWith(gameState.roster);
+        beginAdventure();
         newGameMode = false;
         notices.push('The party sets out into the Vale.');
         show('world');
@@ -274,7 +284,8 @@ bus.subscribe((cmd) => {
 // Debug URLs (?seed, ?encounter, ?location) skip party creation and use the quick-start party.
 const debugStart = params.has('seed') || params.has('encounter') || !!locationId;
 if (debugStart) {
-  beginWith(pregens);
+  useReadyMade(gameState, pregens, freshOf);
+  beginAdventure();
   newGameMode = false;
 }
 loadSheetSizes()
