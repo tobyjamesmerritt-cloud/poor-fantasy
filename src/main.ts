@@ -458,6 +458,26 @@ bus.subscribe((cmd) => {
       shopScreen.refresh(err ?? '');
       break;
     }
+    case 'debug': {
+      // Testing aids (About menu). Not available mid-fight, so a fight's numbers stay honest.
+      const mode = document.body.dataset.mode;
+      if (mode === 'combat') {
+        hud.setStatus('Debug options are not available during a fight.');
+        break;
+      }
+      if (cmd.text === 'gold') {
+        gameState.coins += 100 * 100;
+        notices.push('Debug: +100 gp.');
+      } else if (cmd.text === 'xp') {
+        for (const r of gameState.roster) r.xp = (r.xp ?? 0) + 300;
+        persistLibrary();
+        notices.push('Debug: +300 XP for everyone in the party. Level up from Game → Party roster.');
+      } else break;
+      if (mode === 'shop') shopScreen.refresh(notices.pop());
+      else if (mode === 'party') partyScreen.refresh(undefined, notices.pop());
+      else show(returnTo); // redraw the current place with the new purse
+      break;
+    }
     case 'levelUp': {
       const inParty = gameState.roster.find((r) => r.id === cmd.characterId);
       const benched = gameState.bench.find((b) => b.sheet.id === cmd.characterId);
