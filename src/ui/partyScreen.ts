@@ -318,8 +318,8 @@ export class PartyScreen {
       field('Portrait', portraits),
       div(
         'ps-grid',
-        field('Class', classSelect),
-        field('Species', speciesSelect),
+        field('Class (Hit Die)', classSelect),
+        field('Species (Speed: 5 ft = 1 square)', speciesSelect),
         field('Background', bgSelect),
       ),
       div(
