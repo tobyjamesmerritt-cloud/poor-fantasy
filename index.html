@@ -20,8 +20,7 @@
             <button data-command='{"type":"restart"}'>Restart this fight <small>(same dice)</small></button>
             <button data-command='{"type":"undo"}'>Rewind last action <small>Backspace</small></button>
             <hr />
-            <button disabled>Save game <small>coming — DND-31</small></button>
-            <button disabled>Load game <small>coming — DND-31</small></button>
+            <button id="menu-saves">Save / load game…</button>
           </div>
         </div>
         <div class="menu">
@@ -133,6 +132,28 @@
         <li>Flee: from a square on the map edge, step off the edge (or press F / the Flee button).</li>
         <li>Walk into a stable fallen ally to pick them up and carry them out (moving costs double). Preferences → Difficulty decides who must be carried.</li>
       </ul>
+      <button class="close">Close</button>
+    </dialog>
+
+    <dialog id="confirm-dialog" class="confirm">
+      <h2></h2>
+      <p></p>
+      <div class="row">
+        <button class="cancel"></button>
+        <button class="ok"></button>
+      </div>
+    </dialog>
+
+    <dialog id="save-dialog">
+      <h2>Saved games</h2>
+      <p class="muted small" id="save-note"></p>
+      <div id="save-slots"></div>
+      <div class="row">
+        <button id="save-export">Export to file…</button>
+        <button id="save-import">Import from file…</button>
+        <input type="file" id="save-file" accept=".json,application/json" hidden />
+      </div>
+      <p class="muted small">Saves live in this browser. Export a file to keep a backup or to play on another PC.</p>
       <button class="close">Close</button>
     </dialog>
 

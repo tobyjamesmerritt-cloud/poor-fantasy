@@ -85,11 +85,3 @@ export function changeMode(state: GameState, to: Mode): GameState {
 export function serialize(state: GameState): string {
   return JSON.stringify(state);
 }
-
-export function deserialize(json: string): GameState {
-  const data = JSON.parse(json) as Partial<GameState>;
-  if (data.version !== SAVE_VERSION) {
-    throw new Error(`Unsupported save version ${String(data.version)} (expected ${SAVE_VERSION})`);
-  }
-  return data as GameState;
-}

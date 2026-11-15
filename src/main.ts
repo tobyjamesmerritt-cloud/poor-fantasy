@@ -1,7 +1,12 @@
 import * as Phaser from 'phaser';
 import { type CampSiteRef, CommandBus } from './engine/commands';
 import { createRng, randomSeed } from './engine/rng';
-import { type CharacterSheet, newGameState } from './engine/state';
+import { type CharacterSheet, type GameState, newGameState } from './engine/state';
+import { forget, makeSave, parseSave, remember, type SaveEnvelope } from './engine/save';
+import { confirmDialog } from './ui/confirmDialog';
+import { SaveDialog } from './ui/saveDialog';
+import { SaveStore, SLOTS, type SlotId } from './ui/saveStore';
+import { formatClock } from './rules/time';
 import { CampScene } from './game/scenes/CampScene';
 import { CombatScene, TILE } from './game/scenes/CombatScene';
 import { LOCATION_VIEW, LocationScene } from './game/scenes/LocationScene';
@@ -30,6 +35,8 @@ let returnTo: ReturnScene = 'world'; // where "Continue" goes after a fight
 let campReturn: 'world' | 'location' = 'world'; // where "Break camp" goes
 let campSite: CampSiteRef | null = null;
 let locationId = params.get('location') ?? ''; // ?location=millbrook jumps straight into a location
+// Debug URLs (?seed, ?encounter, ?location) use the ready-made party and never touch your saves.
+const debugStart = params.has('seed') || params.has('encounter') || !!locationId;
 let notices: string[] = []; // shown by the next exploring scene (fight results, rescues)
 let defeat: ReturnType<typeof afterDefeat> | null = null; // set when the party fell, handled on Continue
 
@@ -39,10 +46,82 @@ const prefs = new PrefsStore();
 const gameState = newGameState(seed);
 let newGameMode = true; // party screen: building a new party (full editing) vs. managing during play
 let partyReturn: ReturnScene = 'world';
-const exploreRng = createRng(gameState.seed ^ 0x5eed); // rests, ambushes, ability rolls (combat has its own seeded Rng)
+let exploreRng = createRng(gameState.seed ^ 0x5eed); // rests, ambushes, ability rolls (combat has its own seeded Rng); saved with the game
 initMenu(prefs);
 
 const freshOf = (sheet: CharacterSheet) => freshParty(statsOf([sheet]))[0];
+
+// ---------------------------------------------------------------------------
+// Saving: character library (all characters, across games) + game saves
+// ---------------------------------------------------------------------------
+const store = new SaveStore();
+const library = store.loadLibrary();
+let idCounter = 0;
+/** Character ids unique across games and save files (not game logic, so no Rng). */
+const newId = () => `c${Date.now().toString(36)}${(idCounter++).toString(36)}`;
+
+/** Keep every character the player has made, whatever game they are in. */
+function persistLibrary(): void {
+  if (debugStart) return;
+  remember(library, [...gameState.roster, ...gameState.bench.map((b) => b.sheet)]);
+  store.saveLibrary(library);
+}
+
+/** Library characters not in this game yet join its pool (fresh). */
+function poolFromLibrary(): void {
+  const have = new Set([...gameState.roster.map((s) => s.id), ...gameState.bench.map((b) => b.sheet.id)]);
+  for (const s of library.sheets) {
+    if (!have.has(s.id) && !checkSheet(s).length) gameState.bench.push({ sheet: structuredClone(s), state: null });
+  }
+}
+
+const placeName = (id: string) => id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+
+function saveLabel(st: GameState): string {
+  const where = st.location ? placeName(st.location.id) : 'World map';
+  const who = st.roster.map((r) => r.name).join(', ');
+  return `${where} · ${formatClock(st.time)} · ${who}`;
+}
+
+/** Why the game can't be saved right now (null = it can). */
+function saveBlocked(): string | null {
+  if (document.body.dataset.mode === 'combat') return 'You can’t save in the middle of a fight.';
+  if (newGameMode || !gameState.roster.length) return 'Begin the adventure first — then you can save.';
+  return null;
+}
+
+function snapshot(): SaveEnvelope {
+  return makeSave(gameState, exploreRng.state, new Date().toISOString(), saveLabel(gameState));
+}
+
+function autosave(): void {
+  if (debugStart || saveBlocked()) return;
+  store.write('auto', snapshot());
+}
+
+/** Replace the running game with a saved one and go where the party was. */
+function loadGame(env: SaveEnvelope, how: string): string | null {
+  const bad = [...env.state.roster, ...env.state.bench.map((b) => b.sheet)].flatMap((s) => checkSheet(s).map((e) => `${s.name}: ${e}`));
+  if (bad.length) return `This save can't be used with this version of the game:\n${bad.slice(0, 3).join('\n')}`;
+  for (const k of Object.keys(gameState)) delete (gameState as unknown as Record<string, unknown>)[k];
+  Object.assign(gameState, structuredClone(env.state));
+  gameState.bench = gameState.bench.filter((b) => !library.deleted.includes(b.sheet.id)); // good-bye means good-bye
+  exploreRng = createRng(env.exploreRng);
+  remember(library, [...gameState.roster, ...gameState.bench.map((b) => b.sheet)]);
+  store.saveLibrary(library);
+  newGameMode = false;
+  defeat = null;
+  locationId = gameState.location?.id ?? '';
+  notices.push(`${how}: ${env.label}.`);
+  show(gameState.location ? 'location' : 'world');
+  return null;
+}
+
+// Autosave whenever the page is hidden or closed (reload, tab switch, closing the window).
+addEventListener('pagehide', autosave);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') autosave();
+});
 
 /** Start the adventure with the current line-up: everyone restored, starting coins from their kits. */
 function beginAdventure(): void {
@@ -57,10 +136,43 @@ const partyScreen = new PartyScreen({
   bus,
   rollScores: () => roll4d6DropLowest(exploreRng),
   spriteCss: (key) => spriteCssFromSizes(sheetSizes, key),
+  newId,
+  confirm: confirmDialog,
 });
 document.getElementById('menu-new-game')!.addEventListener('click', () => {
-  if (confirm('Start a new game? The current party and progress will be lost.')) bus.dispatch({ type: 'newGame' });
+  void confirmDialog({
+    title: 'Start a new game?',
+    text: 'Your progress in this game is lost unless you saved it. Your characters stay in the character pool.',
+    ok: 'New game',
+    cancel: 'Cancel',
+  }).then((yes) => yes && bus.dispatch({ type: 'newGame' }));
 });
+
+const saveDialog = new SaveDialog({
+  summaries: () => SLOTS.map((slot) => store.summary(slot)),
+  canSave: saveBlocked,
+  save: (slot) => saveBlocked() ?? (store.write(slot, snapshot()) ? null : store.lastError),
+  load: (slot) => {
+    const env = store.read(slot);
+    return env ? loadGame(env, 'Loaded') : store.lastError || 'Nothing to load.';
+  },
+  remove: (slot: SlotId) => store.remove(slot),
+  exportCurrent: () => {
+    const why = saveBlocked();
+    if (why) return why;
+    const day = Math.floor(gameState.time / 1440) + 1;
+    return { name: `poor-fantasy-day${day}-${new Date().toISOString().slice(0, 10)}.json`, json: JSON.stringify(snapshot(), null, 1) };
+  },
+  importJson: (json) => {
+    try {
+      return loadGame(parseSave(json), 'Imported');
+    } catch (e) {
+      return (e as Error).message;
+    }
+  },
+  confirm: confirmDialog,
+});
+document.getElementById('menu-saves')!.addEventListener('click', () => saveDialog.open());
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -138,6 +250,7 @@ function show(key: SceneKey): void {
     if (s.scene.key === key) running = true;
     else s.scene.stop();
   }
+  if (key !== 'combat') autosave(); // arriving somewhere, after fights, rests and roster changes
   // Stopping and starting the same scene in one tick would shut down the fresh copy; restart is ordered.
   if (running) game.scene.getScene(key)!.scene.restart(data);
   else game.scene.start(key, data);
@@ -150,6 +263,7 @@ function handleDefeat(d: NonNullable<typeof defeat>): void {
   gameState.world = null; // the map's start square, by Millbrook
   notices.push(...d.notes);
   if (d.gameOver) {
+    store.remove('auto'); // Hard means it: no reloading your way out
     newGameMode = true; // the same heroes may try again — or recruit new ones
     show('party');
     return;
@@ -212,15 +326,18 @@ bus.subscribe((cmd) => {
       break;
     case 'newGame': {
       newGameMode = true;
+      if (!debugStart) store.remove('auto'); // the old game lives on only in save slots / files
       const { roster, bench } = gameState; // the character pool survives a new game
       Object.assign(gameState, newGameState(randomSeed()), { roster, bench });
+      poolFromLibrary();
       restoreAll(gameState, freshOf);
       show('party');
       break;
     }
     case 'readyMadeParty':
       if (!newGameMode) break;
-      useReadyMade(gameState, pregens, freshOf);
+      useReadyMade(gameState, pregens, freshOf, newId);
+      persistLibrary();
       partyScreen.refresh();
       break;
     case 'saveCharacter': {
@@ -244,6 +361,7 @@ bus.subscribe((cmd) => {
           notices.push(`${cmd.sheet.name} ${where === 'party' ? 'joins the party' : 'waits at the inn'}, bringing ${cp / 100} gp.`);
         }
       }
+      persistLibrary();
       partyScreen.refresh(cmd.sheet.id);
       break;
     }
@@ -256,7 +374,10 @@ bus.subscribe((cmd) => {
       partyScreen.refresh();
       break;
     case 'deleteCharacter':
-      deleteCharacter(gameState, cmd.id);
+      if (deleteCharacter(gameState, cmd.id) && !debugStart) {
+        forget(library, cmd.id); // good-bye for ever: not brought back by old saves either
+        store.saveLibrary(library);
+      }
       partyScreen.refresh();
       break;
     case 'moveCharacter': {
@@ -281,10 +402,8 @@ bus.subscribe((cmd) => {
   }
 });
 
-// Debug URLs (?seed, ?encounter, ?location) skip party creation and use the quick-start party.
-const debugStart = params.has('seed') || params.has('encounter') || !!locationId;
 if (debugStart) {
-  useReadyMade(gameState, pregens, freshOf);
+  useReadyMade(gameState, pregens, freshOf, newId);
   beginAdventure();
   newGameMode = false;
 }
@@ -292,7 +411,12 @@ loadSheetSizes()
   .catch(() => ({}))
   .then((sizes) => {
     sheetSizes = sizes;
-    show(params.has('seed') || params.has('encounter') ? 'combat' : locationId ? 'location' : debugStart ? 'world' : 'party');
+    if (debugStart) return show(params.has('seed') || params.has('encounter') ? 'combat' : 'location');
+    // Returning player: carry on from the autosave. Otherwise: make a party (the character pool is remembered).
+    const auto = store.read('auto');
+    if (auto && !loadGame(auto, 'Welcome back — continuing from the autosave')) return;
+    poolFromLibrary();
+    show('party');
   });
 
 // Debug handle for the browser console during playtests.

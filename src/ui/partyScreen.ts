@@ -45,6 +45,8 @@ export interface PartyScreenDeps {
   bus: CommandBus;
   rollScores: () => number[]; // 4d6 drop lowest ×6 through the game Rng (shown highest first)
   spriteCss: (key: string) => SpriteCss | null;
+  newId: () => string; // unique across games and saves
+  confirm: (opts: { title: string; text: string; ok: string; cancel: string; danger?: boolean }) => Promise<boolean>;
 }
 
 export class PartyScreen {
@@ -105,8 +107,15 @@ export class PartyScreen {
         button('＋ New character', () => this.startNew()),
         this.newGame
           ? button('Use ready-made party', () => {
-              const msg = roster.length ? 'Fill the party with the six ready-made characters? Current members move to the pool.' : '';
-              if (!msg || confirm(msg)) this.send({ type: 'readyMadeParty' });
+              if (!roster.length) return this.send({ type: 'readyMadeParty' });
+              void this.deps
+                .confirm({
+                  title: 'Use the ready-made party?',
+                  text: 'The six ready-made characters join the party. Current members move to the character pool.',
+                  ok: 'Use them',
+                  cancel: 'Keep my party',
+                })
+                .then((yes) => yes && this.send({ type: 'readyMadeParty' }));
             })
           : null,
         button(
@@ -158,7 +167,15 @@ export class PartyScreen {
         button('Join', () => this.send({ type: 'joinParty', id: s.id }), full ? 'The party is full (6) — bench someone first.' : undefined),
         button('Edit', () => this.startEdit(s)),
         button('Delete', () => {
-          if (confirm(`Delete ${s.name} for good?`)) this.send({ type: 'deleteCharacter', id: s.id });
+          void this.deps
+            .confirm({
+              title: 'Farewell?',
+              text: `Are you sure you want to say good-bye to ${s.name}, never to hear from them again?`,
+              ok: `Good-bye, ${s.name}`,
+              cancel: 'Keep them',
+              danger: true,
+            })
+            .then((yes) => yes && this.send({ type: 'deleteCharacter', id: s.id }));
         }),
       ),
     );
@@ -185,13 +202,10 @@ export class PartyScreen {
   // -------------------------------------------------------------------------
 
   private startNew(): void {
-    const used = new Set([...this.game.roster.map((s) => s.id), ...this.game.bench.map((b) => b.sheet.id)]);
-    let n = 1;
-    while (used.has(`c${n}`)) n++;
     const scores = byValue(this.deps.rollScores());
     this.draft = {
       sheet: {
-        id: `c${n}`,
+        id: this.deps.newId(),
         name: '',
         sprite: PORTRAITS[(this.game.roster.length + 6) % PORTRAITS.length],
         classId: 'fighter',

@@ -64,10 +64,15 @@ export function deleteCharacter(r: Roster, id: string): boolean {
  * Fill the party with ready-made characters (copies with fresh ids); whoever
  * was in the party moves to the bench.
  */
-export function useReadyMade(r: Roster, pregens: readonly CharacterSheet[], fresh: (s: CharacterSheet) => PartyMemberState): void {
+export function useReadyMade(
+  r: Roster,
+  pregens: readonly CharacterSheet[],
+  fresh: (s: CharacterSheet) => PartyMemberState,
+  makeId: () => string = () => nextId(r),
+): void {
   for (const s of [...r.roster]) benchMember(r, s.id);
   for (const p of pregens.slice(0, MAX_PARTY)) {
-    const sheet = { ...structuredClone(p), id: nextId(r) };
+    const sheet = { ...structuredClone(p), id: makeId() };
     r.roster.push(sheet);
     r.party.push(fresh(sheet));
   }

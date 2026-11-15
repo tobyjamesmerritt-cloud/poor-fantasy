@@ -2,7 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { canTransition } from '../src/engine/modes';
-import { deserialize, newGameState, serialize } from '../src/engine/state';
+import { makeSave, parseSave } from '../src/engine/save';
+import { newGameState } from '../src/engine/state';
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {
@@ -28,7 +29,7 @@ describe('architecture rules', () => {
 
   it('game state round-trips through save/load', () => {
     const s = { ...newGameState(5), flags: { metMayor: true, gold: 12 } };
-    expect(deserialize(serialize(s))).toEqual(s);
-    expect(() => deserialize('{"version":999}')).toThrow();
+    expect(parseSave(JSON.stringify(makeSave(s, 7, 't', 'label'))).state).toEqual(s);
+    expect(() => parseSave('{"version":999}')).toThrow();
   });
 });
