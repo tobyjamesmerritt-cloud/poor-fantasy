@@ -1139,3 +1139,17 @@ button.danger {
 #party-dialog .bad {
   color: #e74c3c;
 }
+
+.pd-item {
+  text-decoration: underline dotted;
+}
+.pd-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.3rem 0;
+}
+
+.pd-stats td {
+  vertical-align: top;
+}

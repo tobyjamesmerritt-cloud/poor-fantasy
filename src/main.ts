@@ -19,7 +19,7 @@ import { characterData, checkSheet, derive, membersOf, pregens, startingCoins, s
 import { roll4d6DropLowest, startingCopper } from './rules/character';
 import { PartyScreen } from './ui/partyScreen';
 import { ShopScreen } from './ui/shopScreen';
-import { buy, equip, sell, unequip, useItem } from './rules/items';
+import { buy, equip, itemInfo, sell, unequip, useItem } from './rules/items';
 import { loadSheetSizes, spriteCssFromSizes } from './game/spriteCss';
 import type { CombatState } from './rules/combat';
 import { afterCombat, afterDefeat, combatMinutes, formatCoins, freshParty, isConscious } from './rules/party';
@@ -793,9 +793,10 @@ bus.subscribe((cmd) => {
       const st = gameState.party.find((p) => p.id === sheet.id);
       if (st) st.hp = Math.min(st.hp, derive(sheet).hp || before);
       persistLibrary(); // gear lives on the character sheet
-      if (packDialog.open) {
-        packDialog.refresh(err ?? `${sheet.name}: ${cmd.type === 'equipItem' ? 'equipped' : 'removed'}.`);
-        partyDialog.refresh();
+      if (packDialog.open || partyDialog.open) {
+        const done = err ?? `${sheet.name}: ${cmd.type === 'equipItem' ? `now using ${itemInfo(cmd.ref, characterData)?.name ?? cmd.ref}` : `${cmd.slot === 'armor' ? 'armour' : 'shield'} taken off`} (old gear goes to the pack).`;
+        packDialog.refresh(done);
+        partyDialog.refresh(done);
         refreshScreen();
       } else shopScreen.refresh(err ?? '');
       break;

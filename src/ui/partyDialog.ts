@@ -11,7 +11,7 @@ import type { CharacterSheet, GameState } from '../engine/state';
 import { ABILITIES, ABILITY_NAMES, abilityMod, equipped, signed } from '../rules/character';
 import { casterOf, characterData, className, derive, statsOf } from '../content/characters';
 import { canLevelUp, xpForNext } from '../rules/levelling';
-import { itemInfo } from '../rules/items';
+import { equipProblem, itemInfo } from '../rules/items';
 import { formatCoins } from '../rules/party';
 import type { SpriteCss } from './hud';
 
@@ -24,6 +24,8 @@ export class PartyDialog {
   private dlg: HTMLDialogElement;
   private game!: GameState;
   private view: { kind: 'group' } | { kind: 'character'; id: string } = { kind: 'group' };
+  private picking: 'weapon' | 'armor' | 'shield' | null = null; // equipment slot whose choices are open
+  private message = '';
 
   constructor(private deps: PartyDialogDeps) {
     const d = document.getElementById('party-dialog');
@@ -44,12 +46,17 @@ export class PartyDialog {
   showCharacter(game: GameState, id: string): void {
     this.game = game;
     this.view = game.roster.some((r) => r.id === id) ? { kind: 'character', id } : { kind: 'group' };
+    this.picking = null;
+    this.message = '';
     this.render();
   }
 
   /** Redraw after something changed (levelled up, equipped…), if open. */
-  refresh(): void {
-    if (this.dlg.open) this.render();
+  refresh(message = ''): void {
+    if (!this.dlg.open) return;
+    this.picking = null;
+    this.message = message;
+    this.render();
   }
 
   close(): void {
@@ -186,9 +193,9 @@ export class PartyDialog {
     const items = el(
       'table',
       'pd-stats',
-      row('Weapon', gear.weapon ? name(`weapon:${gear.weapon}`) : 'none'),
-      row('Armour', gear.armor ? name(`armor:${gear.armor}`) : 'none'),
-      row('Shield', gear.shield ? name('shield') : 'none'),
+      this.gearRow(s, 'weapon', 'Weapon', gear.weapon ? name(`weapon:${gear.weapon}`) : 'none'),
+      this.gearRow(s, 'armor', 'Armour', gear.armor ? name(`armor:${gear.armor}`) : 'none'),
+      this.gearRow(s, 'shield', 'Shield', gear.shield ? name('shield') : 'none'),
     );
 
     const parts: HTMLElement[] = [
@@ -196,7 +203,9 @@ export class PartyDialog {
       head,
       el('div', 'pd-cols', el('div', '', el('h3', '', 'Abilities'), abilities), el('div', '', el('h3', '', 'Combat'), combat)),
       el('h3', '', 'Equipment'),
+      ...(this.message ? [el('div', 'ps-message', this.message)] : []),
       items,
+      el('p', 'small muted', 'Click an item to swap it for something in the pack.'),
     ];
 
     const caster = casterOf(s);
@@ -230,6 +239,41 @@ export class PartyDialog {
       ),
     );
     return parts;
+  }
+
+  /** One equipment slot: click the item to see what in the pack could replace it (or take it off). */
+  private gearRow(s: CharacterSheet, slot: 'weapon' | 'armor' | 'shield', label: string, current: string): HTMLElement {
+    const d = characterData;
+    const g = this.game;
+    const item = btn(`${current} ▾`, () => {
+      this.picking = this.picking === slot ? null : slot;
+      this.message = '';
+      this.render();
+    }, 'name-link pd-item');
+    const cell = el('td', '', item);
+    if (this.picking === slot) {
+      const list = el('div', 'pd-choices');
+      const refs = Object.keys(g.inventory).filter(
+        (r) => g.inventory[r] > 0 && (slot === 'shield' ? r === 'shield' : r.startsWith(`${slot}:`)),
+      );
+      for (const ref of refs) {
+        const why = equipProblem(s, ref, d);
+        const b = btn(`${itemInfo(ref, d)?.name ?? ref}${g.inventory[ref] > 1 ? ` (${g.inventory[ref]})` : ''}`, () =>
+          this.send({ type: 'equipItem', characterId: s.id, ref }),
+        );
+        if (why) {
+          b.disabled = true;
+          b.title = why;
+        }
+        list.append(b);
+      }
+      if (slot !== 'weapon' && current !== 'none') {
+        list.append(btn('Take off', () => this.send({ type: 'unequipItem', characterId: s.id, slot })));
+      }
+      if (!list.childElementCount) list.append(el('span', 'small muted', slot === 'weapon' ? 'No other weapons in the pack.' : `No ${label.toLowerCase()} in the pack.`));
+      cell.append(list);
+    }
+    return el('tr', '', el('td', 'muted', label), cell);
   }
 
   private portrait(key: string, px: number): HTMLElement {
