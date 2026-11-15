@@ -5,8 +5,12 @@
  * letter suffixes ("Giant Rat A", "Giant Rat B").
  */
 import { parseDice } from '../engine/dice';
+import type { PartyMemberState } from '../engine/state';
 import type { Trait, Unit } from '../rules/combat';
+import type { MemberStats } from '../rules/party';
 import { assets } from './assets';
+import ambushDark from './encounters/ambush-dark.json';
+import ambushWilds from './encounters/ambush-wilds.json';
 import caveRats from './encounters/cave-rats.json';
 import ruinsCrawlers from './encounters/ruins-crawlers.json';
 import locationsRaw from './locations.json';
@@ -39,6 +43,8 @@ export interface PartyMemberDef {
   attackBonus: number;
   damage: string[];
   medicine: number;
+  hitDie: number; // Hit Point Die size (d10 = 10)
+  conMod: number;
 }
 
 export interface EncounterDef {
@@ -68,6 +74,14 @@ const strip = <T>(raw: unknown): T => {
 
 export const monsters: Record<string, MonsterDef> = validateMonsters(strip(monstersRaw));
 export const party: PartyMemberDef[] = (partyRaw as unknown as { members: PartyMemberDef[] }).members;
+/** The party's fixed stats as the rest/party rules need them. */
+export const partyStats: MemberStats[] = party.map((p) => ({
+  id: p.id,
+  name: p.name,
+  hp: p.hp,
+  hitDie: p.hitDie,
+  conMod: p.conMod,
+}));
 
 export function validateMonsters(defs: Record<string, MonsterDef>): Record<string, MonsterDef> {
   const errors: string[] = [];
@@ -107,7 +121,15 @@ export function encounterBudget(e: EncounterDef, partySize = party.length): { lo
   return { low: per.low * partySize, moderate: per.moderate * partySize, high: per.high * partySize };
 }
 
-export function buildUnits(e: EncounterDef, members: readonly PartyMemberDef[] = party): Unit[] {
+/**
+ * Combat units for an encounter. `status` (the persistent party) sets current
+ * HP: the dead stay home; unconscious characters lie stable at their start square.
+ */
+export function buildUnits(
+  e: EncounterDef,
+  members: readonly PartyMemberDef[] = party,
+  status?: readonly PartyMemberState[],
+): Unit[] {
   const errors: string[] = [];
   const seen = new Set<string>();
   const occupy = (x: number, y: number, who: string) => {
@@ -123,20 +145,26 @@ export function buildUnits(e: EncounterDef, members: readonly PartyMemberDef[] =
   }
   if (!assets.floors[e.floor]) errors.push(`unknown floor "${e.floor}"`);
 
-  const partyUnits: Unit[] = members.map((p, i) => {
+  const partyUnits: Unit[] = [];
+  members.forEach((p, i) => {
+    const now = status?.find((s) => s.id === p.id);
+    if (now?.dead) return;
     const start = e.partyStart[i] ?? { x: -1, y: -1 };
     occupy(start.x, start.y, p.name);
     if (!assets.sprites[p.sprite]) errors.push(`${p.name}: unknown sprite "${p.sprite}"`);
-    return {
-      ...p,
+    const { hitDie: _hd, conMod: _con, ...combatStats } = p;
+    const hp = now ? Math.max(0, now.hp) : p.hp;
+    partyUnits.push({
+      ...combatStats,
       ...start,
+      hp,
       side: 'party',
       maxHp: p.hp,
       traits: [],
       deathSaves: { successes: 0, failures: 0 },
-      stable: false,
+      stable: hp <= 0, // already tended after the last fight
       dead: false,
-    };
+    });
   });
 
   const counts = new Map<string, number>();
@@ -182,7 +210,7 @@ export function buildUnits(e: EncounterDef, members: readonly PartyMemberDef[] =
 
 /** All encounters by id; each is built once at load so mistakes fail at startup. */
 export const encounters: Record<string, EncounterDef> = Object.fromEntries(
-  [caveRats, ruinsCrawlers].map((raw) => {
+  [caveRats, ruinsCrawlers, ambushWilds, ambushDark].map((raw) => {
     const e = strip<EncounterDef>(raw);
     buildUnits(e);
     return [e.id, e];

@@ -490,6 +490,26 @@ body[data-mode='location'] #touchpad {
   margin: 0.6rem 0;
   color: #2ecc71;
 }
+.purse {
+  color: var(--gold);
+}
+.small {
+  font-size: 0.8rem;
+}
+.camp-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.camp-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.camp-action small {
+  font-size: 0.72rem;
+}
 .move-pad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

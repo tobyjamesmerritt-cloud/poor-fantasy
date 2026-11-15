@@ -2,7 +2,7 @@ import { DIRECTION_VECTORS } from '../src/engine/commands';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadTravelMap, type TiledMap } from '../src/content/world';
-import { canStep, findPath, isBlocked, locationAt, type TravelMap } from '../src/rules/world';
+import { canStep, findPath, isBlocked, locationAt, type TravelMap, worldCampSite } from '../src/rules/world';
 
 const world = loadTravelMap(JSON.parse(readFileSync('public/assets/maps/world.json', 'utf8')) as TiledMap);
 
@@ -76,5 +76,29 @@ describe('world map', () => {
     const badType = structuredClone(raw);
     badType.layers.find((l) => l.name === 'locations')!.objects![0].type = 'castle';
     expect(() => loadTravelMap(badType)).toThrow(/unknown type/);
+  });
+});
+
+describe('camping on the world map', () => {
+  const find = (kind: string) => {
+    const i = world.terrain!.findIndex((t, idx) => t === kind && !world.locations.some((l) => l.y * world.width + l.x === idx));
+    return { x: i % world.width, y: Math.floor(i / world.width) };
+  };
+  it('not on roads, bridges or at locations; forest, rocks and riverside are recognised', () => {
+    const road = find('road');
+    expect(worldCampSite(world, road.x, road.y)).toMatchObject({ ok: false, reason: expect.stringMatching(/road/) });
+    const bridge = find('bridge');
+    expect(worldCampSite(world, bridge.x, bridge.y)).toMatchObject({ ok: false, reason: expect.stringMatching(/bridge/) });
+    const town = world.locations.find((l) => l.kind === 'town')!;
+    expect(worldCampSite(world, town.x, town.y)).toMatchObject({ ok: false, reason: expect.stringMatching(/inn/) });
+    const forest = find('forest');
+    expect(worldCampSite(world, forest.x, forest.y)).toEqual({ ok: true, kind: 'forest' });
+    const kinds = new Set<string>();
+    for (let y = 0; y < world.height; y++)
+      for (let x = 0; x < world.width; x++) {
+        const s = worldCampSite(world, x, y);
+        if (s.ok) kinds.add(s.kind);
+      }
+    expect([...kinds].sort()).toEqual(['forest', 'meadow', 'riverside', 'rocks']);
   });
 });

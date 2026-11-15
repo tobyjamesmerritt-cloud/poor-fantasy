@@ -1,0 +1,16 @@
+{
+  "_note": "What each tile means for camping on the world map, by tileset name and local tile id. The topmost tile on a square that appears here decides. Kinds: grass, forest, rocks, road, bridge, water.",
+  "tiny-battle": {
+    "0": "grass", "1": "grass", "2": "grass",
+    "94": "forest", "112": "forest",
+    "5": "rocks",
+    "130": "bridge",
+    "18": "water", "19": "water", "20": "water",
+    "36": "water", "37": "water", "38": "water",
+    "54": "water", "55": "water", "56": "water",
+    "90": "water", "91": "water", "92": "water", "93": "water"
+  },
+  "tiny-dungeon": {
+    "48": "road"
+  }
+}

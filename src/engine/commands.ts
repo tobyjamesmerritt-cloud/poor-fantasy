@@ -20,12 +20,24 @@ export type Command =
   | { type: 'worldMap' } // go to the world map
   | { type: 'enter'; location: string } // walk into a town or dungeon from the world map
   | { type: 'leaveLocation' } // back out to the world map
-  | { type: 'endFight' } // after a fight: back to where it started (location or world map)
+  | { type: 'endFight' }
+  | { type: 'encamp' } // try to make camp where the party stands
+  | { type: 'camp'; site: CampSiteRef } // open the camp screen (validated by the scene that sends it)
+  | { type: 'rest'; kind: 'short' | 'long' }
+  | { type: 'breakCamp' } // after a fight: back to where it started (location or world map)
   | { type: 'leavePlace' } // close the location panel on the map
   | { type: 'confirm' }
   | { type: 'cancel' }
   | { type: 'menu'; option: string }
   | { type: 'debug'; text: string };
+
+/** A place to rest (see rules/rest.ts CampSite). Declared here so engine stays independent of rules. */
+export interface CampSiteRef {
+  kind: 'forest' | 'meadow' | 'rocks' | 'riverside' | 'cave' | 'ruins' | 'inn';
+  name: string;
+  risk: number;
+  ambush?: string;
+}
 
 export type CommandHandler = (cmd: Command) => void;
 

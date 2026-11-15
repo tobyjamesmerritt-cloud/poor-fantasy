@@ -23,6 +23,7 @@ export interface TravelMap {
   blocked: boolean[]; // row-major, true = impassable (water, walls, rocks)
   locations: MapLocation[];
   start: { x: number; y: number };
+  terrain?: string[]; // row-major: grass | forest | rocks | road | bridge | water ('' = unknown)
 }
 
 export const isBlocked = (m: TravelMap, x: number, y: number): boolean =>
@@ -91,4 +92,39 @@ export function findPath(m: TravelMap, from: { x: number; y: number }, to: { x: 
     }
   }
   return null;
+}
+
+/** Where the party may camp on the world map: off the road, not on a bridge or at a town or ruin. */
+export function worldCampSite(
+  m: TravelMap,
+  x: number,
+  y: number,
+): { ok: true; kind: 'forest' | 'meadow' | 'rocks' | 'riverside' } | { ok: false; reason: string } {
+  const loc = locationAt(m, x, y);
+  if (loc) {
+    return {
+      ok: false,
+      reason: loc.kind === 'town' ? `Find an inn inside ${loc.name} to rest.` : `You can't camp at the entrance of ${loc.name}.`,
+    };
+  }
+  const t = (xx: number, yy: number) => m.terrain?.[yy * m.width + xx] ?? '';
+  const here = t(x, y);
+  if (here === 'road') return { ok: false, reason: 'Not on the road — step off it to make camp.' };
+  if (here === 'bridge') return { ok: false, reason: 'You cannot camp on a bridge.' };
+  if (here === 'water' || isBlocked(m, x, y)) return { ok: false, reason: 'There is nowhere to camp here.' };
+  if (here === 'forest') return { ok: true, kind: 'forest' };
+  // Open ground takes its character from what is next to it: boulders (rocks), then water (riverside).
+  const near = (kind: string) => {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx;
+        const yy = y + dy;
+        if (xx >= 0 && yy >= 0 && xx < m.width && yy < m.height && t(xx, yy) === kind) return true;
+      }
+    }
+    return false;
+  };
+  if (near('rocks')) return { ok: true, kind: 'rocks' };
+  if (near('water')) return { ok: true, kind: 'riverside' };
+  return { ok: true, kind: 'meadow' };
 }

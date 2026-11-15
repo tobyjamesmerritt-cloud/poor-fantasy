@@ -7,7 +7,7 @@ import { assertTransition } from './modes';
 
 const START_TIME = 8 * 60; // day 1, 08:00
 
-export const SAVE_VERSION = 3; // v2: party position on a map · v3: world + location positions, facing, game clock
+export const SAVE_VERSION = 4; // v2: party position · v3: world + location positions, facing, clock · v4: persistent party, coins, rests
 
 export interface GameState {
   version: number;
@@ -18,6 +18,18 @@ export interface GameState {
   world: { x: number; y: number } | null; // party square on the world map; null = use the map's start
   location: { id: string; x: number; y: number; facing: 'n' | 'e' | 's' | 'w' } | null; // inside a location, else null
   time: number; // game clock in minutes since midnight of day 1 (see rules/time.ts)
+  party: PartyMemberState[]; // current condition of each member, in party.json order
+  coins: number; // party purse in copper pieces (100 cp = 1 gp)
+  lastLongRest: number | null; // game time a Long Rest finished (16-hour wait before the next)
+}
+
+/** What changes about a character between fights. Fixed stats live in content/party.json. */
+export interface PartyMemberState {
+  id: string;
+  hp: number;
+  hitDice: number; // unspent Hit Point Dice (level 1: max 1)
+  dead: boolean;
+  wakesAt: number | null; // unconscious + stable: game time they regain 1 HP (SRD: after 1d4 hours)
 }
 
 export function newGameState(seed: number): GameState {
@@ -30,6 +42,9 @@ export function newGameState(seed: number): GameState {
     world: null,
     location: null,
     time: START_TIME,
+    party: [], // filled from content/party.json at startup (main.ts)
+    coins: 60 * 100, // 60 gp to start (placeholder until character creation, M2)
+    lastLongRest: null,
   };
 }
 

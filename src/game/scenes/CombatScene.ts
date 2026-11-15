@@ -3,6 +3,7 @@
  * contains no rules logic of its own. All art comes from content/assets.json.
  */
 import * as Phaser from 'phaser';
+import type { PartyMemberState } from '../../engine/state';
 import type { Command, CommandBus, Direction } from '../../engine/commands';
 import { History } from '../../engine/history';
 import { createRng, type Rng } from '../../engine/rng';
@@ -47,6 +48,8 @@ export interface CombatSceneDeps {
   seed: number;
   encounter: string; // id in content/encounters
   onVictory?: () => void; // e.g. mark the map location cleared
+  party?: PartyMemberState[]; // persistent party: current HP, who is dead (omit = everyone fresh)
+  onEnd?: (state: CombatState) => void; // once, when the fight is won, lost or fled
 }
 
 /** One side of a grid square on the edge of the movement range: from (x1,y1) to (x2,y2) in pixels. */
@@ -97,7 +100,7 @@ export class CombatScene extends Phaser.Scene {
 
   create(): void {
     this.rng = createRng(this.deps.seed);
-    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc), this.deps.prefs.get().difficulty);
+    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, undefined, this.deps.party), this.deps.prefs.get().difficulty);
     this.cameras.main.setZoom(1).setScroll(0, 0);
 
     this.deps.hud.setNames(this.state.units);
@@ -392,9 +395,10 @@ export class CombatScene extends Phaser.Scene {
       }
     }
 
-    if (state.outcome === 'victory' && !this.victoryReported) {
-      this.victoryReported = true;
-      this.deps.onVictory?.();
+    if (state.outcome !== 'ongoing' && !this.victoryReported) {
+      this.victoryReported = true; // report the end of the fight once
+      if (state.outcome === 'victory') this.deps.onVictory?.();
+      this.deps.onEnd?.(state);
     }
     const hud = this.deps.hud;
     hud.setLog(state.log);

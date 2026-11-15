@@ -6,6 +6,7 @@
  *   custom properties `locationId` and `description`); `start` marks the party start.
  */
 import type { LocationKind, MapLocation, TravelMap } from '../rules/world';
+import terrainRaw from './terrain.json';
 
 interface TiledProperty {
   name: string;
@@ -79,9 +80,28 @@ export const objTile = (t: TiledMap, o: { x: number; y: number }) => ({
   y: Math.floor(o.y / t.tileheight),
 });
 
+/** Per-square terrain kind from terrain.json (topmost layer that has one wins). */
+function terrainOf(t: TiledMap): string[] {
+  const table = terrainRaw as unknown as Record<string, Record<string, string>>;
+  const byGid = new Map<number, string>();
+  for (const ts of t.tilesets) {
+    for (const [id, kind] of Object.entries(table[ts.name] ?? {})) byGid.set(ts.firstgid + Number(id), kind);
+  }
+  const terrain = new Array<string>(t.width * t.height).fill('');
+  for (const layer of t.layers) {
+    if (layer.type !== 'tilelayer' || !layer.data) continue;
+    layer.data.forEach((raw, i) => {
+      const k = byGid.get(raw & GID_MASK);
+      if (k) terrain[i] = k;
+    });
+  }
+  return terrain;
+}
+
 export function loadTravelMap(t: TiledMap): TravelMap {
   const errors: string[] = [];
   const { blocked } = squareProps(t, errors);
+  const terrain = terrainOf(t);
   const objects = objectLayer(t, 'locations');
   const prop = objProp;
   const toTile = (o: TiledObject) => objTile(t, o);
@@ -107,5 +127,5 @@ export function loadTravelMap(t: TiledMap): TravelMap {
   if (new Set(ids).size !== ids.length) errors.push('duplicate locationId');
 
   if (errors.length) throw new Error('Invalid map:\n- ' + errors.join('\n- '));
-  return { width: t.width, height: t.height, blocked, locations, start: start! };
+  return { width: t.width, height: t.height, blocked, locations, start: start!, terrain };
 }

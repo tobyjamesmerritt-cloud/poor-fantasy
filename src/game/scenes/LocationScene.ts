@@ -10,7 +10,7 @@
 import * as Phaser from 'phaser';
 import type { Command, CommandBus } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
-import { encounters, locationContent, party } from '../../content/encounters';
+import { encounters, locationContent, party, partyStats } from '../../content/encounters';
 import { loadLocationMap } from '../../content/locationMap';
 import { loadTravelMap, type TiledMap } from '../../content/world';
 import {
@@ -27,8 +27,12 @@ import {
   tryStep,
   type Turn,
   viewFaces,
+  locationCampCheck,
 } from '../../rules/location';
 import { formatClock, MINUTES } from '../../rules/time';
+import { formatCoins, passTime } from '../../rules/party';
+import { SITE_RISK } from '../../rules/rest';
+import { partyRows } from '../partyView';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
 import { preloadSheets } from '../spriteCss';
@@ -62,6 +66,7 @@ export interface LocationSceneDeps {
   hud: Hud;
   game: GameState;
   locationId: string; // key in content/locations.json
+  notices: string[]; // messages to show on arrival (fight results, rescues)
 }
 
 export class LocationScene extends Phaser.Scene {
@@ -132,6 +137,7 @@ export class LocationScene extends Phaser.Scene {
       if (here?.kind === 'fight' && this.cleared(here)) this.say(`The ${here.name} falls silent. The way is clear.`);
       else this.deps.hud.setLog(this.log);
     }
+    for (const n of this.deps.notices) this.say(n);
     this.render();
     if (resuming) this.showSpotPanel(spotAt(this.map, this.pose.x, this.pose.y));
 
@@ -177,6 +183,9 @@ export class LocationScene extends Phaser.Scene {
         break;
       case 'step':
         this.step(cmd.dir);
+        break;
+      case 'encamp':
+        this.encamp();
         break;
       case 'moveTo': {
         const path = findPath4(this.map, this.pose, cmd);
@@ -234,6 +243,7 @@ export class LocationScene extends Phaser.Scene {
     this.deps.hud.setPlace(null);
     this.pose = p;
     this.deps.game.time += MINUTES.locationStep;
+    for (const name of passTime(this.deps.game.party, partyStats, this.deps.game.time)) this.say(`${name} comes round (1 HP).`);
     this.render();
   }
 
@@ -260,6 +270,18 @@ export class LocationScene extends Phaser.Scene {
     this.time.delayedCall(900, () => this.deps.bus.dispatch(this.fightCommand(spot)));
   }
 
+  /** Camp here: dungeons anywhere quiet; in town only at an inn. */
+  private encamp(): void {
+    if (this.style === 'town') return this.say(`No camping in the streets of ${this.name} — take a room at the inn.`);
+    const check = locationCampCheck(this.map, this.pose);
+    if (!check.ok) return this.say(check.reason);
+    const kind = this.style === 'cave' ? 'cave' : 'ruins';
+    this.deps.bus.dispatch({
+      type: 'camp',
+      site: { kind, name: `Camp in ${this.name}`, risk: SITE_RISK[kind], ambush: 'ambush-dark' },
+    });
+  }
+
   private cleared(spot: Spot): boolean {
     return this.deps.game.flags[`cleared:${this.deps.locationId}:${spot.id}`] === true;
   }
@@ -276,7 +298,12 @@ export class LocationScene extends Phaser.Scene {
         name: spot.name,
         kind: BUILDING_LABEL[spot.building!] ?? 'Building',
         description: spot.description,
-        actions: [{ label: 'Trade, rest, heal — coming in M4' }, { label: 'Leave', command: { type: 'leavePlace' } }],
+        actions: [
+          spot.building === 'inn'
+            ? { label: 'Take rooms and rest', command: { type: 'camp', site: { kind: 'inn', name: spot.name, risk: 0 } } }
+            : { label: 'Trade, heal — coming in M4' },
+          { label: 'Leave', command: { type: 'leavePlace' } },
+        ],
       });
     } else if (spot.kind === 'fight' && !this.cleared(spot)) {
       this.deps.hud.setPlace({
@@ -307,9 +334,10 @@ export class LocationScene extends Phaser.Scene {
     this.deps.hud.setStatus(`${this.name} · ${where} · ${clock}`);
     this.deps.hud.setExplore({
       title: this.name,
-      party: party.map((p) => ({ name: p.name, ac: p.ac, hp: p.hp, maxHp: p.hp })),
+      party: partyRows(game),
       where,
       clock,
+      purse: formatCoins(game.coins),
     });
   }
 

@@ -8,13 +8,16 @@ import type { Command, CommandBus, Direction } from '../../engine/commands';
 import { DIRECTION_VECTORS } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
 import { assets, cursorCss } from '../../content/assets';
-import { locationContent, party } from '../../content/encounters';
+import { locationContent, partyStats } from '../../content/encounters';
+import { formatCoins, passTime } from '../../rules/party';
+import { SITE_RISK } from '../../rules/rest';
+import { rosterEntries } from '../partyView';
 import { loadTravelMap, type TiledMap } from '../../content/world';
-import { canStep, findPath, isBlocked, locationAt, type MapLocation, type TravelMap } from '../../rules/world';
+import { canStep, findPath, isBlocked, locationAt, type MapLocation, type TravelMap, worldCampSite } from '../../rules/world';
 import { formatClock, MINUTES } from '../../rules/time';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
-import { preloadSheets, spriteCss } from '../spriteCss';
+import { preloadSheets } from '../spriteCss';
 
 const MAP_KEY = 'world';
 const WORLD_SCALE = 2; // 16-px tiles drawn at 32 px: ~18×13 squares visible
@@ -25,6 +28,7 @@ export interface WorldSceneDeps {
   bus: CommandBus;
   hud: Hud;
   game: GameState; // shared; the party's position lives here
+  notices: string[]; // messages to show on arrival (fight results, rescues)
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -75,10 +79,11 @@ export class WorldScene extends Phaser.Scene {
     hud.setOutcome('none');
     hud.setEndTurnHint(false);
     hud.setNames([]);
-    hud.setRoster(party.map((p) => ({ name: p.name, hp: p.hp, maxHp: p.hp, sprite: spriteCss(this.textures, p.sprite) })));
+    this.showRoster();
     if (!this.log.length) {
       this.log.push('The party sets out into the Vale.', 'Click a square to travel there, or use WASD. Visit the towns, the cave and the ruins.');
     }
+    this.log.push(...this.deps.notices);
     this.arrive(false);
 
     const unsubscribe = this.deps.bus.subscribe((cmd) => this.handle(cmd));
@@ -113,6 +118,20 @@ export class WorldScene extends Phaser.Scene {
       case 'leavePlace':
         this.deps.hud.setPlace(null);
         break;
+      case 'encamp': {
+        const site = worldCampSite(this.map, this.pos.x, this.pos.y);
+        if (!site.ok) {
+          this.log.push(site.reason);
+          this.deps.hud.setLog(this.log);
+          break;
+        }
+        const names = { forest: 'Forest camp', meadow: 'Meadow camp', rocks: 'Camp among the rocks', riverside: 'Riverside camp' };
+        this.deps.bus.dispatch({
+          type: 'camp',
+          site: { kind: site.kind, name: names[site.kind], risk: SITE_RISK[site.kind], ambush: 'ambush-wilds' },
+        });
+        break;
+      }
       default:
         break;
     }
@@ -130,12 +149,23 @@ export class WorldScene extends Phaser.Scene {
       const [dx, dy] = DIRECTION_VECTORS[path[i]];
       this.pos = { x: this.pos.x + dx, y: this.pos.y + dy };
       this.deps.game.time += MINUTES.worldStep;
+      for (const name of passTime(this.deps.game.party, partyStats, this.deps.game.time)) this.log.push(`${name} comes round (1 HP).`);
       this.placeToken();
+      this.showRoster();
       // stop early when walking onto a location on the way
       if (i < path.length - 1 && locationAt(this.map, this.pos.x, this.pos.y)) return next(path.length);
       this.time.delayedCall(90, () => next(i + 1));
     };
     next(0);
+  }
+
+  private showRoster(): void {
+    const g = this.deps.game;
+    this.deps.hud.setRoster(rosterEntries(this.textures, g), {
+      purse: formatCoins(g.coins),
+      clock: formatClock(g.time),
+      encamp: { type: 'encamp' },
+    });
   }
 
   private placeToken(): void {

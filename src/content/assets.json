@@ -84,6 +84,17 @@
         48,
         42
       ]
+    },
+    "meadow-grass": {
+      "sheet": "battle",
+      "frames": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        2
+      ]
     }
   },
   "cursors": {

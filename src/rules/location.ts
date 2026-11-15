@@ -183,3 +183,11 @@ export function viewFaces(m: LocationMap, p: Pose, maxDepth = 4): Face[] {
   }
   return faces;
 }
+
+/** Camping inside a dungeon: anywhere quiet — not on an entrance, exit or special square. */
+export function locationCampCheck(m: LocationMap, p: Pose): { ok: true } | { ok: false; reason: string } {
+  const atEntrance = m.entrance.x === p.x && m.entrance.y === p.y;
+  if (atEntrance || isExit(m, p.x, p.y)) return { ok: false, reason: 'Too exposed here — move further in to make camp.' };
+  if (spotAt(m, p.x, p.y)) return { ok: false, reason: 'Not here — find a quieter corner to camp.' };
+  return { ok: true };
+}

@@ -36,13 +36,33 @@ export interface RosterEntry {
   hp: number;
   maxHp: number;
   sprite: SpriteCss;
+  state?: 'ok' | 'out' | 'dead';
+}
+
+export interface PartyRow {
+  name: string;
+  ac?: number;
+  hp: number;
+  maxHp: number;
+  hitDice?: string; // "1d10"
+  state: 'ok' | 'out' | 'dead';
 }
 
 export interface ExplorePanel {
   title: string; // location name
-  party: readonly { name: string; ac: number; hp: number; maxHp: number }[];
-  where: string; // "13,7 · facing W"
+  party: readonly PartyRow[];
+  where: string; // "13,7 W"
   clock: string; // "Day 1 · 16:07"
+  purse: string; // "60 gp"
+}
+
+export interface CampPanel {
+  title: string;
+  subtitle: string;
+  party: readonly PartyRow[];
+  purse: string;
+  clock: string;
+  actions: { label: string; command: Command; disabledReason?: string }[];
 }
 
 export interface PlaceAction {
@@ -184,20 +204,10 @@ export class Hud {
       else b.disabled = true;
       return b;
     };
-    const rows = panel.party.map((p) => {
-      const pct = Math.round((p.hp / p.maxHp) * 100);
-      return el(
-        'tr',
-        '',
-        el('td', 'name party', p.name),
-        el('td', 'num', String(p.ac)),
-        el('td', `num ${pct > 50 ? 'ok' : pct > 25 ? 'warn' : 'bad'}`, String(p.hp)),
-      );
-    });
     this.cardEl.replaceChildren(
       el('div', 'explore-title', panel.title),
-      el('table', 'party-table', el('tr', '', el('th', '', 'Name'), el('th', 'num', 'AC'), el('th', 'num', 'HP')), ...rows),
-      el('div', 'explore-where', el('span', '', panel.where), el('span', '', panel.clock)),
+      partyTable(panel.party, 'ac'),
+      el('div', 'explore-where', el('span', '', panel.where), el('span', '', panel.clock), el('span', 'purse', panel.purse)),
       el(
         'div',
         'move-pad',
@@ -212,14 +222,45 @@ export class Hud {
         'div',
         'explore-actions',
         btn('Search', 'coming later'),
-        btn('Encamp', 'coming — M4 (rest, save)'),
+        btn('Encamp', 'Make camp here (not in towns — use the inn)', { type: 'encamp' }),
         btn('Leave', 'Back to the world map', { type: 'leaveLocation' }),
       ),
     );
   }
 
+  /** Camp / inn panel: party with HP and Hit Dice, purse, clock and the rest buttons. */
+  setCamp(panel: CampPanel): void {
+    this.cardEl.replaceChildren(
+      el('div', 'explore-title', panel.title),
+      el('div', 'muted small', panel.subtitle),
+      partyTable(panel.party, 'hd'),
+      el('div', 'explore-where', el('span', '', panel.clock), el('span', 'purse', panel.purse)),
+      el(
+        'div',
+        'camp-actions',
+        ...panel.actions.map((a) => {
+          const b = el('button', '', a.label) as HTMLButtonElement;
+          if (a.disabledReason) {
+            b.disabled = true;
+            b.title = a.disabledReason;
+            return el('div', 'camp-action', b, el('small', 'muted', a.disabledReason));
+          }
+          b.addEventListener('click', () => this.bus.dispatch(a.command));
+          return b;
+        }),
+      ),
+    );
+  }
+
   /** Party list for the world map. */
-  setRoster(entries: readonly RosterEntry[]): void {
+  setRoster(entries: readonly RosterEntry[], footer?: { purse: string; clock: string; encamp: Command }): void {
+    const extra: HTMLElement[] = [];
+    if (footer) {
+      const camp = el('button', '', 'Encamp') as HTMLButtonElement;
+      camp.title = 'Make camp here — off the road, not on bridges or at towns';
+      camp.addEventListener('click', () => this.bus.dispatch(footer.encamp));
+      extra.push(el('div', 'explore-where', el('span', '', footer.clock), el('span', 'purse', footer.purse)), el('div', 'explore-actions', camp));
+    }
     this.cardEl.replaceChildren(
       el('div', 'name party', 'The party'),
       el(
@@ -233,10 +274,16 @@ export class Hud {
             'div',
             'roster-row',
             portrait(e.sprite, 32),
-            el('div', '', `${e.name}  ${e.hp}/${e.maxHp}`, el('div', 'bar', fill)),
+            el(
+              'div',
+              e.state === 'dead' ? 'muted' : '',
+              `${e.name}  ${e.state === 'dead' ? 'dead' : e.state === 'out' ? `${e.hp}/${e.maxHp} · unconscious` : `${e.hp}/${e.maxHp}`}`,
+              el('div', 'bar', fill),
+            ),
           );
         }),
       ),
+      ...extra,
     );
   }
 
@@ -269,6 +316,25 @@ export class Hud {
     }
     return p;
   }
+}
+
+function partyTable(rows: readonly PartyRow[], extra: 'ac' | 'hd'): HTMLElement {
+  return el(
+    'table',
+    'party-table',
+    el('tr', '', el('th', '', 'Name'), el('th', 'num', extra === 'ac' ? 'AC' : 'HD'), el('th', 'num', 'HP')),
+    ...rows.map((p) => {
+      const pct = Math.round((p.hp / p.maxHp) * 100);
+      const hpText = p.state === 'dead' ? 'dead' : p.state === 'out' ? `${p.hp} ✚` : String(p.hp);
+      return el(
+        'tr',
+        p.state === 'dead' ? 'muted' : '',
+        el('td', 'name party', p.name),
+        el('td', 'num', extra === 'ac' ? String(p.ac ?? '') : (p.hitDice ?? '')),
+        el('td', `num ${p.state !== 'ok' ? 'bad' : pct > 50 ? 'ok' : pct > 25 ? 'warn' : 'bad'}`, hpText),
+      );
+    }),
+  );
 }
 
 function portrait(s: SpriteCss, px: number): HTMLElement {

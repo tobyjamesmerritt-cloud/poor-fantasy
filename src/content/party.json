@@ -1,5 +1,5 @@
 {
-  "_note": "The party. Level-1 placeholders until character creation (M2). Order = start-slot order in encounters.",
+  "_note": "The party. Level-1 placeholders until character creation (M2). Order = start-slot order in encounters. hp = max HP (level 1: hit die max + Con modifier); hitDie = class Hit Point Die size (SRD 5.2 classes).",
   "members": [
     {
       "id": "p1",
@@ -14,7 +14,9 @@
       "damage": [
         "1d8+3"
       ],
-      "medicine": 1
+      "medicine": 1,
+      "hitDie": 10,
+      "conMod": 2
     },
     {
       "id": "p2",
@@ -29,7 +31,9 @@
       "damage": [
         "1d8+3"
       ],
-      "medicine": 1
+      "medicine": 1,
+      "hitDie": 10,
+      "conMod": 1
     },
     {
       "id": "p3",
@@ -44,7 +48,9 @@
       "damage": [
         "1d6+3"
       ],
-      "medicine": 1
+      "medicine": 1,
+      "hitDie": 8,
+      "conMod": 1
     },
     {
       "id": "p4",
@@ -59,7 +65,9 @@
       "damage": [
         "1d6+2"
       ],
-      "medicine": 5
+      "medicine": 5,
+      "hitDie": 8,
+      "conMod": 2
     },
     {
       "id": "p5",
@@ -74,7 +82,9 @@
       "damage": [
         "1d6+3"
       ],
-      "medicine": 3
+      "medicine": 3,
+      "hitDie": 10,
+      "conMod": 1
     },
     {
       "id": "p6",
@@ -89,7 +99,9 @@
       "damage": [
         "1d6"
       ],
-      "medicine": 1
+      "medicine": 1,
+      "hitDie": 6,
+      "conMod": 1
     }
   ]
 }
