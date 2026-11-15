@@ -81,6 +81,7 @@
       "entry": [
         { "when": { "quest": "rats", "stage": "none" }, "node": "closed" },
         { "when": { "quest": "rats", "stage": "accepted" }, "node": "open" },
+        { "when": { "all": [{ "not": { "flag": "ilse:tended" } }, { "partyFallen": true }] }, "node": "tend" },
         { "node": "cleared" }
       ],
       "nodes": {
@@ -97,6 +98,16 @@
           "speaker": "Mother Ilse",
           "text": "You did it! I'll light the candles again. Do tell the reeve.",
           "choices": [{ "text": "Look inside again.", "do": [{ "enter": "shrine-of-the-dawn" }] }, { "text": "Farewell." }]
+        },
+        "tend": {
+          "speaker": "Mother Ilse",
+          "text": "You did it — and paid dearly for it, I see. Bring your fallen to the altar. The Dawn owes you this much.",
+          "do": [{ "revive": "fallen" }, { "set": "ilse:tended" }, { "time": 60 }],
+          "choices": [{ "text": "Thank you, Mother.", "next": "tended" }]
+        },
+        "tended": {
+          "speaker": "Mother Ilse",
+          "text": "Rest now, and tell the reeve the shrine is ours again. The candles will burn for you tonight."
         }
       }
     },
@@ -256,6 +267,7 @@
   "hooks": [
     { "at": "millbrook/Reeve's Hall", "label": "Talk to the reeve", "dialog": "reeve" },
     { "at": "millbrook/Shrine of the Dawn", "label": "Speak with Mother Ilse", "dialog": "shrine-door", "when": { "not": { "quest": "rats", "stage": "done" } }, "replaces": true },
+    { "at": "millbrook/Shrine of the Dawn", "label": "Speak with Mother Ilse", "dialog": "shrine-door", "when": { "all": [{ "quest": "rats", "stage": "done" }, { "not": { "flag": "ilse:tended" } }, { "partyFallen": true }] } },
     { "at": "millbrook/Shrine of the Dawn", "label": "Look inside the shrine", "do": [{ "enter": "shrine-of-the-dawn" }], "when": { "quest": "rats", "stage": "done" } },
     { "at": "millbrook/The Leaky Bucket", "label": "Talk to the innkeeper", "dialog": "innkeeper", "when": { "quest": "rats", "stage": "done" } },
     {
@@ -296,6 +308,11 @@
       "id": "shrine-cleared",
       "when": { "all": [{ "quest": "rats", "stage": "accepted" }, { "cleared": "shrine-of-the-dawn:nave" }, { "cleared": "shrine-of-the-dawn:crypt" }] },
       "do": [{ "quest": "rats", "stage": "cleared" }, { "say": "The last rat squeals and lies still. The Shrine of the Dawn is quiet." }]
+    },
+    {
+      "id": "ilse-waiting",
+      "when": { "all": [{ "quest": "rats", "stage": "cleared" }, { "partyFallen": true }] },
+      "do": [{ "say": "Mother Ilse is waiting at the shrine door. Speak with her before you go — she will tend your fallen." }]
     },
     {
       "id": "ale-first-round",

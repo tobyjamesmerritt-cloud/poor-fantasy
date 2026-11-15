@@ -172,3 +172,33 @@ describe('the three quests (content walk-through)', () => {
     expect(siteIcon(g, questData, 'troll')).toBeNull();
   });
 });
+
+describe('Mother Ilse tends the fallen (once, after the shrine)', () => {
+  it('raises the dead and wakes the unconscious with 1 HP', () => {
+    const g = fresh();
+    g.party = pregens.map((p) => ({ id: p.id, hp: 5, hitDice: 1, dead: false, wakesAt: null }));
+    g.flags['quest:rats'] = 'cleared';
+    g.party[0].dead = true;
+    g.party[0].hp = 0;
+    g.party[1].hp = 0;
+    g.party[1].wakesAt = 500;
+    const t = talk(g, 'shrine-door');
+    expect(t.node).toBe('tend');
+    expect(g.party[0]).toMatchObject({ dead: false, hp: 1 });
+    expect(g.party[1]).toMatchObject({ hp: 1, wakesAt: null });
+    expect(g.party[2].hp).toBe(5);
+    // only once
+    g.party[2].hp = 0;
+    expect(talk(g, 'shrine-door').node).toBe('cleared');
+    expect(g.party[2].hp).toBe(0);
+  });
+
+  it('is offered after the reeve has paid, too — but not when nobody fell', () => {
+    const g = fresh();
+    g.party = pregens.map((p) => ({ id: p.id, hp: 5, hitDice: 1, dead: false, wakesAt: null }));
+    g.flags['quest:rats'] = 'done';
+    expect(hooksAt(g, questData, 'millbrook/Shrine of the Dawn').some((h) => h.dialog === 'shrine-door')).toBe(false);
+    g.party[3].dead = true;
+    expect(hooksAt(g, questData, 'millbrook/Shrine of the Dawn').some((h) => h.dialog === 'shrine-door')).toBe(true);
+  });
+});

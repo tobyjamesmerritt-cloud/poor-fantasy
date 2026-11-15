@@ -25,6 +25,7 @@ export type Condition =
   | { item: string; count?: number }
   | { cleared: string } // "<location>:<spot>" fight won
   | { coins: number } // at least this much copper
+  | { partyFallen: boolean } // someone in the party is dead or unconscious (or nobody is)
   | { not: Condition }
   | { all: Condition[] }
   | { any: Condition[] };
@@ -47,7 +48,8 @@ export type Action =
   | { dialog: string }
   | { fight: string; difficulty?: Difficulty; tweaks?: FightTweaks; onWin?: Action[]; onLose?: Action[]; onFlee?: Action[] }
   | { enter: string } // go into a location (e.g. a building's interior)
-  | { time: number }; // minutes pass
+  | { time: number } // minutes pass
+  | { revive: 'fallen' }; // every dead or unconscious party member is back on their feet with 1 HP (a quest reward)
 
 export interface SkillCheck {
   ability: Ability;
@@ -143,6 +145,7 @@ export function check(g: GameState, c: Condition | undefined): boolean {
   if ('item' in c) return (g.inventory[c.item] ?? 0) >= (c.count ?? 1);
   if ('cleared' in c) return g.flags[`cleared:${c.cleared}`] === true;
   if ('coins' in c) return g.coins >= c.coins;
+  if ('partyFallen' in c) return g.party.some((p) => p.dead || p.hp <= 0) === c.partyFallen;
   const v = g.flags[c.flag];
   return c.is === undefined ? !!v : v === c.is;
 }
@@ -233,6 +236,15 @@ export function run(g: GameState, actions: readonly Action[] | undefined, ctx: A
       });
     } else if ('enter' in a) out.requests.push({ kind: 'enter', location: a.enter });
     else if ('time' in a) g.time += a.time;
+    else if ('revive' in a) {
+      const names: string[] = [];
+      for (const p of g.party) {
+        if (!p.dead && p.hp > 0) continue;
+        names.push(g.roster.find((r) => r.id === p.id)?.name ?? p.id);
+        Object.assign(p, { dead: false, hp: 1, wakesAt: null });
+      }
+      if (names.length) out.log.push(`${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} back on their feet (1 HP).`);
+    }
   }
   return out;
 }
