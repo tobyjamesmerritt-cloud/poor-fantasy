@@ -1,7 +1,9 @@
 /**
  * The party pack (HTML dialog), anywhere outside a fight: everything carried,
  * drinking potions and ale, reading scrolls (via the spells dialog), and
- * equipping or removing gear on any character. Sends Commands only.
+ * equipping or removing gear on any character. Items belong to the whole
+ * party; only what a character has equipped is theirs. Opened from a name, it
+ * starts on that character. Sends Commands only.
  */
 import type { CommandBus } from '../engine/commands';
 import type { GameState } from '../engine/state';
@@ -14,6 +16,7 @@ export class PackDialog {
   private dlg: HTMLDialogElement;
   private game!: GameState;
   private message = '';
+  private focus: string | undefined; // character opened from their name
 
   constructor(private bus: CommandBus) {
     const d = document.getElementById('pack-dialog');
@@ -25,8 +28,9 @@ export class PackDialog {
     return this.dlg.open;
   }
 
-  show(game: GameState): void {
+  show(game: GameState, characterId?: string): void {
     this.game = game;
+    this.focus = characterId;
     this.message = '';
     this.render();
     if (!this.dlg.open) this.dlg.showModal();
@@ -42,8 +46,15 @@ export class PackDialog {
     const g = this.game;
     const d = characterData;
     const stats = statsOf(g.roster);
-    const parts: HTMLElement[] = [el('h2', '', 'Pack'), el('div', 'sh-purse', `Purse: ${formatCoins(g.coins)}`)];
+    const title = g.partyName ? `${g.partyName} — pack` : 'The party’s pack';
+    const parts: HTMLElement[] = [
+      el('h2', '', title),
+      el('div', 'sh-purse', `Purse: ${formatCoins(g.coins)}`),
+      el('p', 'small muted', 'Everything here is shared by the whole party — anyone can drink, read or put on any of it.'),
+    ];
     if (this.message) parts.push(el('div', 'ps-message', this.message));
+    const focus = g.roster.find((r) => r.id === this.focus);
+    if (focus) parts.push(this.memberBlock(focus.id, true));
 
     // --- Items carried ---
     const refs = Object.keys(g.inventory).filter((r) => g.inventory[r] > 0);
@@ -67,7 +78,7 @@ export class PackDialog {
         });
         if (who.length) {
           const sel = select(
-            who.map((r) => {
+            [...who].sort((a, b) => (b.id === this.focus ? 1 : 0) - (a.id === this.focus ? 1 : 0)).map((r) => {
               const p = g.party.find((x) => x.id === r.id)!;
               const max = stats.find((x) => x.id === r.id)!.hp;
               return { value: r.id, label: `${r.name} ${Math.max(0, p.hp)}/${max}${p.hp <= 0 ? ' (unconscious)' : ''}` };
@@ -98,8 +109,11 @@ export class PackDialog {
           const a = d.armor[id];
           detail = `AC ${a.base}${a.dexMax === null ? ' + Dex' : a.dexMax ? ` + Dex (max ${a.dexMax})` : ''} · ${a.category}`;
         } else detail = '+2 AC';
+        if (focus && !equipProblem(focus, ref, d)) {
+          actions.append(btn(`Equip on ${focus.name}`, () => this.bus.dispatch({ type: 'equipItem', characterId: focus.id, ref })));
+        }
         const sel = document.createElement('select');
-        sel.append(new Option('Equip on…', ''));
+        sel.append(new Option(focus ? 'or on…' : 'Equip on…', ''));
         for (const r of g.roster) {
           const why = equipProblem(r, ref, d);
           const opt = new Option(`${r.name}${why ? ` — ${why}` : ''}`, r.id);
@@ -119,29 +133,37 @@ export class PackDialog {
 
     // --- What everyone has on ---
     parts.push(el('h3', '', 'Equipment'));
-    for (const r of g.roster) {
-      const gear = equipped(r, d);
-      const dv = derive(r);
-      const p = g.party.find((x) => x.id === r.id);
-      const line = el(
-        'div',
-        'pk-member',
-        el('div', 'name party', `${r.name}${p?.dead ? ' (dead)' : ''}`),
-        el(
-          'div',
-          'small',
-          `${dv.attackName} ${signed(dv.attackBonus)} (${dv.damage.join(' + ')}) · ${gear.armor ? d.armor[gear.armor].name : 'no armour'}${gear.shield ? ' + shield' : ''} · AC ${dv.ac}`,
-        ),
-      );
-      const buttons = el('div', 'sh-member-buttons');
-      if (gear.armor) buttons.append(btn('Remove armour', () => this.bus.dispatch({ type: 'unequipItem', characterId: r.id, slot: 'armor' })));
-      if (gear.shield) buttons.append(btn('Remove shield', () => this.bus.dispatch({ type: 'unequipItem', characterId: r.id, slot: 'shield' })));
-      if (buttons.childElementCount) line.append(buttons);
-      parts.push(line);
-    }
+    for (const r of g.roster) if (r.id !== this.focus) parts.push(this.memberBlock(r.id, false));
     parts.push(el('p', 'small muted', 'Weapons are swapped, not removed: equip another weapon and the old one goes into the pack.'));
     parts.push(el('div', 'ps-buttons', btn('Close', () => this.dlg.close(), 'close')));
     this.dlg.replaceChildren(...parts);
+    if (focus) this.dlg.scrollTop = 0;
+  }
+
+  /** One character: weapon, armour, AC, and buttons to take armour or a shield off. */
+  private memberBlock(id: string, focused: boolean): HTMLElement {
+    const g = this.game;
+    const d = characterData;
+    const r = g.roster.find((x) => x.id === id)!;
+    const gear = equipped(r, d);
+    const dv = derive(r);
+    const p = g.party.find((x) => x.id === r.id);
+    const max = statsOf([r])[0].hp;
+    const line = el(
+      'div',
+      focused ? 'pk-member focus' : 'pk-member',
+      el('div', 'name party', `${r.name}${p?.dead ? ' (dead)' : p && p.hp <= 0 ? ' (unconscious)' : ''}`, el('small', '', ` · HP ${Math.max(0, p?.hp ?? max)}/${max}`)),
+      el(
+        'div',
+        'small',
+        `${dv.attackName} ${signed(dv.attackBonus)} (${dv.damage.join(' + ')}) · ${gear.armor ? d.armor[gear.armor].name : 'no armour'}${gear.shield ? ' + shield' : ''} · AC ${dv.ac}`,
+      ),
+    );
+    const buttons = el('div', 'sh-member-buttons');
+    if (gear.armor) buttons.append(btn('Remove armour', () => this.bus.dispatch({ type: 'unequipItem', characterId: r.id, slot: 'armor' })));
+    if (gear.shield) buttons.append(btn('Remove shield', () => this.bus.dispatch({ type: 'unequipItem', characterId: r.id, slot: 'shield' })));
+    if (buttons.childElementCount) line.append(buttons);
+    return line;
   }
 }
 

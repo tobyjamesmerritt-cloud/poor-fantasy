@@ -212,7 +212,7 @@ export class WorldScene extends Phaser.Scene {
       purse: formatCoins(g.coins),
       clock: formatClock(g.time),
       encamp: { type: 'encamp' },
-    });
+    }, g.partyName || 'The party');
   }
 
   private placeToken(): void {

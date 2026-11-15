@@ -116,9 +116,15 @@ export class PartyScreen {
     const roster = this.game.roster;
     const bench = this.game.bench;
     const full = roster.length >= MAX_PARTY;
+    const partyName = h('input', 'ps-name ps-party-name') as HTMLInputElement;
+    partyName.value = this.game.partyName ?? '';
+    partyName.placeholder = 'Name your party (optional)';
+    partyName.maxLength = 30;
+    partyName.addEventListener('change', () => this.send({ type: 'setPartyName', name: partyName.value }));
     const left = div(
       'ps-roster',
-      h('h2', '', this.newGame ? 'Create your party' : 'The party'),
+      h('h2', '', this.newGame ? 'Create your party' : this.game.partyName || 'The party'),
+      field('Party name', partyName),
       h(
         'p',
         'muted small',

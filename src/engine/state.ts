@@ -7,13 +7,14 @@ import { assertTransition } from './modes';
 
 const START_TIME = 8 * 60; // day 1, 08:00
 
-export const SAVE_VERSION = 9; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench) · v7 inventory, XP · v8 XP and levels on the character sheet · v9 spells (sheet choices, slots used, temp HP)
+export const SAVE_VERSION = 10; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench) · v7 inventory, XP · v8 XP and levels on the character sheet · v9 spells (sheet choices, slots used, temp HP) · v10 party name
 
 export interface GameState {
   version: number;
   seed: number; // RNG state, so reloads continue the same sequence
   mode: Mode;
   flags: Record<string, boolean | number | string>; // story flags set by event scripts
+  partyName?: string; // what the player calls the party (absent = "The party")
   partyIds: string[];
   world: { x: number; y: number } | null; // party square on the world map; null = use the map's start
   location: { id: string; x: number; y: number; facing: 'n' | 'e' | 's' | 'w' } | null; // inside a location, else null

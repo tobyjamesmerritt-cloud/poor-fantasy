@@ -109,7 +109,7 @@ const placeName = (id: string) => id.split('-').map((w) => w[0].toUpperCase() + 
 
 function saveLabel(st: GameState): string {
   const where = st.location ? placeName(st.location.id) : 'World map';
-  const who = st.roster.map((r) => r.name).join(', ');
+  const who = st.partyName ?? st.roster.map((r) => r.name).join(', ');
   return `${where} · ${formatClock(st.time)} · ${who}`;
 }
 
@@ -158,8 +158,8 @@ const POTION = 'consumable:potion-of-healing';
 const STARTING_POTIONS = 2; // house rule: a new party starts with two Potions of Healing
 
 function beginAdventure(): void {
-  const { roster, bench } = gameState;
-  Object.assign(gameState, newGameState(gameState.seed), { roster, bench });
+  const { roster, bench, partyName } = gameState;
+  Object.assign(gameState, newGameState(gameState.seed), { roster, bench }, partyName ? { partyName } : {});
   restoreAll(gameState, freshOf);
   gameState.coins = startingCoins(gameState.roster);
   gameState.inventory[POTION] = STARTING_POTIONS;
@@ -788,7 +788,12 @@ bus.subscribe((cmd) => {
         hud.setStatus('In a fight, potions are on each character’s card (Bonus Action).');
         break;
       }
-      packDialog.show(gameState);
+      packDialog.show(gameState, cmd.characterId);
+      break;
+    case 'setPartyName':
+      gameState.partyName = cmd.name.trim().slice(0, 30) || undefined;
+      if (!gameState.partyName) delete gameState.partyName;
+      partyScreen.refresh();
       break;
     case 'useItem': {
       if (document.body.dataset.mode === 'combat') break;

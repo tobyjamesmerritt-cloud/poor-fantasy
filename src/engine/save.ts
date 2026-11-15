@@ -50,6 +50,8 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<stri
   },
   // v9: spells — new fields are optional (absent = the class's recommended picks, no slots spent)
   8: (s) => s,
+  // v10: optional party name
+  9: (s) => s,
 };
 
 const REQUIRED: (keyof GameState)[] = ['version', 'seed', 'flags', 'time', 'roster', 'party', 'bench', 'coins', 'inventory'];

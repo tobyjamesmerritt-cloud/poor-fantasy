@@ -1052,3 +1052,18 @@ button.danger {
   font: inherit;
   font-size: 0.85rem;
 }
+.name-link {
+  all: unset;
+  cursor: pointer;
+  color: inherit;
+}
+.name-link:hover,
+.name-link:focus-visible {
+  text-decoration: underline;
+}
+.pk-member.focus {
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.4rem;
+}

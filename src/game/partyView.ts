@@ -10,6 +10,7 @@ export function partyRows(game: GameState): PartyRow[] {
     const s = game.party.find((x) => x.id === p.id);
     const hp = s?.hp ?? p.hp;
     return {
+      id: p.id,
       name: p.name,
       ac: p.ac,
       hp,

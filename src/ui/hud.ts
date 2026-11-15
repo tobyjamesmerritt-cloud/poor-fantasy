@@ -51,6 +51,7 @@ export interface CardSpell {
 }
 
 export interface RosterEntry {
+  id: string;
   name: string;
   hp: number;
   maxHp: number;
@@ -60,6 +61,7 @@ export interface RosterEntry {
 }
 
 export interface PartyRow {
+  id: string;
   name: string;
   ac?: number;
   hp: number;
@@ -279,7 +281,7 @@ export class Hud {
     };
     this.cardEl.replaceChildren(
       el('div', 'explore-title', panel.title),
-      partyTable(panel.party, 'ac'),
+      partyTable(panel.party, 'ac', this.bus),
       el('div', 'explore-where', el('span', '', panel.where), el('span', '', panel.clock), el('span', 'purse', panel.purse)),
       el(
         'div',
@@ -306,7 +308,7 @@ export class Hud {
     this.cardEl.replaceChildren(
       el('div', 'explore-title', panel.title),
       el('div', 'muted small', panel.subtitle),
-      partyTable(panel.party, 'hd'),
+      partyTable(panel.party, 'hd', this.bus),
       el('div', 'explore-where', el('span', '', panel.clock), el('span', 'purse', panel.purse)),
       el(
         'div',
@@ -352,7 +354,7 @@ export class Hud {
   }
 
   /** Party list for the world map. */
-  setRoster(entries: readonly RosterEntry[], footer?: { purse: string; clock: string; encamp: Command }): void {
+  setRoster(entries: readonly RosterEntry[], footer?: { purse: string; clock: string; encamp: Command }, partyName = 'The party'): void {
     const extra: HTMLElement[] = [];
     if (footer) {
       const camp = el('button', '', 'Encamp') as HTMLButtonElement;
@@ -361,7 +363,7 @@ export class Hud {
       extra.push(el('div', 'explore-where', el('span', '', footer.clock), el('span', 'purse', footer.purse)), el('div', 'explore-actions', camp));
     }
     this.cardEl.replaceChildren(
-      el('div', 'name party', 'The party'),
+      el('div', 'name party', partyName),
       el(
         'div',
         'roster',
@@ -376,7 +378,8 @@ export class Hud {
             el(
               'div',
               e.state === 'dead' ? 'muted' : '',
-              `${e.name}${e.cls ? ` (${e.cls})` : ''}  ${e.state === 'dead' ? 'dead' : e.state === 'out' ? `${e.hp}/${e.maxHp} · unconscious` : `${e.hp}/${e.maxHp}`}`,
+              nameButton(e.name, e.id, this.bus),
+              `${e.cls ? ` (${e.cls})` : ''}  ${e.state === 'dead' ? 'dead' : e.state === 'out' ? `${e.hp}/${e.maxHp} · unconscious` : `${e.hp}/${e.maxHp}`}`,
               el('div', 'bar', fill),
             ),
           );
@@ -417,7 +420,15 @@ export class Hud {
   }
 }
 
-function partyTable(rows: readonly PartyRow[], extra: 'ac' | 'hd'): HTMLElement {
+/** Click a name: that character in the pack (equipment, potions). */
+function nameButton(name: string, id: string, bus: CommandBus): HTMLElement {
+  const b = el('button', 'name-link', name) as HTMLButtonElement;
+  b.title = `${name}: equipment and pack`;
+  b.addEventListener('click', () => bus.dispatch({ type: 'openPack', characterId: id }));
+  return b;
+}
+
+function partyTable(rows: readonly PartyRow[], extra: 'ac' | 'hd', bus: CommandBus): HTMLElement {
   return el(
     'table',
     'party-table',
@@ -428,7 +439,7 @@ function partyTable(rows: readonly PartyRow[], extra: 'ac' | 'hd'): HTMLElement 
       return el(
         'tr',
         p.state === 'dead' ? 'muted' : '',
-        el('td', 'name party', p.name),
+        el('td', 'name party', nameButton(p.name, p.id, bus)),
         el('td', 'num', extra === 'ac' ? String(p.ac ?? '') : (p.hitDice ?? '')),
         el('td', `num ${p.state !== 'ok' ? 'bad' : pct > 50 ? 'ok' : pct > 25 ? 'warn' : 'bad'}`, hpText),
       );
