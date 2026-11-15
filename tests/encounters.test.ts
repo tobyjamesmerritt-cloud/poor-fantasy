@@ -10,6 +10,7 @@ import {
   monsters,
   validateMonsters,
 } from '../src/content/encounters';
+import { loadLocationMap } from '../src/content/locationMap';
 import { loadTravelMap, type TiledMap } from '../src/content/world';
 
 const cave = encounters['cave-rats'];
@@ -48,14 +49,22 @@ describe('encounters', () => {
     expect(() => validateMonsters({ x: { ...rat, sprite: 'nope' } })).toThrow(/unknown sprite/);
   });
 
-  it('location content refers to real map locations and real encounters', () => {
+  it('location content refers to real world-map locations, and every location map loads', () => {
     const world = loadTravelMap(JSON.parse(readFileSync('public/assets/maps/world.json', 'utf8')) as TiledMap);
     const ids = world.locations.map((l) => l.id);
+    const fights: string[] = [];
     for (const [id, c] of Object.entries(locationContent)) {
       expect(ids, `locations.json "${id}"`).toContain(id);
-      if (c.encounter) expect(encounters[c.encounter], id).toBeDefined();
+      if (!c.map) continue;
+      const tiled = JSON.parse(readFileSync(`public/assets/maps/${c.map}.json`, 'utf8')) as TiledMap;
+      const m = loadLocationMap(c.map, tiled, Object.keys(encounters)); // throws on any mistake
+      fights.push(...m.spots.filter((s) => s.kind === 'fight').map((s) => s.encounter!));
     }
-    expect(locationContent['hollow-cave'].encounter).toBe('cave-rats');
-    expect(locationContent['old-keep'].encounter).toBe('ruins-crawlers');
+    expect(fights.sort()).toEqual(['cave-rats', 'ruins-crawlers']);
+  });
+
+  it('rejects a location map with a fight for an unknown encounter', () => {
+    const tiled = JSON.parse(readFileSync('public/assets/maps/hollow-cave.json', 'utf8')) as TiledMap;
+    expect(() => loadLocationMap('hollow-cave', tiled, ['ruins-crawlers'])).toThrow(/unknown encounter "cave-rats"/);
   });
 });

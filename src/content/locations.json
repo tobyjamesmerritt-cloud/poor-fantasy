@@ -1,13 +1,7 @@
 {
-  "_note": "Game content per world-map location (positions live in the Tiled map). autoFight: walking onto the location starts its encounter until it is cleared.",
-  "hollow-cave": {
-    "encounter": "cave-rats",
-    "autoFight": true,
-    "intro": "Red eyes glint in the dark of the cave. Rats \u2014 big ones!"
-  },
-  "old-keep": {
-    "encounter": "ruins-crawlers",
-    "autoFight": true,
-    "intro": "Thick webs hang between the broken walls. Something skitters closer\u2026"
-  }
+  "_note": "Game content per world-map location (positions live in the Tiled world map). map = public/assets/maps/<map>.json, entered when the party walks onto the location. intro = message shown on entering.",
+  "hollow-cave": { "map": "hollow-cave", "intro": "You duck under the low rock and into the cool dark of the cave." },
+  "old-keep": { "map": "old-keep", "intro": "You climb over a fallen gate into the ruins of the old keep." },
+  "millbrook": { "map": "millbrook", "intro": "Millbrook's market road is busy with carts and gossip." },
+  "fenwick": { "map": "fenwick", "intro": "Fenwick smells of fish, smoke and river mud." }
 }

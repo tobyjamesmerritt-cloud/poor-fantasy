@@ -18,11 +18,19 @@ interface TiledTileset {
   tilecount: number;
   tiles?: { id: number; properties?: TiledProperty[] }[];
 }
+export interface TiledObject {
+  name: string;
+  type?: string;
+  class?: string;
+  x: number;
+  y: number;
+  properties?: TiledProperty[];
+}
 interface TiledLayer {
   name: string;
   type: 'tilelayer' | 'objectgroup' | string;
   data?: number[];
-  objects?: { name: string; type?: string; class?: string; x: number; y: number; properties?: TiledProperty[] }[];
+  objects?: TiledObject[];
 }
 export interface TiledMap {
   width: number;
@@ -36,28 +44,47 @@ export interface TiledMap {
 const KINDS: readonly string[] = ['town', 'cave', 'ruins'];
 const GID_MASK = 0x1fffffff; // strip Tiled's flip/rotate flag bits
 
-export function loadTravelMap(t: TiledMap): TravelMap {
-  const errors: string[] = [];
-  const blockedGids = new Set<number>();
+/**
+ * Per-square tile properties merged over all tile layers (bottom → top, so an
+ * upper layer's value wins). `blocked` is true if any layer's tile is blocked.
+ */
+export function squareProps(t: TiledMap, errors: string[]): { blocked: boolean[]; props: Record<string, unknown>[] } {
+  const byGid = new Map<number, Record<string, unknown>>();
   for (const ts of t.tilesets) {
     for (const tile of ts.tiles ?? []) {
-      if (tile.properties?.some((p) => p.name === 'blocked' && p.value === true)) blockedGids.add(ts.firstgid + tile.id);
+      byGid.set(ts.firstgid + tile.id, Object.fromEntries((tile.properties ?? []).map((p) => [p.name, p.value])));
     }
   }
-
   const n = t.width * t.height;
   const blocked = new Array<boolean>(n).fill(false);
+  const props = Array.from({ length: n }, () => ({}) as Record<string, unknown>);
   for (const layer of t.layers) {
     if (layer.type !== 'tilelayer' || !layer.data) continue;
     if (layer.data.length !== n) errors.push(`layer "${layer.name}" has ${layer.data.length} tiles, expected ${n}`);
     layer.data.forEach((raw, i) => {
-      if (blockedGids.has(raw & GID_MASK)) blocked[i] = true;
+      const p = byGid.get(raw & GID_MASK);
+      if (!p) return;
+      if (p.blocked === true) blocked[i] = true;
+      Object.assign(props[i], p);
     });
   }
+  return { blocked, props };
+}
 
-  const objects = t.layers.find((l) => l.type === 'objectgroup' && l.name === 'locations')?.objects ?? [];
-  const prop = (o: (typeof objects)[number], name: string) => o.properties?.find((p) => p.name === name)?.value;
-  const toTile = (o: { x: number; y: number }) => ({ x: Math.floor(o.x / t.tilewidth), y: Math.floor(o.y / t.tileheight) });
+export const objectLayer = (t: TiledMap, name: string): TiledObject[] =>
+  t.layers.find((l) => l.type === 'objectgroup' && l.name === name)?.objects ?? [];
+export const objProp = (o: TiledObject, name: string): unknown => o.properties?.find((p) => p.name === name)?.value;
+export const objTile = (t: TiledMap, o: { x: number; y: number }) => ({
+  x: Math.floor(o.x / t.tilewidth),
+  y: Math.floor(o.y / t.tileheight),
+});
+
+export function loadTravelMap(t: TiledMap): TravelMap {
+  const errors: string[] = [];
+  const { blocked } = squareProps(t, errors);
+  const objects = objectLayer(t, 'locations');
+  const prop = objProp;
+  const toTile = (o: TiledObject) => objTile(t, o);
 
   const locations: MapLocation[] = [];
   let start: { x: number; y: number } | undefined;

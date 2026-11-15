@@ -260,6 +260,9 @@ main {
   width: 32px;
   height: 32px;
 }
+#turn-buttons[hidden] {
+  display: none;
+}
 #turn-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -427,5 +430,81 @@ dialog li {
   main {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr) 6rem;
+  }
+}
+
+/* ---------- Inside a location: 3D view | map | party panel, text below ---------- */
+body[data-mode='location'] main {
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  grid-template-rows: minmax(0, 1fr) 10rem;
+  grid-template-areas: 'stage side' 'log log';
+}
+body[data-mode='location'] #stage {
+  grid-area: stage;
+}
+body[data-mode='location'] #left {
+  grid-area: side;
+}
+body[data-mode='location'] #log {
+  grid-area: log;
+}
+body[data-mode='location'] #touchpad {
+  display: none; /* the side panel has its own movement buttons */
+}
+.explore-title {
+  color: var(--gold);
+  font-size: 1.05rem;
+  margin-bottom: 0.4rem;
+}
+.party-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.party-table th {
+  text-align: left;
+  color: #aaa;
+  font-weight: normal;
+}
+.party-table .num {
+  text-align: right;
+}
+.party-table td.ok {
+  color: #2ecc71;
+}
+.party-table td.warn {
+  color: #f39c12;
+}
+.party-table td.bad {
+  color: #e74c3c;
+}
+.explore-where {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+  justify-content: space-between;
+  margin: 0.6rem 0;
+  color: #2ecc71;
+}
+.move-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.3rem;
+}
+.move-pad button {
+  min-height: 2.6rem;
+  font-size: 1.2rem;
+}
+.explore-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+}
+@media (max-width: 900px) {
+  body[data-mode='location'] main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) 6rem;
+    grid-template-areas: 'side' 'stage' 'log';
   }
 }

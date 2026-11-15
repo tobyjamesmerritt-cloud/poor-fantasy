@@ -52,8 +52,7 @@ export interface EncounterDef {
 }
 
 export interface LocationContent {
-  encounter?: string;
-  autoFight?: boolean;
+  map?: string; // public/assets/maps/<map>.json; fights live in the map's spots layer
   intro?: string;
 }
 
@@ -191,11 +190,5 @@ export const encounters: Record<string, EncounterDef> = Object.fromEntries(
 );
 export const DEFAULT_ENCOUNTER = 'cave-rats';
 
-/** Per-location content keyed by the map's locationId. */
-export const locationContent: Record<string, LocationContent> = (() => {
-  const all = strip<Record<string, LocationContent>>(locationsRaw);
-  for (const [id, c] of Object.entries(all)) {
-    if (c.encounter && !encounters[c.encounter]) throw new Error(`locations.json: "${id}" uses unknown encounter "${c.encounter}"`);
-  }
-  return all;
-})();
+/** Per-location content keyed by the world map's locationId. */
+export const locationContent: Record<string, LocationContent> = strip(locationsRaw);

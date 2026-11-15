@@ -8,6 +8,8 @@ export type Direction = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 export type Command =
   | { type: 'move'; dir: Direction }
   | { type: 'moveTo'; x: number; y: number }
+  | { type: 'turn'; dir: 'left' | 'right' | 'around' } // inside a location
+  | { type: 'step'; dir: 'forward' | 'back' | 'left' | 'right' } // inside a location, keeps facing
   | { type: 'attack'; targetId: string }
   | { type: 'endTurn' }
   | { type: 'undo' } // rewind one player action (debug now; patron-god mechanic later, DND-27)
@@ -15,6 +17,9 @@ export type Command =
   | { type: 'newFight' } // rerun the current encounter with fresh dice
   | { type: 'restart' } // restart the current fight with the same dice
   | { type: 'worldMap' } // go to the world map
+  | { type: 'enter'; location: string } // walk into a town or dungeon from the world map
+  | { type: 'leaveLocation' } // back out to the world map
+  | { type: 'endFight' } // after a fight: back to where it started (location or world map)
   | { type: 'leavePlace' } // close the location panel on the map
   | { type: 'confirm' }
   | { type: 'cancel' }

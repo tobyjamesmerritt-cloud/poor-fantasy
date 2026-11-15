@@ -11,6 +11,7 @@ import { assets, cursorCss } from '../../content/assets';
 import { locationContent, party } from '../../content/encounters';
 import { loadTravelMap, type TiledMap } from '../../content/world';
 import { canStep, findPath, isBlocked, locationAt, type MapLocation, type TravelMap } from '../../rules/world';
+import { formatClock, MINUTES } from '../../rules/time';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
 import { preloadSheets, spriteCss } from '../spriteCss';
@@ -59,8 +60,8 @@ export class WorldScene extends Phaser.Scene {
     const tilesets = [tm.addTilesetImage('tiny-battle', 'battle')!, tm.addTilesetImage('tiny-dungeon', 'dungeon')!];
     for (const name of ['ground', 'decor', 'structures']) tm.createLayer(name, tilesets)?.setScale(WORLD_SCALE);
 
-    const saved = this.deps.game.position;
-    this.pos = saved?.map === MAP_KEY ? { x: saved.x, y: saved.y } : { ...this.map.start };
+    const saved = this.deps.game.world;
+    this.pos = saved ? { ...saved } : { ...this.map.start };
     const ref = assets.sprites['party-token'];
     this.token = this.add.image(0, 0, ref.sheet, ref.frame).setScale(WORLD_SCALE).setDepth(5);
     this.placeToken();
@@ -128,6 +129,7 @@ export class WorldScene extends Phaser.Scene {
       }
       const [dx, dy] = DIRECTION_VECTORS[path[i]];
       this.pos = { x: this.pos.x + dx, y: this.pos.y + dy };
+      this.deps.game.time += MINUTES.worldStep;
       this.placeToken();
       // stop early when walking onto a location on the way
       if (i < path.length - 1 && locationAt(this.map, this.pos.x, this.pos.y)) return next(path.length);
@@ -138,43 +140,38 @@ export class WorldScene extends Phaser.Scene {
 
   private placeToken(): void {
     this.token.setPosition(this.pos.x * TILE + TILE / 2, this.pos.y * TILE + TILE / 2);
-    this.deps.game.position = { map: MAP_KEY, x: this.pos.x, y: this.pos.y };
+    this.deps.game.world = { x: this.pos.x, y: this.pos.y };
   }
 
   /**
-   * Update status/log for the current square. Walking onto a location with an
-   * uncleared autoFight encounter starts the fight; otherwise show its panel.
+   * Update status/log for the current square. Walking onto a location with a
+   * map goes inside; standing on one (e.g. just came out) shows its panel.
    */
   private arrive(announce: boolean): void {
     const loc = locationAt(this.map, this.pos.x, this.pos.y);
     if (loc && (announce || loc !== this.here)) this.log.push(`You arrive at ${loc.name}.`);
     this.here = loc;
     this.deps.hud.setLog(this.log);
-    this.deps.hud.setStatus(`World map · ${loc ? loc.name : 'Wilderness'} · (${this.pos.x}, ${this.pos.y})`);
+    this.deps.hud.setStatus(
+      `World map · ${loc ? loc.name : 'Wilderness'} · (${this.pos.x}, ${this.pos.y}) · ${formatClock(this.deps.game.time)}`,
+    );
     if (!loc) return this.deps.hud.setPlace(null);
 
     const content = locationContent[loc.id] ?? {};
-    const cleared = this.deps.game.flags[`cleared:${loc.id}`] === true;
-    const fight: Command | undefined = content.encounter
-      ? { type: 'fight', encounter: content.encounter, origin: loc.id }
-      : undefined;
-
-    if (fight && content.autoFight && !cleared && announce) {
-      if (content.intro) this.log.push(content.intro);
-      this.deps.hud.setLog(this.log);
-      this.busy = true; // short beat to read the intro, then into battle
-      this.time.delayedCall(900, () => this.deps.bus.dispatch(fight));
+    const enter: Command | undefined = content.map ? { type: 'enter', location: loc.id } : undefined;
+    if (enter && announce) {
+      this.busy = true; // a short beat, then inside
+      this.time.delayedCall(400, () => this.deps.bus.dispatch(enter));
       return;
     }
-
-    const actions = fight
-      ? [{ label: cleared ? 'Fight again (test)' : 'Fight', command: fight }]
-      : [{ label: 'Enter — not designed yet' }];
     this.deps.hud.setPlace({
       name: loc.name,
-      kind: KIND_LABEL[loc.kind] + (cleared ? ' · cleared ✔' : ''),
+      kind: KIND_LABEL[loc.kind],
       description: loc.description,
-      actions: [...actions, { label: 'Leave', command: { type: 'leavePlace' } }],
+      actions: [
+        enter ? { label: 'Enter', command: enter } : { label: 'Enter — not designed yet' },
+        { label: 'Leave', command: { type: 'leavePlace' } },
+      ],
     });
   }
 

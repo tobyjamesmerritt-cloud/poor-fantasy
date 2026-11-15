@@ -38,6 +38,13 @@ export interface RosterEntry {
   sprite: SpriteCss;
 }
 
+export interface ExplorePanel {
+  title: string; // location name
+  party: readonly { name: string; ac: number; hp: number; maxHp: number }[];
+  where: string; // "13,7 · facing W"
+  clock: string; // "Day 1 · 16:07"
+}
+
 export interface PlaceAction {
   label: string;
   command?: Command; // omitted = disabled ("coming soon")
@@ -153,6 +160,52 @@ export class Hud {
         ),
         el('div', 'action disabled', '✦ Spells', el('small', '', 'coming — DND-23')),
         el('div', 'action disabled', '⚗ Items', el('small', '', 'coming — DND-24')),
+      ),
+    );
+  }
+
+  /**
+   * Gold Box-style side panel inside a location: party (name, AC, HP),
+   * position and clock, and on-screen movement buttons (touch).
+   */
+  setExplore(panel: ExplorePanel): void {
+    const btn = (label: string, title: string, command?: Command) => {
+      const b = el('button', '', label) as HTMLButtonElement;
+      b.title = title;
+      if (command) b.addEventListener('click', () => this.bus.dispatch(command));
+      else b.disabled = true;
+      return b;
+    };
+    const rows = panel.party.map((p) => {
+      const pct = Math.round((p.hp / p.maxHp) * 100);
+      return el(
+        'tr',
+        '',
+        el('td', 'name party', p.name),
+        el('td', 'num', String(p.ac)),
+        el('td', `num ${pct > 50 ? 'ok' : pct > 25 ? 'warn' : 'bad'}`, String(p.hp)),
+      );
+    });
+    this.cardEl.replaceChildren(
+      el('div', 'explore-title', panel.title),
+      el('table', 'party-table', el('tr', '', el('th', '', 'Name'), el('th', 'num', 'AC'), el('th', 'num', 'HP')), ...rows),
+      el('div', 'explore-where', el('span', '', panel.where), el('span', '', panel.clock)),
+      el(
+        'div',
+        'move-pad',
+        btn('↶', 'Turn left (A / ←)', { type: 'turn', dir: 'left' }),
+        btn('↑', 'Forward (W / ↑)', { type: 'step', dir: 'forward' }),
+        btn('↷', 'Turn right (D / →)', { type: 'turn', dir: 'right' }),
+        btn('⇠', 'Step left (Q)', { type: 'step', dir: 'left' }),
+        btn('↓', 'Back (S / ↓)', { type: 'step', dir: 'back' }),
+        btn('⇢', 'Step right (E)', { type: 'step', dir: 'right' }),
+      ),
+      el(
+        'div',
+        'explore-actions',
+        btn('Search', 'coming later'),
+        btn('Encamp', 'coming — M4 (rest, save)'),
+        btn('Leave', 'Back to the world map', { type: 'leaveLocation' }),
       ),
     );
   }

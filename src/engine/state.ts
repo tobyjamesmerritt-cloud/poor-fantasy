@@ -5,7 +5,9 @@
 import type { Mode } from './modes';
 import { assertTransition } from './modes';
 
-export const SAVE_VERSION = 2; // v2: party position on a map
+const START_TIME = 8 * 60; // day 1, 08:00
+
+export const SAVE_VERSION = 3; // v2: party position on a map · v3: world + location positions, facing, game clock
 
 export interface GameState {
   version: number;
@@ -13,11 +15,22 @@ export interface GameState {
   mode: Mode;
   flags: Record<string, boolean | number | string>; // story flags set by event scripts
   partyIds: string[];
-  position: { map: string; x: number; y: number } | null; // null = not placed yet (use the map's start)
+  world: { x: number; y: number } | null; // party square on the world map; null = use the map's start
+  location: { id: string; x: number; y: number; facing: 'n' | 'e' | 's' | 'w' } | null; // inside a location, else null
+  time: number; // game clock in minutes since midnight of day 1 (see rules/time.ts)
 }
 
 export function newGameState(seed: number): GameState {
-  return { version: SAVE_VERSION, seed, mode: 'party', flags: {}, partyIds: [], position: null };
+  return {
+    version: SAVE_VERSION,
+    seed,
+    mode: 'party',
+    flags: {},
+    partyIds: [],
+    world: null,
+    location: null,
+    time: START_TIME,
+  };
 }
 
 export function changeMode(state: GameState, to: Mode): GameState {
