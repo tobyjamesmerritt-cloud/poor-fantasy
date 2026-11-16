@@ -8,6 +8,7 @@ import {
   choose,
   type ChoiceResult,
   hooksAt,
+  canWalkAway,
   nodeOf,
   openTalk,
   questStage,
@@ -231,5 +232,16 @@ describe('quest journal', () => {
     const d = questSteps(g, questData.quests.ale, 'ale');
     expect(d.steps.every((s) => s.done)).toBe(true);
     expect(d.next).toBeUndefined();
+  });
+});
+
+describe('walking away from a conversation (Esc)', () => {
+  it('a random encounter must be answered; a conversation with a plain exit can be left', () => {
+    const g = fresh();
+    const rats = startTalk(g, questData, 'wander-rats')!;
+    expect(canWalkAway(g, questData, rats)).toBe(false);
+    g.flags['quest:troll'] = 'met';
+    const troll = startTalk(g, questData, 'troll')!;
+    expect(canWalkAway(g, questData, troll)).toBe(true);
   });
 });

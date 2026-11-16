@@ -39,6 +39,7 @@ import { ABILITY_NAMES } from './rules/character';
 import {
   type Action,
   type ActionResult,
+  canWalkAway,
   choose,
   type Difficulty,
   type FightTweaks,
@@ -623,6 +624,10 @@ bus.subscribe((cmd) => {
       break;
     }
     case 'talkClose':
+      if (talk && !canWalkAway(gameState, questData, talk)) {
+        hud.setStatus('You can’t just walk away — choose what to do.');
+        break;
+      }
       endTalk(true);
       break;
     case 'endFight':

@@ -338,6 +338,16 @@ export function nodeOf(data: QuestData, t: Talk): DialogNode {
 export const visibleChoices = (g: GameState, data: QuestData, t: Talk): ShownChoice[] =>
   (nodeOf(data, t).choices ?? []).flatMap((c, index) => (check(g, c.when) ? [{ index, text: c.text, check: c.check }] : []));
 
+/**
+ * Can the party simply walk away (Esc) from this point of the conversation? Yes when the
+ * node offers no choices, or one of its visible choices is a plain exit (no actions, no
+ * check, no next node). A forced moment — fight or try to slip away — must be answered.
+ */
+export function canWalkAway(g: GameState, data: QuestData, t: Talk): boolean {
+  const choices = (nodeOf(data, t).choices ?? []).filter((c) => check(g, c.when));
+  return choices.length === 0 || choices.some((c) => !c.do?.length && !c.check && !c.next);
+}
+
 /** Arrive at a node: run its actions. */
 export function enterNode(g: GameState, t: Talk, ctx: ActionContext): ActionResult {
   return run(g, nodeOf(ctx.data, t).do, ctx);

@@ -36,5 +36,7 @@ const KEY_MAP: Record<string, Command> = {
 };
 
 export function commandForKey(code: string): Command | undefined {
+  // A dialog (conversation, pack, journal, menu…) has the player's attention: the game behind it ignores keys.
+  if (typeof document !== 'undefined' && document.querySelector('dialog[open]')) return undefined;
   return KEY_MAP[code];
 }
