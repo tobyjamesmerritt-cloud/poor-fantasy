@@ -26,6 +26,26 @@ export class TalkDialog {
       e.preventDefault();
       this.bus.dispatch({ type: 'talkClose' });
     });
+    // Keys: 1–9 pick a choice, ↑/↓ move the highlight, Enter picks the highlighted one
+    this.dlg.addEventListener('keydown', (e) => {
+      const buttons = [...this.dlg.querySelectorAll<HTMLButtonElement>('button:not([disabled])')];
+      if (!buttons.length) return;
+      const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+      if (digit) {
+        const b = buttons[Number(digit[1]) - 1];
+        if (b) {
+          e.preventDefault();
+          b.click();
+        }
+        return;
+      }
+      if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        const step = e.code === 'ArrowDown' ? 1 : -1;
+        buttons[(i + step + buttons.length) % buttons.length].focus();
+      }
+    });
   }
 
   get open(): boolean {
