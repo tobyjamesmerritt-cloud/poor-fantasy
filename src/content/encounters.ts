@@ -97,6 +97,7 @@ export function resolveEncounter(e: EncounterDef, ctx: FightContext = { partySiz
 export interface LocationContent {
   map?: string; // public/assets/maps/<map>.json; fights live in the map's spots layer
   intro?: string;
+  sight?: number; // squares seen on the overhead map (fog of war); default towns 5, dungeons 1
   // places inside another location (not on the world map):
   name?: string;
   style?: 'town' | 'cave' | 'ruins';

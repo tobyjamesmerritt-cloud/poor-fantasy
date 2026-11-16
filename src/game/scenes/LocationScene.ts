@@ -22,6 +22,10 @@ import {
   FACING_VECTORS,
   doorLocked,
   findPath4,
+  isSeen,
+  markSeen,
+  SIGHT,
+  visibleSquares,
   isExit,
   type LocationMap,
   type Pose,
@@ -54,6 +58,7 @@ const MAX_DEPTH = 4;
 const F = PANE / 4; // focal length: the near edge of your own square fills the pane
 const Z_NEAR = 0.25;
 
+const FOG_COLOUR = 0x0b0b0b;
 const DOOR_WOOD = 0x8b5a2b;
 const DOOR_FRAME = 0x3b230c;
 const NIGHT_COLOUR = 0x0a0f2e;
@@ -93,6 +98,7 @@ export class LocationScene extends Phaser.Scene {
   private view!: Phaser.GameObjects.Graphics;
   private arrow!: Phaser.GameObjects.Graphics;
   private night!: Phaser.GameObjects.Rectangle;
+  private fog!: Phaser.GameObjects.Graphics;
   private leader?: Phaser.GameObjects.Image; // the party's first (living) member stands for the party on the map
   private busy = false;
   private log: string[] = [];
@@ -141,6 +147,7 @@ export class LocationScene extends Phaser.Scene {
     this.leader = undefined;
     // night under an open sky: a dark blue wash over the 3D view and the map (the party stays lit)
     this.night = this.add.rectangle(0, 0, PANE * 2, PANE, NIGHT_COLOUR).setOrigin(0, 0).setDepth(2).setAlpha(0);
+    this.fog = this.add.graphics().setDepth(2.5); // unexplored squares of the overhead map
 
     // Resume where the party stood (back from a fight), or walk in at the entrance.
     const saved = this.deps.game.location;
@@ -227,7 +234,7 @@ export class LocationScene extends Phaser.Scene {
           this.say(`The door of ${spotAt(this.map, cmd.x, cmd.y)!.name} is locked.`);
           break;
         }
-        const path = findPath4(this.map, this.pose, cmd, this.lockedAt);
+        const path = findPath4(this.map, this.pose, cmd, (x, y) => this.lockedAt(x, y) || this.unseen(x, y));
         if (path?.length) this.walk(path);
         break;
       }
@@ -411,6 +418,7 @@ export class LocationScene extends Phaser.Scene {
   private render(): void {
     const game = this.deps.game;
     game.location = { id: this.deps.locationId, ...this.pose };
+    this.explore();
     this.drawView();
     this.drawArrow();
     this.night.setAlpha(STYLES[this.style].sky ? NIGHT_ALPHA * darkness(game.time) : 0);
@@ -426,6 +434,24 @@ export class LocationScene extends Phaser.Scene {
       purse: formatCoins(game.coins),
     });
   }
+
+  /** Fog of war: reveal what the party sees from here (remembered for good), then hide the rest. */
+  private explore(): void {
+    const game = this.deps.game;
+    const id = this.deps.locationId;
+    const town = this.style === 'town';
+    const sight = locationContent[id]?.sight ?? (town ? SIGHT.town : SIGHT.dungeon);
+    const seenNow = visibleSquares(this.map, this.pose.x, this.pose.y, sight, !town);
+    const mask = markSeen(game.explored?.[id], this.map.width * this.map.height, seenNow);
+    game.explored = { ...game.explored, [id]: mask };
+    const g = this.fog.clear().fillStyle(FOG_COLOUR, 1);
+    for (let y = 0; y < this.map.height; y++)
+      for (let x = 0; x < this.map.width; x++)
+        if (!isSeen(mask, y * this.map.width + x)) g.fillRect(PANE + x * CELL, y * CELL, CELL, CELL);
+  }
+
+  /** Squares still under the fog (click-walking can't aim at or route through them). */
+  private unseen = (x: number, y: number): boolean => !isSeen(this.deps.game.explored?.[this.deps.locationId], y * this.map.width + x);
 
   /** The party on the overhead map: the leader's icon, with a small arrow on top showing which way they face. */
   private drawArrow(): void {

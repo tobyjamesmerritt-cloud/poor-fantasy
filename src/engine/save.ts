@@ -52,6 +52,8 @@ const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<stri
   8: (s) => s,
   // v10: optional party name
   9: (s) => s,
+  // v11: fog of war — explored squares per location (optional; absent = nothing seen yet)
+  10: (s) => s,
 };
 
 const REQUIRED: (keyof GameState)[] = ['version', 'seed', 'flags', 'time', 'roster', 'party', 'bench', 'coins', 'inventory'];

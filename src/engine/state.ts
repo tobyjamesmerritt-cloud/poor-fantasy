@@ -7,7 +7,7 @@ import { assertTransition } from './modes';
 
 const START_TIME = 8 * 60; // day 1, 08:00
 
-export const SAVE_VERSION = 10; // v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench) · v7 inventory, XP · v8 XP and levels on the character sheet · v9 spells (sheet choices, slots used, temp HP) · v10 party name
+export const SAVE_VERSION = 11; // v11 explored squares (fog of war) · v2 position · v3 locations, facing, clock · v4 persistent party, coins, rests · v5 character sheets · v6 character pool (bench) · v7 inventory, XP · v8 XP and levels on the character sheet · v9 spells (sheet choices, slots used, temp HP) · v10 party name
 
 export interface GameState {
   version: number;
@@ -18,6 +18,7 @@ export interface GameState {
   partyIds: string[];
   world: { x: number; y: number } | null; // party square on the world map; null = use the map's start
   location: { id: string; x: number; y: number; facing: 'n' | 'e' | 's' | 'w' } | null; // inside a location, else null
+  explored?: Record<string, string>; // location id → squares the party has seen (hex bitmask, rules/location.ts markSeen)
   time: number; // game clock in minutes since midnight of day 1 (see rules/time.ts)
   roster: CharacterSheet[]; // who is in the party, in marching order (derived stats: rules/character.ts)
   party: PartyMemberState[]; // current condition of each member (same ids as the roster)

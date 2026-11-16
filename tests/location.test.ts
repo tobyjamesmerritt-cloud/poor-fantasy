@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   doorLocked,
   findPath4,
+  isSeen,
+  markSeen,
+  SIGHT,
+  visibleSquares,
   type LocationMap,
   type Pose,
   stepFacing,
@@ -119,5 +123,36 @@ describe('doors', () => {
   it('standing in the doorway, the door square itself is not drawn around you', () => {
     const faces = viewFaces(withDoor(), { x: 2, y: 1, facing: 's' }, 4);
     expect(faces.some((f) => f.door)).toBe(false);
+  });
+});
+
+describe('fog of war', () => {
+  const idx = (m: LocationMap, x: number, y: number) => y * m.width + x;
+
+  it('dungeons: only the next square, and never round a corner', () => {
+    // party at (1,1) in a corridor bending at a corner: (2,2) is diagonal past two walls
+    const m = grid(['#####', '#..##', '##..#', '#####']);
+    const seen = visibleSquares(m, 1, 1, SIGHT.dungeon, true);
+    expect(seen).toContain(idx(m, 2, 1)); // straight ahead
+    expect(seen).toContain(idx(m, 1, 0)); // the wall itself is seen
+    expect(seen).not.toContain(idx(m, 3, 1)); // two squares away
+    const m2 = grid(['#####', '#.#.#', '##..#', '#####']);
+    expect(visibleSquares(m2, 1, 1, 1, true)).not.toContain(idx(m2, 2, 2)); // round the corner: hidden
+  });
+
+  it('towns: far in the open, but buildings block the view', () => {
+    const m = grid(['...........', '...........', '.....#.....', '...........', '...........']);
+    const seen = visibleSquares(m, 2, 2, SIGHT.town, false);
+    expect(seen).toContain(idx(m, 7, 0)); // far across open ground
+    expect(seen).toContain(idx(m, 5, 2)); // the wall
+    expect(seen).not.toContain(idx(m, 6, 2)); // right behind it
+  });
+
+  it('explored squares are remembered (never fog again)', () => {
+    let mask = markSeen(undefined, 256, [0, 9, 255]);
+    mask = markSeen(mask, 256, [17]);
+    for (const s of [0, 9, 17, 255]) expect(isSeen(mask, s)).toBe(true);
+    expect(isSeen(mask, 1)).toBe(false);
+    expect(isSeen(undefined, 0)).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 {
-  "_note": "Game content per world-map location (positions live in the Tiled world map). map = public/assets/maps/<map>.json, entered when the party walks onto the location. intro = message shown on entering. Places inside a location (not on the world map) have name, style (town|cave|ruins) and parent = where you come out (location id, square, facing).",
+  "_note": "Game content per world-map location (positions live in the Tiled world map). map = public/assets/maps/<map>.json, entered when the party walks onto the location. intro = message shown on entering. sight = how many squares the party sees on the overhead map (default: towns 5, dungeons 1). Places inside a location (not on the world map) have name, style (town|cave|ruins) and parent = where you come out (location id, square, facing).",
   "hollow-cave": {"map": "hollow-cave", "intro": "You duck under the low rock and into the cool dark of the cave."},
   "old-keep": {"map": "old-keep", "intro": "You climb over a fallen gate into the ruins of the old keep."},
   "millbrook": {"map": "millbrook", "intro": "Millbrook's market road is busy with carts and gossip."},

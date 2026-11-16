@@ -221,3 +221,65 @@ export function locationCampCheck(m: LocationMap, p: Pose): { ok: true } | { ok:
   if (spotAt(m, p.x, p.y)) return { ok: false, reason: 'Not here — find a quieter corner to camp.' };
   return { ok: true };
 }
+
+// --- Fog of war (overhead map) ---------------------------------------------
+
+/** How far the party sees on the overhead map: open towns far, dungeons only the next square. */
+export const SIGHT = { town: 5, dungeon: 1 } as const;
+
+/**
+ * Squares the party can see from (x, y) within `radius` (round, in squares). Walls,
+ * rock and buildings (doors included) block the view but are seen themselves. Diagonal
+ * gaps: `strict` (dungeons) needs both sides of a corner open — you never see round a
+ * corner; otherwise one open side will do.
+ */
+export function visibleSquares(m: LocationMap, x: number, y: number, radius: number, strict: boolean): number[] {
+  const opaque = (cx: number, cy: number) => isSolid(m, cx, cy) || isDoor(m, cx, cy);
+  const seen: number[] = [];
+  const r2 = (radius + 0.5) ** 2;
+  for (let ty = y - radius; ty <= y + radius; ty++) {
+    for (let tx = x - radius; tx <= x + radius; tx++) {
+      if (tx < 0 || ty < 0 || tx >= m.width || ty >= m.height) continue;
+      if ((tx - x) ** 2 + (ty - y) ** 2 > r2) continue;
+      if (lineOfSight(x, y, tx, ty, opaque, strict)) seen.push(ty * m.width + tx);
+    }
+  }
+  return seen;
+}
+
+/** Walk the line between square centres; every square before the target must be see-through. */
+function lineOfSight(x0: number, y0: number, x1: number, y1: number, opaque: (x: number, y: number) => boolean, strict: boolean): boolean {
+  const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 4;
+  let px = x0;
+  let py = y0;
+  for (let i = 1; i <= steps; i++) {
+    const cx = Math.round(x0 + ((x1 - x0) * i) / steps);
+    const cy = Math.round(y0 + ((y1 - y0) * i) / steps);
+    if (cx === px && cy === py) continue;
+    if (cx !== px && cy !== py) {
+      // squeezing past a corner
+      const a = opaque(cx, py);
+      const b = opaque(px, cy);
+      if (strict ? a || b : a && b) return false;
+    }
+    if (cx === x1 && cy === y1) return true;
+    if (opaque(cx, cy)) return false;
+    px = cx;
+    py = cy;
+  }
+  return true;
+}
+
+/** Explored squares are kept as a hex bitmask string per location (saved in GameState.explored). */
+export function markSeen(mask: string | undefined, size: number, squares: readonly number[]): string {
+  const bytes = new Uint8Array(Math.ceil(size / 8));
+  if (mask) for (let i = 0; i < bytes.length && i * 2 < mask.length; i++) bytes[i] = parseInt(mask.slice(i * 2, i * 2 + 2), 16) || 0;
+  for (const s of squares) if (s >= 0 && s < size) bytes[s >> 3] |= 1 << (s & 7);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export function isSeen(mask: string | undefined, square: number): boolean {
+  if (!mask) return false;
+  const byte = parseInt(mask.slice((square >> 3) * 2, (square >> 3) * 2 + 2), 16) || 0;
+  return (byte & (1 << (square & 7))) !== 0;
+}
