@@ -41,9 +41,10 @@ for (const r of runs) it(`balance: ${r.label ?? r.id} L${r.level}`, () => {
       const u = activeUnit(s);
       const foes = s.units.filter((e) => e.side === 'enemy' && isUp(e)).sort((a, b) => chebyshev(u, a) - chebyshev(u, b));
       if (u.caster) botCast(s, rng, foes);
-      const plan = foes.length ? planMoveTo(s, foes[0].x, foes[0].y) : null;
+      // a bot that has already acted (cast a spell) stays where it is: walking up to a foe afterwards only gets it hurt
+      const plan = foes.length && !s.actionUsed ? planMoveTo(s, foes[0].x, foes[0].y) : null;
       if (plan) for (const d of plan) step(s, rng, d);
-      else if (foes.length) {
+      else if (foes.length && !s.actionUsed) {
         const sq = reachableSquares(s).sort((a, b) => chebyshev(a, foes[0]) - chebyshev(b, foes[0]))[0];
         const p = sq && planMoveTo(s, sq.x, sq.y);
         if (p) for (const d of p) step(s, rng, d);

@@ -28,6 +28,8 @@ export interface ActiveCard {
   movesLeft: number;
   speed: number;
   actionUsed: boolean;
+  reactionUsed: boolean;
+  disengaged: boolean;
   sprite: SpriteCss;
   potions: number;
   bonusUsed: boolean;
@@ -204,18 +206,55 @@ export class Hud {
       el(
         'div',
         'actions',
+        this.economy(card),
         el(
           'div',
           card.actionUsed ? 'action used' : 'action',
           `⚔ ${card.attackName} +${card.attackBonus} · ${card.damage}`,
-          el('small', '', card.actionUsed ? 'used this turn' : 'click an enemy · or a fallen ally'),
+          el('small', '', card.actionUsed ? 'action used this turn — you can still move' : 'click an enemy · or a fallen ally'),
         ),
+        this.otherActions(card),
         ...(card.effects?.length || card.concentration
           ? [el('div', 'effects', [...(card.effects ?? []), card.concentration ? `concentrating: ${card.concentration}` : ''].filter(Boolean).join(' · '))]
           : []),
         ...(card.spells ? [this.spellAction(card)] : []),
         this.potionAction(card),
       ),
+    );
+  }
+
+  /** What's left this turn: Action · Bonus Action · Reaction (SRD 5.2). */
+  private economy(card: ActiveCard): HTMLElement {
+    const pip = (label: string, used: boolean, title: string) => {
+      const s = el('span', used ? 'eco used' : 'eco', `${used ? '✗' : '●'} ${label}`);
+      s.title = title;
+      return s;
+    };
+    return el(
+      'div',
+      'economy',
+      pip('Action', card.actionUsed, 'One action per turn: Attack, Dash, Dodge, Disengage, Help, or a spell'),
+      pip('Bonus', card.bonusUsed, 'One Bonus Action per turn: a potion, some spells'),
+      pip('Reaction', card.reactionUsed, 'One Reaction per round: an opportunity attack when an enemy leaves your reach'),
+      ...(card.disengaged ? [el('span', 'eco note', 'Disengaged')] : []),
+    );
+  }
+
+  /** Dash, Dodge, Disengage — the other actions (SRD 5.2). */
+  private otherActions(card: ActiveCard): HTMLElement {
+    const mk = (label: string, action: 'dash' | 'dodge' | 'disengage', title: string) => {
+      const b = el('button', '', label) as HTMLButtonElement;
+      b.title = title;
+      b.disabled = card.actionUsed;
+      b.addEventListener('click', () => this.bus.dispatch({ type: 'combatAction', action }));
+      return b;
+    };
+    return el(
+      'div',
+      'other-actions',
+      mk('Dash', 'dash', 'Action: move up to your Speed again this turn'),
+      mk('Dodge', 'dodge', 'Action: attacks against you have disadvantage until your next turn (and advantage on Dexterity saves)'),
+      mk('Disengage', 'disengage', 'Action: moving away from enemies won’t provoke opportunity attacks this turn'),
     );
   }
 

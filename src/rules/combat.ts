@@ -2,8 +2,10 @@
  * Tactical combat state machine. Pure TypeScript — the Phaser CombatScene
  * only renders this state and forwards commands.
  *
- * Implemented (SRD 5.2): initiative, movement in 5-ft squares, one attack per
- * turn (move into an adjacent enemy), multi-part damage, Pack Tactics,
+ * Implemented (SRD 5.2): initiative, movement in 5-ft squares (split freely
+ * around your action), the action economy — one action (Attack by moving into
+ * an adjacent enemy, Dash, Dodge, Disengage, Help, Magic), one Bonus Action,
+ * one Reaction per round (Opportunity Attacks) — multi-part damage, Pack Tactics,
  * 0 HP rules for characters (Unconscious, Death Saving Throws, Instant Death,
  * Stable), stabilising an ally with the Help action (DC 10 Wisdom (Medicine)).
  * Monsters die at 0 HP. Simple enemy AI. Victory/defeat.
@@ -12,7 +14,7 @@
  * Spells (rules/spells.ts) use the hooks here: effects with SRD durations
  * ("until the start/end of your next turn", Concentration), Temporary Hit
  * Points, and the one-spell-slot-per-turn rule.
- * Not yet: opportunity attacks, reactions, most conditions.
+ * Not yet: readied actions, most conditions.
  */
 import type { Direction } from '../engine/commands';
 import { DIRECTION_VECTORS } from '../engine/commands';
@@ -39,7 +41,7 @@ export type Trait = 'pack-tactics';
  * first, so "the end of your next turn" is ends 'end', skip 1), or when the
  * owner's Concentration ends.
  */
-export type EffectKind = 'bless' | 'shield-of-faith' | 'guided' | 'slowed' | 'poisoned' | 'blinded' | 'no-heal';
+export type EffectKind = 'bless' | 'shield-of-faith' | 'guided' | 'slowed' | 'poisoned' | 'blinded' | 'no-heal' | 'dodging';
 export interface Effect {
   kind: EffectKind;
   owner: string;
@@ -97,6 +99,7 @@ export interface Unit {
   regeneration?: number; // HP regained at the start of its turn…
   regenBlocked?: boolean; // …unless it took acid or fire damage since (SRD 5.2 Troll)
   fumble?: number; // house rule for quest tweaks (a drunk troll): chance each attack simply misses
+  reactionUsed?: boolean; // SRD 5.2: one Reaction per round, regained at the start of its own turn
 }
 
 export interface CombatState {
@@ -112,6 +115,7 @@ export interface CombatState {
   retreat: RetreatRule;
   bonusUsed: boolean; // this turn's Bonus Action (potions, some spells)
   slotUsed: boolean; // SRD 5.2: only one spell slot may be expended per turn
+  disengaged?: boolean; // the active creature took the Disengage action: its movement provokes no Opportunity Attacks
   potions: number; // Potions of Healing in the party pack
   scrolls?: Record<string, number>; // Spell Scrolls in the party pack, by spell id
   log: string[];
@@ -198,6 +202,7 @@ export function step(state: CombatState, rng: Rng, dir: Direction): boolean {
       state.log.push(check.reason);
       return true; // the explanation is a change worth showing
     }
+    if (!provoke(state, rng, u, nx, ny)) return true; // cut down on the way out
     flee(state, rng);
     return true;
   }
@@ -220,10 +225,66 @@ export function step(state: CombatState, rng: Rng, dir: Direction): boolean {
     return false;
   }
   if (state.movesLeft < stepCost(u)) return false;
+  if (!provoke(state, rng, u, nx, ny)) return true; // dropped by an Opportunity Attack: the move ends there
   u.x = nx;
   u.y = ny;
   state.movesLeft -= stepCost(u);
   if (u.carrying) Object.assign(unitById(state, u.carrying), { x: nx, y: ny });
+  return true;
+}
+
+/**
+ * Opportunity Attacks (SRD 5.2): when a creature moves out of an enemy's reach,
+ * each such enemy that can see it and still has its Reaction makes one melee
+ * attack against it. Disengage prevents this. Returns false if the mover is
+ * no longer standing (its movement ends; on its own turn, so does its turn).
+ */
+function provoke(state: CombatState, rng: Rng, mover: Unit, nx: number, ny: number): boolean {
+  if (state.disengaged && activeUnit(state) === mover) return true;
+  const watchers = state.units.filter(
+    (o) =>
+      o.side !== mover.side &&
+      isUp(o) &&
+      onField(o) &&
+      !o.reactionUsed &&
+      !hasEffect(o, 'blinded') &&
+      chebyshev(o, mover) === 1 &&
+      Math.max(Math.abs(o.x - nx), Math.abs(o.y - ny)) > 1,
+  );
+  for (const o of watchers) {
+    if (!isUp(mover) || state.outcome !== 'ongoing') break;
+    o.reactionUsed = true;
+    attack(state, rng, o, mover, true);
+  }
+  if (isUp(mover)) return true;
+  if (activeUnit(state) === mover) {
+    state.movesLeft = 0;
+    state.actionUsed = true;
+    state.bonusUsed = true;
+  }
+  return false;
+}
+
+/** The Dash, Dodge and Disengage actions (SRD 5.2). Returns false if not allowed now. */
+export type CombatAction = 'dash' | 'dodge' | 'disengage';
+export function takeAction(state: CombatState, action: CombatAction): boolean {
+  if (state.outcome !== 'ongoing' || state.actionUsed) return false;
+  const u = activeUnit(state);
+  if (!isUp(u)) return false;
+  state.actionUsed = true;
+  if (action === 'dash') {
+    // Dash: extra movement equal to your Speed (after modifiers, e.g. Slowed)
+    const speed = hasEffect(u, 'slowed') ? Math.max(0, u.speed - 2) : u.speed;
+    state.movesLeft += speed;
+    state.log.push(`${u.name} dashes (+${speed} squares of movement).`);
+  } else if (action === 'dodge') {
+    // Dodge: until the start of your next turn, attacks against you have Disadvantage and you have Advantage on Dexterity saves
+    addEffect(u, { kind: 'dodging', owner: u.id, ends: 'start' });
+    state.log.push(`${u.name} takes the Dodge action — attacks against them have disadvantage until their next turn.`);
+  } else {
+    state.disengaged = true;
+    state.log.push(`${u.name} disengages — moving away won't provoke opportunity attacks this turn.`);
+  }
   return true;
 }
 
@@ -355,6 +416,8 @@ function beginTurn(state: CombatState): void {
   state.actionUsed = false;
   state.bonusUsed = false;
   state.slotUsed = false;
+  state.disengaged = false;
+  u.reactionUsed = false; // SRD 5.2: a creature regains its Reaction at the start of its turn
   if (u.side === 'party') state.log.push(`▶ ${u.name}'s turn.`);
 }
 
@@ -437,6 +500,11 @@ export function attackMode(state: CombatState, attacker: Unit, target: Unit, ran
   if (hasEffect(attacker, 'blinded')) {
     dis++;
     notes.push('blinded');
+  }
+  // Dodge (SRD 5.2): attack rolls against you have Disadvantage if you can see the attacker
+  if (hasEffect(target, 'dodging') && !hasEffect(target, 'blinded')) {
+    dis++;
+    notes.push('dodging');
   }
   if (ranged && hostileAdjacent(state, attacker)) {
     dis++;
@@ -546,11 +614,11 @@ export function applyDamage(target: Unit, amount: number): string {
   return ` — ${target.name} falls unconscious!`;
 }
 
-function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit): void {
+function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reaction = false): void {
+  if (!reaction) state.actionUsed = true;
+  const lead = reaction ? `Opportunity attack! ` : '';
   if (attacker.fumble && rng.int(1, 100) <= Math.round(attacker.fumble * 100)) {
-    state.actionUsed = true;
-    state.movesLeft = 0;
-    state.log.push(`${attacker.name} lurches, swings wide and misses ${target.name}.`);
+    state.log.push(`${lead}${attacker.name} lurches, swings wide and misses ${target.name}.`);
     return;
   }
   const { mode, notes } = attackMode(state, attacker, target, false);
@@ -558,15 +626,13 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit): voi
   if (bless) notes.push(`bless +${bless}`);
   const ac = acOf(target);
   const r = resolveAttack(rng, { attackBonus: attacker.attackBonus + bless, targetAc: ac, damage: attacker.damage, mode });
-  state.actionUsed = true;
-  state.movesLeft = 0; // simplification until DND-10: attacking ends movement
   const adv = notes.length ? ` [${notes.join(', ')}]` : '';
   if (!r.hit) {
-    state.log.push(`${attacker.name} misses ${target.name} (${r.attackTotal} vs AC ${ac})${adv}.`);
+    state.log.push(`${lead}${attacker.name} misses ${target.name} (${r.attackTotal} vs AC ${ac})${adv}.`);
     return;
   }
   const verb = r.critical ? 'CRITS' : 'hits';
-  hurt(state, rng, target, r.damage, `${attacker.name} ${verb} ${target.name} for ${r.damage}${adv}`);
+  hurt(state, rng, target, r.damage, `${lead}${attacker.name} ${verb} ${target.name} for ${r.damage}${adv}`);
   checkOutcome(state);
 }
 
@@ -575,7 +641,6 @@ function helpStabilise(state: CombatState, rng: Rng, helper: Unit, target: Unit)
   const roll = rng.int(1, 20);
   const total = roll + helper.medicine;
   state.actionUsed = true;
-  state.movesLeft = 0; // simplification until DND-10
   if (total >= 10) {
     target.stable = true;
     state.log.push(`${helper.name} tends to ${target.name} (Medicine ${total} vs DC 10) — ${target.name} is stable.`);
@@ -748,22 +813,12 @@ export function planMoveTo(state: CombatState, x: number, y: number): Direction[
 export function turnExhausted(state: CombatState): boolean {
   if (state.outcome !== 'ongoing') return false;
   const u = activeUnit(state);
+  if (!isUp(u)) return true; // dropped on its own turn (an opportunity attack)
   const canWalk = state.movesLeft >= stepCost(u);
-  if (state.actionUsed) return !(u.carrying && canWalk); // a carrier gets to walk their load away
-  return !canWalk && !hasTargetInReach(state) && !u.caster; // a caster can still cast from where they stand
+  if (state.actionUsed) return !canWalk; // movement can still be used after the action (SRD 5.2)
+  return false; // the action is still there (Attack, Dash, Dodge, Disengage, a spell…)
 }
 
-/** Something the active unit could use its action on right now: an adjacent enemy, or a dying ally to stabilise. */
-function hasTargetInReach(state: CombatState): boolean {
-  const u = activeUnit(state);
-  return state.units.some(
-    (t) =>
-      t !== u &&
-      chebyshev(t, u) === 1 &&
-      onField(t) &&
-      ((t.side !== u.side && isUp(t)) || (t.side === u.side && isDown(t) && (!t.stable || !u.carrying))),
-  );
-}
 
 /**
  * Potion of Healing (SRD 5.2): as a Bonus Action, drink it or administer it

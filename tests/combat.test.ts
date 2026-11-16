@@ -3,14 +3,17 @@ import { createRng } from '../src/engine/rng';
 import {
   activeUnit,
   applyDamage,
+  attackMode,
   deathSave,
   endTurn,
+  hasEffect,
   isDown,
   isUp,
   planMoveTo,
   reachableSquares,
   startCombat,
   step,
+  takeAction,
   turnExhausted,
 } from '../src/rules/combat';
 import { makeUnit, scripted, skirmishUnits } from './helpers';
@@ -75,10 +78,13 @@ describe('movement', () => {
     expect(plan).toHaveLength(5);
     for (const d of plan) step(s, rng, d);
     expect(s.actionUsed).toBe(true);
+    expect(s.movesLeft).toBe(2); // SRD 5.2: movement left after attacking can still be used
+    expect(turnExhausted(s)).toBe(false);
+    s.movesLeft = 0;
     expect(turnExhausted(s)).toBe(true);
   });
 
-  it('auto end turn: after acting even with movement left; without moves only if nothing is in reach', () => {
+  it('auto end turn: only once the action is used and no movement is left', () => {
     const rng = createRng(9);
     const s = startCombat(rng, 10, 10, [
       makeUnit({ id: 'a', side: 'party', x: 0, y: 0, speed: 6, initBonus: 99 }),
@@ -86,16 +92,13 @@ describe('movement', () => {
     ]);
     expect(turnExhausted(s)).toBe(false); // fresh turn
     step(s, rng, 'e'); // move next to the enemy
-    expect(turnExhausted(s)).toBe(false); // can still attack
     s.movesLeft = 0;
-    expect(turnExhausted(s)).toBe(false); // no moves, but an enemy is in reach
+    expect(turnExhausted(s)).toBe(false); // the action is still there (attack, Dodge…)
     step(s, rng, 'e'); // attack
     expect(s.actionUsed).toBe(true);
     s.movesLeft = 4;
-    expect(turnExhausted(s)).toBe(true); // acted: movement left is given up
-    s.actionUsed = false;
+    expect(turnExhausted(s)).toBe(false); // may still walk away
     s.movesLeft = 0;
-    s.units.find((u) => u.id === 'z')!.x = 6; // enemy out of reach
     expect(turnExhausted(s)).toBe(true);
   });
 });
@@ -195,5 +198,69 @@ describe('0 HP and death saves (SRD 5.2)', () => {
     const s = startCombat(scripted([10, 10, 15]), 5, 5, units);
     expect(s.outcome).toBe('defeat');
     expect(isDown(s.units[0])).toBe(true);
+  });
+});
+
+describe('action economy and opportunity attacks (SRD 5.2)', () => {
+  // party 'a' (acts first) next to enemy 'z'; 'z' always hits (attack +99), 1 damage
+  const setup = (aHp = 30) => {
+    const rng = createRng(3);
+    const s = startCombat(rng, 10, 10, [
+      makeUnit({ id: 'a', side: 'party', x: 1, y: 1, speed: 6, hp: aHp, initBonus: 99 }),
+      makeUnit({ id: 'z', side: 'enemy', x: 2, y: 1, hp: 50, ac: 30, attackBonus: 99, damage: ['1'], initBonus: -99 }),
+      makeUnit({ id: 'b', side: 'party', x: 8, y: 8, initBonus: -50 }), // an ally far away keeps the battle going
+    ]);
+    return { rng, s, a: s.units[0], z: s.units[1] };
+  };
+
+  it('leaving an enemy’s reach provokes one opportunity attack per round (its Reaction)', () => {
+    const { rng, s, a, z } = setup();
+    expect(step(s, rng, 'w')).toBe(true); // (1,1) → (0,1): out of reach
+    expect(a.hp).toBe(29);
+    expect(z.reactionUsed).toBe(true);
+    expect(s.log.some((l) => l.startsWith('Opportunity attack!'))).toBe(true);
+    step(s, rng, 'e'); // back into reach: no attack
+    step(s, rng, 'w'); // out again: its reaction is spent this round
+    expect(a.hp).toBe(29);
+  });
+
+  it('moving within reach does not provoke', () => {
+    const { rng, s, a } = setup();
+    step(s, rng, 'n'); // (1,0): still next to (2,1)
+    expect(a.hp).toBe(30);
+  });
+
+  it('Disengage: moving away provokes nothing', () => {
+    const { rng, s, a } = setup();
+    expect(takeAction(s, 'disengage')).toBe(true);
+    step(s, rng, 'w');
+    expect(a.hp).toBe(30);
+    expect(takeAction(s, 'dash')).toBe(false); // one action per turn
+  });
+
+  it('Dash adds movement equal to Speed; attacking does not end movement', () => {
+    const { s } = setup();
+    expect(takeAction(s, 'dash')).toBe(true);
+    expect(s.movesLeft).toBe(12);
+    const r = setup();
+    step(r.s, r.rng, 'e'); // attack z
+    expect(r.s.actionUsed).toBe(true);
+    expect(r.s.movesLeft).toBe(6);
+  });
+
+  it('Dodge: attacks against the dodger have disadvantage until its next turn', () => {
+    const { s, a, z } = setup();
+    takeAction(s, 'dodge');
+    expect(attackMode(s, z, a, false).notes).toContain('dodging');
+    expect(hasEffect(a, 'dodging')).toBe(true);
+  });
+
+  it('an opportunity attack that drops the mover ends its move (and its turn’s options)', () => {
+    const { rng, s, a } = setup(1);
+    step(s, rng, 'w');
+    expect(a.hp).toBe(0);
+    expect(a.x).toBe(1); // never left the square
+    expect(s.movesLeft).toBe(0);
+    expect(turnExhausted(s)).toBe(true);
   });
 });

@@ -20,6 +20,7 @@ import {
   step,
   turnExhausted,
   potionTargets,
+  takeAction,
   usePotion,
   canFlee,
   flee,
@@ -78,6 +79,7 @@ const EFFECT_NAMES: Record<EffectKind, string> = {
   'shield-of-faith': 'Shield of Faith',
   guided: 'Guided',
   slowed: 'Slowed',
+  dodging: 'Dodging',
   poisoned: 'Poisoned',
   blinded: 'Blinded',
   'no-heal': "Can't heal",
@@ -302,6 +304,8 @@ export class CombatScene extends Phaser.Scene {
       movesLeft: this.state.movesLeft,
       speed: u.speed,
       actionUsed: this.state.actionUsed,
+      reactionUsed: !!u.reactionUsed,
+      disengaged: !!this.state.disengaged,
       sprite: spriteCss(this.textures, u.sprite),
       potions: this.state.potions,
       bonusUsed: this.state.bonusUsed,
@@ -347,7 +351,7 @@ export class CombatScene extends Phaser.Scene {
       if (cmd.type === 'cancel') return this.redraw();
     }
     if (cmd.type === 'aimSpell') return this.startAim(cmd.spellId, cmd.slot);
-    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee' || cmd.type === 'usePotion') && this.state.outcome === 'ongoing') {
+    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee' || cmd.type === 'usePotion' || cmd.type === 'combatAction') && this.state.outcome === 'ongoing') {
       before = JSON.stringify(this.state);
       this.history.push({ state: this.state, rng: this.rng.state });
     }
@@ -371,6 +375,9 @@ export class CombatScene extends Phaser.Scene {
         break;
       case 'usePotion':
         usePotion(this.state, this.rng, cmd.targetId);
+        break;
+      case 'combatAction':
+        if (activeUnit(this.state).side === 'party') takeAction(this.state, cmd.action);
         break;
       default:
         return; // navigation commands are handled in main.ts
@@ -507,7 +514,8 @@ export class CombatScene extends Phaser.Scene {
 
   private afterAction(): void {
     this.redraw();
-    if (turnExhausted(this.state) && this.deps.prefs.get().autoEndTurn) {
+    const fell = this.state.outcome === 'ongoing' && !isUp(activeUnit(this.state)); // cut down mid-move: the turn is over
+    if (turnExhausted(this.state) && (this.deps.prefs.get().autoEndTurn || fell)) {
       // Nothing left to do: pause so the player can read the result, then hand over.
       this.busy = true;
       this.time.delayedCall(600, () => {

@@ -1230,3 +1230,32 @@ button.danger {
 .pd-stats td {
   vertical-align: top;
 }
+
+/* Combat card: action economy (DND-10) */
+.economy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  margin: 0.2rem 0 0.3rem;
+}
+.eco {
+  color: #2ecc71;
+}
+.eco.used {
+  color: #666;
+}
+.eco.note {
+  color: var(--gold);
+}
+.other-actions {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.3rem 0;
+}
+.other-actions button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.25rem 0.2rem;
+  font-size: 0.8rem;
+}

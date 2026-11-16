@@ -26,6 +26,7 @@ import {
   chebyshev,
   checkOutcome,
   endConcentration,
+  hasEffect,
   healUnit,
   hurt,
   isDown,
@@ -478,8 +479,7 @@ export function castSpell(
   }
   if (spell.time === 'bonus') state.bonusUsed = true;
   else {
-    state.actionUsed = true;
-    state.movesLeft = 0; // as with attacks: acting ends movement (until DND-10)
+    state.actionUsed = true; // movement can still be used before or after (SRD 5.2)
   }
   const upcast = slot > spell.level && spell.level > 0 ? ` (level ${slot} slot)` : '';
   state.log.push(`✦ ${u.name} ${scroll ? 'reads a scroll of' : 'casts'} ${spell.name}${upcast}.`);
@@ -643,7 +643,9 @@ function spellAttack(
 /** Saving throw against the caster's DC; damage on a failure (half on a success if `half`). Returns true on a success. */
 function savingThrow(state: CombatState, rng: Rng, caster: Unit, target: Unit, ability: Ability, dmg: number, half: boolean, type?: string): boolean {
   const bless = blessBonus(rng, target);
-  const total = rng.int(1, 20) + (target.saves?.[ability] ?? 0) + bless;
+  // Dodge (SRD 5.2): Advantage on Dexterity saving throws
+  const d20 = ability === 'dex' && hasEffect(target, 'dodging') ? Math.max(rng.int(1, 20), rng.int(1, 20)) : rng.int(1, 20);
+  const total = d20 + (target.saves?.[ability] ?? 0) + bless;
   const dc = caster.caster!.dc;
   const success = total >= dc;
   const what = `${target.name} ${success ? 'saves' : 'fails'} (${ability.toUpperCase()} ${total} vs DC ${dc}${bless ? `, bless +${bless}` : ''})`;
