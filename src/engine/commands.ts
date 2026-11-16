@@ -56,7 +56,7 @@ export type Command =
   | { type: 'leavePlace' } // close the location panel on the map
   | { type: 'confirm' }
   | { type: 'aimSpell'; spellId: string; slot: number } // combat: pick targets on the grid next (cantrips: slot 0)
-  | { type: 'openSpells' } // spells dialog (camp, party screen)
+  | { type: 'openSpells'; characterId?: string } // spells dialog (camp, party screen); characterId = just that caster
   | { type: 'openParty' } // the party at a glance (group view)
   | { type: 'openCharacter'; characterId: string } // one character's sheet
   | { type: 'openPack'; characterId?: string } // the party pack (anywhere outside a fight), opened on one character

@@ -645,7 +645,7 @@ bus.subscribe((cmd) => {
       break;
     case 'openSpells':
       if (document.body.dataset.mode === 'combat') break;
-      spellsDialog.show(gameState, document.body.dataset.mode === 'camp' && !!gameState.flags[PREPARE_FLAG]);
+      spellsDialog.show(gameState, document.body.dataset.mode === 'camp' && !!gameState.flags[PREPARE_FLAG], cmd.characterId);
       break;
     case 'prepareSpells': {
       const sheet = gameState.roster.find((r) => r.id === cmd.characterId);

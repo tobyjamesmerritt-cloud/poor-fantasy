@@ -941,40 +941,98 @@ button.danger {
 }
 .sd-caster {
   border-top: 1px solid #333;
-  padding-top: 0.4rem;
-  margin-top: 0.6rem;
+  padding: 0.6rem 0 0.4rem;
 }
 .sd-caster h3 {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin: 0.2rem 0;
+  margin: 0 0 0.3rem;
+  color: var(--gold);
 }
-.sd-caster h4 {
-  margin: 0.6rem 0 0.2rem;
-}
-.sd-cast {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.2rem;
-  padding: 0.35rem 0;
-  border-bottom: 1px dashed #2a2a2a;
-}
-.sd-cast-name small {
-  display: block;
-  opacity: 0.6;
-  font-size: 0.75rem;
-}
-.sd-cast-controls {
+.sd-slots {
+  font-size: 0.9rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 0.8rem;
-  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
 }
-.sd-target {
-  white-space: nowrap;
+.sd-slot {
+  color: #2ecc71;
+}
+.sd-slot.empty {
+  color: #777;
+}
+.sd-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #999;
+  margin: 0.5rem 0 0.2rem;
+}
+.sd-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.sd-chip {
+  border: 1px solid #444;
+  border-radius: 3px;
+  padding: 0.05rem 0.4rem;
   font-size: 0.85rem;
+  cursor: help;
 }
+.sd-list {
+  display: flex;
+  flex-direction: column;
+}
+.sd-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid #262626;
+}
+.sd-row.open {
+  border-bottom: none;
+}
+.sd-name {
+  font-weight: bold;
+}
+.sd-cost {
+  font-size: 0.85rem;
+  color: #999;
+}
+.sd-panel {
+  border-left: 3px solid var(--gold);
+  padding: 0.2rem 0 0.4rem 0.7rem;
+  margin-bottom: 0.4rem;
+}
+.sd-panel p {
+  margin: 0.2rem 0 0.4rem;
+}
+.sd-levels {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+.sd-levels button.on,
+.sd-tgt.on {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.sd-targets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.3rem;
+  margin: 0.3rem 0;
+}
+.sd-tgt {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.1rem 0.5rem;
+  text-align: left;
+}
+
 
 /* Conversations and the quest journal */
 #talk-dialog {

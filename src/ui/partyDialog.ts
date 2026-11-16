@@ -233,7 +233,7 @@ export class PartyDialog {
         'ps-buttons',
         btn('◀ Party', () => this.showGroup(g)),
         btn('Gear & pack…', () => this.send({ type: 'openPack', characterId: s.id })),
-        caster ? btn('✦ Spells…', () => this.send({ type: 'openSpells' })) : null,
+        caster ? btn('✦ Spells…', () => this.send({ type: 'openSpells', characterId: s.id })) : null,
         canLevelUp(s) ? btn('Level up!', () => this.levelUp(s), 'primary') : null,
         btn('Close', () => this.close(), 'close'),
       ),
