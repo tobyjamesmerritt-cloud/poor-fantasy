@@ -23,16 +23,9 @@ export interface CursorDef {
   hotX: number;
   hotY: number;
 }
-/** A figure drawn in every facing (one frame per direction, left to right), any frame size; scaled to fit a map square. */
-export interface FigureDef {
-  url: string;
-  frameSize: number;
-  directions: string[];
-}
 export interface AssetManifest {
   scale: number;
   sheets: Record<string, SheetDef>;
-  figures?: Record<string, FigureDef>;
   sprites: Record<string, SpriteRef>;
   floors: Record<string, FloorDef>;
   cursors: Record<string, CursorDef>;
@@ -53,24 +46,12 @@ export function validateManifest(m: AssetManifest): AssetManifest {
     f.frames.forEach((fr) => checkRef(`floor "${k}"`, f.sheet, fr));
   }
   if (!m.cursors.default) errors.push('cursors.default is required');
-  for (const [k, f] of Object.entries(m.figures ?? {})) {
-    for (const d of ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']) if (!f.directions.includes(d)) errors.push(`figure "${k}": no "${d}" frame`);
-    if (!(f.frameSize > 0)) errors.push(`figure "${k}": bad frameSize`);
-  }
   if (errors.length) throw new Error('Invalid assets.json:\n- ' + errors.join('\n- '));
   return m;
 }
 
 const { _note: _ignored, ...data } = raw as AssetManifest & { _note?: string };
 export const assets: AssetManifest = validateManifest(data);
-
-/** Texture key + frame for a figure facing a direction (undefined if the figure isn't in the manifest). */
-export function figureFrame(name: string, dir: string, m: AssetManifest = assets): { key: string; frame: number; size: number } | undefined {
-  const f = m.figures?.[name];
-  if (!f) return undefined;
-  const i = f.directions.indexOf(dir);
-  return { key: `figure:${name}`, frame: Math.max(0, i), size: f.frameSize };
-}
 
 /** On-screen size of one grid square, in pixels. */
 export function cellSize(m: AssetManifest = assets): number {

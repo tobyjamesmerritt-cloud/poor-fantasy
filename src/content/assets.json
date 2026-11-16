@@ -13,9 +13,6 @@
       "frameHeight": 16
     }
   },
-  "figures": {
-    "party": { "url": "assets/sprites/party-figure.png", "frameSize": 64, "directions": ["n", "ne", "e", "se", "s", "sw", "w", "nw"] }
-  },
   "sprites": {
     "fighter": {
       "sheet": "dungeon",
