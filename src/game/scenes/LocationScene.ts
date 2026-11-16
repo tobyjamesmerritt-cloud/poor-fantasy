@@ -48,7 +48,7 @@ import { SITE_RISK } from '../../rules/rest';
 import { rosterEntries } from '../partyView';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
-import { preloadSheets } from '../spriteCss';
+import { preloadSheets, SoftFog } from '../spriteCss';
 
 export const LOCATION_VIEW = { width: 1024, height: 512 }; // two 512-px panes
 const PANE = 512;
@@ -58,7 +58,7 @@ const MAX_DEPTH = 4;
 const F = PANE / 4; // focal length: the near edge of your own square fills the pane
 const Z_NEAR = 0.25;
 
-const FOG_COLOUR = 0x0b0b0b;
+const FOG_COLOUR = 0x000000;
 const DOOR_WOOD = 0x8b5a2b;
 const DOOR_FRAME = 0x3b230c;
 const NIGHT_COLOUR = 0x0a0f2e;
@@ -98,7 +98,7 @@ export class LocationScene extends Phaser.Scene {
   private view!: Phaser.GameObjects.Graphics;
   private arrow!: Phaser.GameObjects.Graphics;
   private night!: Phaser.GameObjects.Rectangle;
-  private fog!: Phaser.GameObjects.Graphics;
+  private fog!: SoftFog;
   private leader?: Phaser.GameObjects.Image; // the party's first (living) member stands for the party on the map
   private busy = false;
   private log: string[] = [];
@@ -147,7 +147,7 @@ export class LocationScene extends Phaser.Scene {
     this.leader = undefined;
     // night under an open sky: a dark blue wash over the 3D view and the map (the party stays lit)
     this.night = this.add.rectangle(0, 0, PANE * 2, PANE, NIGHT_COLOUR).setOrigin(0, 0).setDepth(2).setAlpha(0);
-    this.fog = this.add.graphics().setDepth(2.5); // unexplored squares of the overhead map
+    this.fog = new SoftFog(this, 'fog:location', PANE, 0, this.map.width, this.map.height, CELL, 2.5); // unexplored squares of the overhead map
 
     // Resume where the party stood (back from a fight), or walk in at the entrance.
     const saved = this.deps.game.location;
@@ -444,10 +444,7 @@ export class LocationScene extends Phaser.Scene {
     const seenNow = visibleSquares(this.map, this.pose.x, this.pose.y, sight, !town);
     const mask = markSeen(game.explored?.[id], this.map.width * this.map.height, seenNow);
     game.explored = { ...game.explored, [id]: mask };
-    const g = this.fog.clear().fillStyle(FOG_COLOUR, 1);
-    for (let y = 0; y < this.map.height; y++)
-      for (let x = 0; x < this.map.width; x++)
-        if (!isSeen(mask, y * this.map.width + x)) g.fillRect(PANE + x * CELL, y * CELL, CELL, CELL);
+    this.fog.update((x, y) => !isSeen(mask, y * this.map.width + x), FOG_COLOUR);
   }
 
   /** Squares still under the fog (click-walking can't aim at or route through them). */

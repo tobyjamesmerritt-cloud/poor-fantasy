@@ -14,7 +14,8 @@ import { formatCoins, passTime } from '../../rules/party';
 import { SITE_RISK } from '../../rules/rest';
 import { rosterEntries } from '../partyView';
 import { loadTravelMap, type TiledMap } from '../../content/world';
-import { canStep, findPath, isBlocked, locationAt, type MapLocation, siteAt, type TravelMap, worldCampSite } from '../../rules/world';
+import { canStep, findPath, isBlocked, locationAt, type MapLocation, siteAt, squaresAround, type TravelMap, worldCampSite, worldSight } from '../../rules/world';
+import { isSeen, markSeen } from '../../rules/location';
 import { questData, wandering } from '../../content/quests';
 import { wanderingCheck, zoneAt } from '../../rules/wandering';
 import type { Rng } from '../../engine/rng';
@@ -22,7 +23,7 @@ import { hooksAt, siteBlocks, siteIcon, siteVisible } from '../../rules/quests';
 import { darkness, formatClock, MINUTES } from '../../rules/time';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
-import { preloadSheets } from '../spriteCss';
+import { preloadSheets, SoftFog } from '../spriteCss';
 
 const MAP_KEY = 'world';
 const WORLD_SCALE = 2; // 16-px tiles drawn at 32 px: ~18×13 squares visible
@@ -37,6 +38,8 @@ export interface WorldSceneDeps {
   rng: Rng; // exploration dice (random encounters)
 }
 
+const FOG_COLOUR = 0x000000;
+const WORLD_KEY = 'world'; // GameState.explored key for the world map
 const NIGHT_COLOUR = 0x0a0f2e;
 const NIGHT_ALPHA = 0.6; // how dark full night gets
 
@@ -45,6 +48,7 @@ export class WorldScene extends Phaser.Scene {
   private map!: TravelMap;
   private token!: Phaser.GameObjects.Image;
   private night!: Phaser.GameObjects.Rectangle;
+  private fog!: SoftFog;
   private pos = { x: 0, y: 0 };
   private busy = false;
   private log: string[] = [];
@@ -80,6 +84,8 @@ export class WorldScene extends Phaser.Scene {
     const ref = assets.sprites['party-token'];
     // night: a dark blue wash over the land and sites (the party token stays on top, lantern-lit)
     this.night = this.add.rectangle(0, 0, this.map.width * TILE, this.map.height * TILE, NIGHT_COLOUR).setOrigin(0, 0).setDepth(4);
+    this.fog = new SoftFog(this, 'fog:world', 0, 0, this.map.width, this.map.height, TILE, 4.5); // land the party hasn't seen yet
+    this.fogDrawn = false;
     this.token = this.add.image(0, 0, ref.sheet, ref.frame).setScale(WORLD_SCALE).setDepth(5);
     this.placeToken();
     this.drawSites();
@@ -125,7 +131,7 @@ export class WorldScene extends Phaser.Scene {
         if (canStep(this.map, this.pos, cmd.dir)) this.walk([cmd.dir]);
         break;
       case 'moveTo': {
-        const path = findPath(this.map, this.pos, cmd);
+        const path = findPath(this.map, this.pos, cmd, this.unseen);
         if (path?.length) this.walk(path);
         break;
       }
@@ -225,7 +231,25 @@ export class WorldScene extends Phaser.Scene {
     this.token.setPosition(this.pos.x * TILE + TILE / 2, this.pos.y * TILE + TILE / 2);
     this.night.setAlpha(NIGHT_ALPHA * darkness(this.deps.game.time));
     this.deps.game.world = { x: this.pos.x, y: this.pos.y };
+    this.explore();
   }
+
+  /** Fog of war: reveal the land around the party (3 squares by day, 1 at night) — for good. */
+  private explore(): void {
+    const g = this.deps.game;
+    const size = this.map.width * this.map.height;
+    const radius = worldSight(darkness(g.time));
+    const before = g.explored?.[WORLD_KEY];
+    const mask = markSeen(before, size, squaresAround(this.map, this.pos.x, this.pos.y, radius));
+    if (mask === before && this.fogDrawn) return;
+    g.explored = { ...g.explored, [WORLD_KEY]: mask };
+    this.fogDrawn = true;
+    this.fog.update((x, y) => !isSeen(mask, y * this.map.width + x), FOG_COLOUR);
+  }
+  private fogDrawn = false;
+
+  /** Land still under the fog (click-walking can't aim at or route through it). */
+  private unseen = (x: number, y: number): boolean => !isSeen(this.deps.game.explored?.[WORLD_KEY], y * this.map.width + x);
 
   /**
    * Update status/log for the current square. Walking onto a location with a

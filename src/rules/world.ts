@@ -63,8 +63,13 @@ export function canStep(m: TravelMap, from: { x: number; y: number }, dir: Direc
 }
 
 /** Shortest 8-way path (BFS) to a passable square; null if unreachable. */
-export function findPath(m: TravelMap, from: { x: number; y: number }, to: { x: number; y: number }): Direction[] | null {
-  if (isBlocked(m, to.x, to.y)) return null;
+export function findPath(
+  m: TravelMap,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  avoid: (x: number, y: number) => boolean = () => false, // e.g. land still under the fog
+): Direction[] | null {
+  if (isBlocked(m, to.x, to.y) || avoid(to.x, to.y)) return null;
   if (from.x === to.x && from.y === to.y) return [];
   // Dijkstra. Every step costs the same (diagonals included), so many routes
   // tie; a small tie-breaker for distance from the straight from→to line picks
@@ -98,6 +103,7 @@ export function findPath(m: TravelMap, from: { x: number; y: number }, to: { x: 
     for (const dir of dirs) {
       if (!canStep(m, p, dir)) continue;
       const [dx, dy] = DIRECTION_VECTORS[dir];
+      if (avoid(p.x + dx, p.y + dy)) continue;
       const n = { x: p.x + dx, y: p.y + dy };
       const nk = key(n.x, n.y);
       const cost = p.cost + STEP + deviation(n.x, n.y);
@@ -143,4 +149,23 @@ export function worldCampSite(
   if (near('rocks')) return { ok: true, kind: 'rocks' };
   if (near('water')) return { ok: true, kind: 'riverside' };
   return { ok: true, kind: 'meadow' };
+}
+
+/**
+ * How far the party sees on the world map (fog of war), by the clock (`darkness`
+ * 0 = day … 1 = night): 3 squares by day, 2 at dusk and dawn, 1 at night. No line
+ * of sight: a world square is a long stretch of country.
+ */
+export function worldSight(dark: number): number {
+  return dark < 0.25 ? 3 : dark < 0.75 ? 2 : 1;
+}
+
+/** World squares within `radius` (round) of (x, y). */
+export function squaresAround(m: TravelMap, x: number, y: number, radius: number): number[] {
+  const out: number[] = [];
+  const r2 = (radius + 0.5) ** 2;
+  for (let ty = y - radius; ty <= y + radius; ty++)
+    for (let tx = x - radius; tx <= x + radius; tx++)
+      if (tx >= 0 && ty >= 0 && tx < m.width && ty < m.height && (tx - x) ** 2 + (ty - y) ** 2 <= r2) out.push(ty * m.width + tx);
+  return out;
 }

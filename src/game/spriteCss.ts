@@ -1,5 +1,5 @@
 /** CSS background info for showing one sprite-sheet frame in the HTML UI. */
-import type * as Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { assets } from '../content/assets';
 import type { SpriteCss } from '../ui/hud';
 
@@ -57,4 +57,90 @@ export function spriteCssFromSizes(sizes: Record<string, { width: number; height
     sheetCols,
     sheetRows: size.height / sheet.frameHeight,
   };
+}
+
+/**
+ * Fog of war with soft, rounded edges. Drawn into a small canvas texture (RES pixels per
+ * square), softened in code, then shown scaled up with smooth filtering. Fogged squares
+ * stay fully dark; only the edges of what you've seen fade. No screen-space filter, so
+ * nothing leaks at the map or screen edges.
+ */
+export class SoftFog {
+  private static readonly RES = 8; // texture pixels per square
+  private static readonly SOFT = 3; // blur radius in texture pixels (~ half a square after two passes)
+  private readonly tex: Phaser.Textures.CanvasTexture;
+  private readonly img: Phaser.GameObjects.Image;
+
+  constructor(
+    scene: Phaser.Scene,
+    key: string,
+    x: number,
+    y: number,
+    private readonly cols: number,
+    private readonly rows: number,
+    cell: number,
+    depth: number,
+  ) {
+    if (scene.textures.exists(key)) scene.textures.remove(key);
+    this.tex = scene.textures.createCanvas(key, cols * SoftFog.RES, rows * SoftFog.RES)!;
+    this.tex.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.img = scene.add.image(x, y, key).setOrigin(0, 0).setScale(cell / SoftFog.RES).setDepth(depth);
+  }
+
+  /** Redraw: `fogged(x, y)` = that square is still unexplored. */
+  update(fogged: (x: number, y: number) => boolean, colour = 0x000000): void {
+    const R = SoftFog.RES;
+    const P = SoftFog.SOFT * 2; // padding outside the map counts as fog
+    const w = this.cols * R + 2 * P;
+    const h = this.rows * R + 2 * P;
+    const base = new Float32Array(w * h);
+    for (let py = 0; py < h; py++)
+      for (let px = 0; px < w; px++) {
+        const cx = Math.floor((px - P) / R);
+        const cy = Math.floor((py - P) / R);
+        const out = cx < 0 || cy < 0 || cx >= this.cols || cy >= this.rows;
+        base[py * w + px] = out || fogged(cx, cy) ? 1 : 0;
+      }
+    // two passes of a box blur ≈ a soft round falloff
+    let a: Float32Array = base;
+    for (let pass = 0; pass < 2; pass++) a = boxBlur(boxBlur(a, w, h, SoftFog.SOFT, true), w, h, SoftFog.SOFT, false);
+    const ctx = this.tex.context;
+    const img = ctx.createImageData(this.cols * R, this.rows * R);
+    const [r, g, b] = [(colour >> 16) & 255, (colour >> 8) & 255, colour & 255];
+    for (let py = 0; py < this.rows * R; py++)
+      for (let px = 0; px < this.cols * R; px++) {
+        const k = (py + P) * w + (px + P);
+        const o = (py * this.cols * R + px) * 4;
+        img.data[o] = r;
+        img.data[o + 1] = g;
+        img.data[o + 2] = b;
+        img.data[o + 3] = Math.round(255 * Math.max(base[k], a[k])); // unexplored stays solid; only the seen side fades
+      }
+    ctx.putImageData(img, 0, 0);
+    this.tex.refresh();
+    this.tex.setFilter(Phaser.Textures.FilterMode.LINEAR); // smooth when scaled up (after upload: pixel-art games default to nearest)
+  }
+
+  destroy(): void {
+    this.img.destroy();
+  }
+}
+
+function boxBlur(src: Float32Array, w: number, h: number, r: number, horizontal: boolean): Float32Array {
+  const out = new Float32Array(src.length);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      let n = 0;
+      for (let d = -r; d <= r; d++) {
+        const xx = horizontal ? x + d : x;
+        const yy = horizontal ? y : y + d;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) {
+          sum += 1; // beyond the edge: fog
+        } else sum += src[yy * w + xx];
+        n++;
+      }
+      out[y * w + x] = sum / n;
+    }
+  return out;
 }

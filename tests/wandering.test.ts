@@ -4,6 +4,7 @@ import { wandering } from '../src/content/quests';
 import { loadTravelMap, type TiledMap } from '../src/content/world';
 import { newGameState } from '../src/engine/state';
 import { distanceToSettlement, wanderingCheck, zoneAt } from '../src/rules/wandering';
+import { findPath, squaresAround, worldSight } from '../src/rules/world';
 import { scripted } from './helpers';
 
 const world = loadTravelMap(JSON.parse(readFileSync('public/assets/maps/world.json', 'utf8')) as TiledMap);
@@ -54,5 +55,21 @@ describe('random encounters on the world map', () => {
       g.flags['wander:steps'] = 99;
       expect(wanderingCheck(g, world, road.x, road.y, wandering, scripted([1, 0]))).toBeNull();
     }
+  });
+});
+
+describe('world map fog of war', () => {
+  it('sees 3 squares by day, 2 at dusk, 1 at night', () => {
+    expect(worldSight(0)).toBe(3);
+    expect(worldSight(0.5)).toBe(2);
+    expect(worldSight(1)).toBe(1);
+    expect(squaresAround(world, 10, 10, 1)).toHaveLength(9);
+    expect(squaresAround(world, 10, 10, 3).length).toBeGreaterThan(squaresAround(world, 10, 10, 2).length);
+  });
+
+  it('click-walking avoids land still under the fog', () => {
+    const fogged = (x: number) => x > 7;
+    expect(findPath(world, { x: 7, y: 16 }, { x: 9, y: 16 }, (x) => fogged(x))).toBeNull();
+    expect(findPath(world, { x: 7, y: 16 }, { x: 9, y: 16 })).not.toBeNull();
   });
 });
