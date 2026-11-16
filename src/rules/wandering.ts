@@ -14,6 +14,7 @@ export interface WanderZone {
   name: string;
   within?: number; // squares from the nearest town/site; absent = everything further out
   difficulty: Difficulty;
+  chance?: number; // per step off the road in this zone (default: the global chance)
   share?: number; // most monsters as a share of the party size (default 1 = one per character)
   dialogs: string[]; // quests.json dialogs that open the encounter
 }
@@ -55,9 +56,10 @@ export function wanderingCheck(
   if (steps <= cfg.grace) return null;
   if ([...map.locations, ...map.sites].some((p) => p.x === x && p.y === y)) return null;
   const t = map.terrain?.[y * map.width + x] ?? '';
-  const chance = t === 'road' || t === 'bridge' ? cfg.roadChance : cfg.chance;
-  if (rng.int(1, 1000) > Math.round(chance * 1000)) return null;
   const zone = zoneAt(map, x, y, cfg);
+  const chance = t === 'road' || t === 'bridge' ? cfg.roadChance : (zone.chance ?? cfg.chance);
+  if (chance <= 0) return null;
+  if (rng.int(1, 1000) > Math.round(chance * 1000)) return null;
   g.flags[STEPS_FLAG] = 0;
   return { dialog: zone.dialogs[rng.int(0, zone.dialogs.length - 1)], difficulty: zone.difficulty, share: zone.share ?? 1, zone: zone.name };
 }
