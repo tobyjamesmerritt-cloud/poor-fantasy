@@ -96,7 +96,7 @@ describe('doors', () => {
     m.spots = [{ id: 'hall', kind: 'building', name: 'Hall', x: 2, y: 1, description: '', building: 'hall', locked, unlockFlag }];
     return m;
   };
-  const front = (m: LocationMap, locked = () => false) =>
+  const front = (m: LocationMap, locked: (x: number, y: number) => boolean = () => false) =>
     viewFaces(m, { x: 2, y: 3, facing: 'n' }, 4, locked).find((f) => f.kind === 'front' && f.lateral === 0 && f.depth === 2);
 
   it('a door square shows as a door in the building wall, not an opening', () => {
