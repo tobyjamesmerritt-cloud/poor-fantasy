@@ -20,6 +20,7 @@ import { loadTravelMap, type TiledMap } from '../../content/world';
 import {
   type Face,
   FACING_VECTORS,
+  doorLocked,
   findPath4,
   isExit,
   type LocationMap,
@@ -53,6 +54,8 @@ const MAX_DEPTH = 4;
 const F = PANE / 4; // focal length: the near edge of your own square fills the pane
 const Z_NEAR = 0.25;
 
+const DOOR_WOOD = 0x8b5a2b;
+const DOOR_FRAME = 0x3b230c;
 const NIGHT_COLOUR = 0x0a0f2e;
 const NIGHT_ALPHA = 0.55; // how dark full night gets outdoors
 const NIGHT_SKY = 0x0b1230;
@@ -219,7 +222,12 @@ export class LocationScene extends Phaser.Scene {
         break;
       }
       case 'moveTo': {
-        const path = findPath4(this.map, this.pose, cmd);
+        const lockedDoor = doorLocked(spotAt(this.map, cmd.x, cmd.y), this.deps.game.flags);
+        if (lockedDoor) {
+          this.say(`The door of ${spotAt(this.map, cmd.x, cmd.y)!.name} is locked.`);
+          break;
+        }
+        const path = findPath4(this.map, this.pose, cmd, this.lockedAt);
         if (path?.length) this.walk(path);
         break;
       }
@@ -234,9 +242,18 @@ export class LocationScene extends Phaser.Scene {
     this.render();
   }
 
+  /** A locked door at (x, y)? (blocks steps and paths; drawn barred in the 3D view) */
+  private lockedAt = (x: number, y: number): boolean => doorLocked(spotAt(this.map, x, y), this.deps.game.flags);
+
   private step(d: StepDir): void {
-    const next = tryStep(this.map, this.pose, d);
+    const next = tryStep(this.map, this.pose, d, this.lockedAt);
     if (!next) {
+      const ahead = tryStep(this.map, this.pose, d); // open but for a locked door?
+      if (ahead && this.lockedAt(ahead.x, ahead.y)) {
+        this.say(`The door of ${spotAt(this.map, ahead.x, ahead.y)!.name} is locked.`);
+        this.cameras.main.shake(80, 0.004);
+        return;
+      }
       this.deps.hud.setStatus(`${this.name} · Something blocks the way.`);
       this.cameras.main.shake(80, 0.004);
       return;
@@ -460,7 +477,7 @@ export class LocationScene extends Phaser.Scene {
       if (!st.sky) g.fillStyle(shade(st.ceiling, lit), 1).fillRect(0, cy - y1, PANE, y1 - y0);
     }
 
-    for (const face of viewFaces(this.map, this.pose, MAX_DEPTH)) this.drawFace(g, face, light);
+    for (const face of viewFaces(this.map, this.pose, MAX_DEPTH, this.lockedAt)) this.drawFace(g, face, light);
   }
 
   private drawFace(g: Phaser.GameObjects.Graphics, f: Face, light: (z: number) => number): void {
@@ -486,6 +503,33 @@ export class LocationScene extends Phaser.Scene {
     const lit = light(zMid) * (f.kind === 'front' ? 1 : 0.78);
     g.fillStyle(shade(mat.face, lit), 1).fillPoints(pts, true);
     g.lineStyle(2, shade(mat.edge, Math.max(0.5, lit)), 1).strokePoints(pts, true);
+    if (f.door) this.drawDoor(g, f, lit);
+  }
+
+  /** A wooden door set into a wall face (in perspective); a locked one is barred with iron. */
+  private drawDoor(g: Phaser.GameObjects.Graphics, f: Face, lit: number): void {
+    const cx = PANE / 2;
+    const cy = PANE / 2;
+    // a point on the face: u across it (0..1), h up from the floor (0..1)
+    const at = (u: number, h: number): Phaser.Math.Vector2 => {
+      const X = f.kind === 'front' ? f.X0 + (f.X1 - f.X0) * u : f.X0;
+      let z = f.kind === 'front' ? f.z0 : f.z0 + (f.z1 - f.z0) * u;
+      z = Math.max(z, Z_NEAR);
+      return new Phaser.Math.Vector2(cx + (F * X) / z, cy + (F * (0.5 - h)) / z);
+    };
+    const rect = (u0: number, u1: number, h0: number, h1: number) => [at(u0, h0), at(u1, h0), at(u1, h1), at(u0, h1)];
+    const wood = shade(DOOR_WOOD, lit);
+    const dark = shade(DOOR_FRAME, Math.max(0.5, lit));
+    g.fillStyle(dark, 1).fillPoints(rect(0.24, 0.76, 0, 0.78), true); // frame
+    g.fillStyle(wood, 1).fillPoints(rect(0.28, 0.72, 0, 0.74), true); // door leaf
+    g.lineStyle(1, dark, 1);
+    for (const u of [0.39, 0.5, 0.61]) g.strokePoints([at(u, 0), at(u, 0.74)], false); // planks
+    g.fillStyle(shade(0xd8c06a, Math.max(0.6, lit)), 1).fillPoints(rect(0.62, 0.66, 0.34, 0.39), true); // handle
+    if (f.door === 'locked') {
+      const iron = shade(0x2b2b2b, Math.max(0.6, lit));
+      g.fillStyle(iron, 1);
+      for (const h of [0.18, 0.55]) g.fillPoints(rect(0.28, 0.72, h, h + 0.05), true); // iron bands
+    }
   }
 }
 

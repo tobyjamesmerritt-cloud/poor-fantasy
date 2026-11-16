@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  doorLocked,
   findPath4,
   type LocationMap,
   type Pose,
@@ -85,5 +86,38 @@ describe('game clock', () => {
     const { formatClock } = await import('../src/rules/time');
     expect(formatClock(8 * 60)).toBe('Day 1 · 08:00');
     expect(formatClock(1440 + 13 * 60 + 7)).toBe('Day 2 · 13:07');
+  });
+});
+
+describe('doors', () => {
+  // a building wall (row 1) with a door at (2,1); the party in the street below
+  const withDoor = (locked?: boolean, unlockFlag?: string): LocationMap => {
+    const m = grid(['#####', '##.##', '#...#', '#...#', '#####']);
+    m.spots = [{ id: 'hall', kind: 'building', name: 'Hall', x: 2, y: 1, description: '', building: 'hall', locked, unlockFlag }];
+    return m;
+  };
+  const front = (m: LocationMap, locked = () => false) =>
+    viewFaces(m, { x: 2, y: 3, facing: 'n' }, 4, locked).find((f) => f.kind === 'front' && f.lateral === 0 && f.depth === 2);
+
+  it('a door square shows as a door in the building wall, not an opening', () => {
+    const f = front(withDoor());
+    expect(f?.door).toBe('open');
+    expect(f?.material).toBe('stone');
+  });
+
+  it('a locked door blocks the way and shows barred, until its flag unlocks it', () => {
+    const m = withDoor(true, 'key:hall');
+    const flags: Record<string, unknown> = {};
+    const locked = (x: number, y: number) => doorLocked(m.spots.find((s) => s.x === x && s.y === y), flags);
+    expect(front(m, locked)?.door).toBe('locked');
+    expect(tryStep(m, { x: 2, y: 2, facing: 'n' }, 'forward', locked)).toBeNull();
+    expect(findPath4(m, { x: 2, y: 3, facing: 'n' }, { x: 2, y: 1 }, locked)).toBeNull();
+    flags['key:hall'] = true;
+    expect(tryStep(m, { x: 2, y: 2, facing: 'n' }, 'forward', locked)).toEqual({ x: 2, y: 1, facing: 'n' });
+  });
+
+  it('standing in the doorway, the door square itself is not drawn around you', () => {
+    const faces = viewFaces(withDoor(), { x: 2, y: 1, facing: 's' }, 4);
+    expect(faces.some((f) => f.door)).toBe(false);
   });
 });

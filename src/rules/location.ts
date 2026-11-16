@@ -21,6 +21,17 @@ export interface Spot {
   description: string;
   encounter?: string; // fight spots
   building?: string; // building spots: inn | shop | temple | hall | house
+  locked?: boolean; // building spots: the door won't open…
+  unlockFlag?: string; // …until this flag is set (a quest unlocks it)
+}
+
+/** A building's door: the square of a building spot. Drawn as a door in the 3D view. */
+export const isDoor = (m: LocationMap, x: number, y: number): boolean => spotAt(m, x, y)?.kind === 'building';
+
+/** Is this door locked right now? */
+export function doorLocked(spot: Spot | undefined, flags: Readonly<Record<string, unknown>>): boolean {
+  if (spot?.kind !== 'building' || !spot.locked) return false;
+  return !(spot.unlockFlag && flags[spot.unlockFlag]);
 }
 
 export interface LocationMap {
@@ -68,11 +79,11 @@ export function materialAt(m: LocationMap, x: number, y: number): string {
 }
 
 /** One step keeping the facing (back / strafe don't turn you). Null if a wall is in the way. */
-export function tryStep(m: LocationMap, p: Pose, d: StepDir): Pose | null {
+export function tryStep(m: LocationMap, p: Pose, d: StepDir, closed: (x: number, y: number) => boolean = () => false): Pose | null {
   const [dx, dy] = FACING_VECTORS[stepFacing(p.facing, d)];
   const x = p.x + dx;
   const y = p.y + dy;
-  return isSolid(m, x, y) ? null : { x, y, facing: p.facing };
+  return isSolid(m, x, y) || closed(x, y) ? null : { x, y, facing: p.facing };
 }
 
 export const spotAt = (m: LocationMap, x: number, y: number): Spot | undefined =>
@@ -85,8 +96,13 @@ export const isExit = (m: LocationMap, x: number, y: number): boolean => m.exits
  * absolute direction of each step. Ties prefer keeping the current heading, so
  * routes turn as rarely as possible. Null if unreachable.
  */
-export function findPath4(m: LocationMap, from: Pose, to: { x: number; y: number }): Facing[] | null {
-  if (isSolid(m, to.x, to.y)) return null;
+export function findPath4(
+  m: LocationMap,
+  from: Pose,
+  to: { x: number; y: number },
+  closed: (x: number, y: number) => boolean = () => false,
+): Facing[] | null {
+  if (isSolid(m, to.x, to.y) || closed(to.x, to.y)) return null;
   if (from.x === to.x && from.y === to.y) return [];
   const key = (x: number, y: number) => y * m.width + x;
   const prev = new Map<number, { k: number; dir: Facing }>();
@@ -101,7 +117,7 @@ export function findPath4(m: LocationMap, from: Pose, to: { x: number; y: number
         const x = p.x + dx;
         const y = p.y + dy;
         const k = key(x, y);
-        if (isSolid(m, x, y) || seen.has(k)) continue;
+        if (isSolid(m, x, y) || closed(x, y) || seen.has(k)) continue;
         seen.add(k);
         prev.set(k, { k: key(p.x, p.y), dir });
         if (x === to.x && y === to.y) {
@@ -139,6 +155,7 @@ export interface Face {
   z0: number;
   z1: number;
   material: string;
+  door?: 'open' | 'locked'; // the face is a building's door (drawn in the building's own material)
 }
 
 /** View-space square → map square. */
@@ -153,11 +170,22 @@ function cellFor(p: Pose, depth: number, lateral: number): { x: number; y: numbe
  * this order and nearer walls cover farther ones). Faces hidden behind a
  * neighbouring solid square are skipped.
  */
-export function viewFaces(m: LocationMap, p: Pose, maxDepth = 4): Face[] {
+export function viewFaces(m: LocationMap, p: Pose, maxDepth = 4, locked: (x: number, y: number) => boolean = () => false): Face[] {
   const faces: Face[] = [];
+  // doors look solid from outside (you see the door, not the inside); never the square you stand on
+  const doorAt = (d: number, l: number) => {
+    if (d === 0 && l === 0) return false;
+    const c = cellFor(p, d, l);
+    return isDoor(m, c.x, c.y);
+  };
   const solidAt = (d: number, l: number) => {
     const c = cellFor(p, d, l);
-    return isSolid(m, c.x, c.y);
+    return isSolid(m, c.x, c.y) || doorAt(d, l);
+  };
+  // a door is set into its building's wall: use the material of a solid neighbour
+  const doorMaterial = (x: number, y: number) => {
+    for (const [dx, dy] of Object.values(FACING_VECTORS)) if (isSolid(m, x + dx, y + dy)) return materialAt(m, x + dx, y + dy);
+    return 'wall';
   };
   for (let d = maxDepth; d >= 0; d--) {
     const reach = 2 * d + 2; // the view spans about 127° (tan of half-angle = 2)
@@ -168,15 +196,17 @@ export function viewFaces(m: LocationMap, p: Pose, maxDepth = 4): Face[] {
     for (const l of laterals) {
       if (!solidAt(d, l)) continue;
       const c = cellFor(p, d, l);
-      const material = materialAt(m, c.x, c.y);
+      const isDoorHere = doorAt(d, l);
+      const material = isDoorHere ? doorMaterial(c.x, c.y) : materialAt(m, c.x, c.y);
+      const door = isDoorHere ? (locked(c.x, c.y) ? ('locked' as const) : ('open' as const)) : undefined;
       if (d >= 1 && !solidAt(d - 1, l)) {
-        faces.push({ kind: 'front', depth: d, lateral: l, X0: l - 0.5, X1: l + 0.5, z0: d - 0.5, z1: d - 0.5, material });
+        faces.push({ kind: 'front', depth: d, lateral: l, X0: l - 0.5, X1: l + 0.5, z0: d - 0.5, z1: d - 0.5, material, door });
       }
       if (l !== 0) {
         const inward = l < 0 ? l + 1 : l - 1;
         if (!solidAt(d, inward)) {
           const X = l < 0 ? l + 0.5 : l - 0.5;
-          faces.push({ kind: 'side', depth: d, lateral: l, X0: X, X1: X, z0: d - 0.5, z1: d + 0.5, material });
+          faces.push({ kind: 'side', depth: d, lateral: l, X0: X, X1: X, z0: d - 0.5, z1: d + 0.5, material, door });
         }
       }
     }

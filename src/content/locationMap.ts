@@ -8,7 +8,9 @@
  *     entrance  (one; property `facing` n|e|s|w)
  *     exit      (one or more; stepping on it leaves to the world map)
  *     fight     (property `encounter` = id in content/encounters; cleared once won)
- *     building  (property `building` = inn|shop|temple|hall|house)
+ *     building  (property `building` = inn|shop|temple|hall|house; it's the door square:
+ *                drawn as a door in the 3D view; bool `locked` keeps it shut until the
+ *                flag in `unlockFlag` is set)
  *     text      (a message shown when you step there)
  *   Object name = display name; `description` property = text shown.
  */
@@ -57,6 +59,9 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
       if (kind === 'building') {
         spot.building = String(objProp(o, 'building') ?? '');
         if (!BUILDINGS.includes(spot.building)) errors.push(`${where}: building must be one of ${BUILDINGS.join(', ')}`);
+        if (objProp(o, 'locked') === true) spot.locked = true;
+        const unlock = objProp(o, 'unlockFlag');
+        if (unlock !== undefined) spot.unlockFlag = String(unlock);
       }
       if (!spot.id) errors.push(`${where}: needs a name`);
       if (spots.some((s) => s.id === spot.id)) errors.push(`${where}: duplicate spot name`);
