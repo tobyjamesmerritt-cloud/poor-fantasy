@@ -22,7 +22,7 @@ import { hooksAt, siteBlocks, siteIcon, siteVisible } from '../../rules/quests';
 import { darkness, formatClock, MINUTES } from '../../rules/time';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
-import { preloadSheets } from '../spriteCss';
+import { preloadSheets, setFigure } from '../spriteCss';
 
 const MAP_KEY = 'world';
 const WORLD_SCALE = 2; // 16-px tiles drawn at 32 px: ~18×13 squares visible
@@ -45,6 +45,7 @@ export class WorldScene extends Phaser.Scene {
   private map!: TravelMap;
   private token!: Phaser.GameObjects.Image;
   private night!: Phaser.GameObjects.Rectangle;
+  private heading: Direction = 's'; // which way the party figure faces
   private pos = { x: 0, y: 0 };
   private busy = false;
   private log: string[] = [];
@@ -81,6 +82,7 @@ export class WorldScene extends Phaser.Scene {
     // night: a dark blue wash over the land and sites (the party token stays on top, lantern-lit)
     this.night = this.add.rectangle(0, 0, this.map.width * TILE, this.map.height * TILE, NIGHT_COLOUR).setOrigin(0, 0).setDepth(4);
     this.token = this.add.image(0, 0, ref.sheet, ref.frame).setScale(WORLD_SCALE).setDepth(5);
+    setFigure(this.token, 'party', this.heading, TILE); // the party's figure, if there's art for it
     this.placeToken();
     this.drawSites();
 
@@ -170,6 +172,8 @@ export class WorldScene extends Phaser.Scene {
         return;
       }
       this.pos = { x: this.pos.x + dx, y: this.pos.y + dy };
+      this.heading = path[i];
+      setFigure(this.token, 'party', this.heading, TILE);
       this.deps.game.time += MINUTES.worldStep;
       for (const name of passTime(this.deps.game.party, statsOf(this.deps.game.roster), this.deps.game.time)) this.log.push(`${name} comes round (1 HP).`);
       this.placeToken();

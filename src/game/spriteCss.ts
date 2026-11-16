@@ -1,6 +1,6 @@
 /** CSS background info for showing one sprite-sheet frame in the HTML UI. */
-import type * as Phaser from 'phaser';
-import { assets } from '../content/assets';
+import * as Phaser from 'phaser';
+import { assets, figureFrame } from '../content/assets';
 import type { SpriteCss } from '../ui/hud';
 
 export function spriteCss(textures: Phaser.Textures.TextureManager, spriteKey: string): SpriteCss {
@@ -24,6 +24,23 @@ export function preloadSheets(load: Phaser.Loader.LoaderPlugin): void {
   for (const [key, s] of Object.entries(assets.sheets)) {
     load.spritesheet(key, s.url, { frameWidth: s.frameWidth, frameHeight: s.frameHeight });
   }
+  for (const [name, f] of Object.entries(assets.figures ?? {})) {
+    load.spritesheet(`figure:${name}`, f.url, { frameWidth: f.frameSize, frameHeight: f.frameSize });
+  }
+}
+
+/**
+ * The party's figure on a map, facing `dir`, sized to one map square. Large art is shrunk
+ * with smooth filtering (a pixel-art nearest-neighbour shrink drops every other pixel).
+ * Returns false when there is no figure art (callers fall back to a token).
+ */
+export function setFigure(img: Phaser.GameObjects.Image, name: string, dir: string, cell: number): boolean {
+  const f = figureFrame(name, dir);
+  if (!f || !img.scene.textures.exists(f.key)) return false;
+  const tex = img.scene.textures.get(f.key);
+  if (f.size > cell) tex.setFilter(Phaser.Textures.FilterMode.LINEAR);
+  img.setTexture(f.key, f.frame).setScale(cell / f.size);
+  return true;
 }
 
 /** Sheet image sizes without Phaser (for HTML screens shown before any scene has loaded art). */

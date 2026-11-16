@@ -43,7 +43,7 @@ import { SITE_RISK } from '../../rules/rest';
 import { rosterEntries } from '../partyView';
 import type { Hud } from '../../ui/hud';
 import { commandForKey } from '../input/keyboard';
-import { preloadSheets } from '../spriteCss';
+import { preloadSheets, setFigure } from '../spriteCss';
 
 export const LOCATION_VIEW = { width: 1024, height: 512 }; // two 512-px panes
 const PANE = 512;
@@ -420,7 +420,13 @@ export class LocationScene extends Phaser.Scene {
     const ref = first ? assets.sprites[first.sprite] : undefined;
     if (ref) {
       if (!this.leader) this.leader = this.add.image(cx, cy, ref.sheet, ref.frame).setScale(MAP_SCALE).setDepth(3.5);
-      this.leader.setTexture(ref.sheet, ref.frame).setPosition(cx, cy);
+      this.leader.setPosition(cx, cy);
+      // the party's figure, facing the way the party faces; else the leader's icon + arrow
+      if (setFigure(this.leader, 'party', this.pose.facing, CELL)) {
+        g.clear();
+        return;
+      }
+      this.leader.setTexture(ref.sheet, ref.frame).setScale(MAP_SCALE);
     }
     const [fx, fy] = FACING_VECTORS[this.pose.facing];
     // a small triangle on the facing edge of the square, over the icon
