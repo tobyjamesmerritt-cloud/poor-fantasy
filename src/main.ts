@@ -851,6 +851,10 @@ bus.subscribe((cmd) => {
         persistLibrary();
         debugNote(`+300 XP each — ${gameState.roster.map((r) => `${r.name} ${r.xp}`).join(', ')}.`);
         notices.push('Debug: +300 XP for everyone in the party. Level up from Party (above the names).');
+      } else if (cmd.text === 'fog') {
+        gameState.explored = {};
+        debugNote('Fog of war reset — every map is unexplored again (except what the party sees right now).');
+        notices.push('Debug: fog of war reset on every map.');
       } else break;
       if (mode === 'shop') shopScreen.refresh(notices.pop());
       else if (mode === 'party') partyScreen.refresh(undefined, notices.pop());
