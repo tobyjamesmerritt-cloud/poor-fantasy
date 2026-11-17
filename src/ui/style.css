@@ -1250,3 +1250,29 @@ button.danger {
   padding: 0.25rem 0.2rem;
   font-size: 0.8rem;
 }
+
+/* Character sheet: one fixed size for every character (DND-72) */
+#party-dialog.pd-sheet {
+  height: min(40rem, 90vh);
+}
+.pd-msg {
+  min-height: 1.4em;
+  margin: 0.2rem 0;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.85rem;
+}
+.pd-msg:empty {
+  visibility: hidden;
+}
+.gear-dialog {
+  width: min(26rem, 92vw);
+}
+.gear-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.6rem 0;
+}
+.gear-list button {
+  text-align: left;
+}

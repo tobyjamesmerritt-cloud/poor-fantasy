@@ -24,13 +24,16 @@ export class PartyDialog {
   private dlg: HTMLDialogElement;
   private game!: GameState;
   private view: { kind: 'group' } | { kind: 'character'; id: string } = { kind: 'group' };
-  private picking: 'weapon' | 'armor' | 'shield' | null = null; // equipment slot whose choices are open
+  private gearDlg: HTMLDialogElement; // pop-up for choosing a weapon / armour / shield
   private message = '';
 
   constructor(private deps: PartyDialogDeps) {
     const d = document.getElementById('party-dialog');
     if (!(d instanceof HTMLDialogElement)) throw new Error('Missing #party-dialog in index.html');
     this.dlg = d;
+    this.gearDlg = document.createElement('dialog');
+    this.gearDlg.className = 'gear-dialog';
+    document.body.append(this.gearDlg);
   }
 
   get open(): boolean {
@@ -46,7 +49,6 @@ export class PartyDialog {
   showCharacter(game: GameState, id: string): void {
     this.game = game;
     this.view = game.roster.some((r) => r.id === id) ? { kind: 'character', id } : { kind: 'group' };
-    this.picking = null;
     this.message = '';
     this.render();
   }
@@ -54,12 +56,12 @@ export class PartyDialog {
   /** Redraw after something changed (levelled up, equipped…), if open. */
   refresh(message = ''): void {
     if (!this.dlg.open) return;
-    this.picking = null;
     this.message = message;
     this.render();
   }
 
   close(): void {
+    if (this.gearDlg.open) this.gearDlg.close();
     if (this.dlg.open) this.dlg.close();
   }
 
@@ -69,6 +71,7 @@ export class PartyDialog {
 
   private render(): void {
     const v = this.view;
+    this.dlg.classList.toggle('pd-sheet', v.kind === 'character');
     this.dlg.replaceChildren(...(v.kind === 'character' ? this.character(v.id) : this.group()));
     if (!this.dlg.open) this.dlg.showModal();
     this.dlg.scrollTop = 0;
@@ -198,34 +201,32 @@ export class PartyDialog {
       this.gearRow(s, 'shield', 'Shield', gear.shield ? name('shield') : 'none'),
     );
 
+    // Spells: a compact summary; the details live in the Spells… pop-up (same size sheet for every class)
+    const caster = casterOf(s);
+    let spellBox: HTMLElement;
+    if (caster) {
+      const left = p?.spells ? caster.maxSlots.map((m, k) => Math.max(0, m - (p.spells!.used[k] ?? 0))) : caster.maxSlots;
+      spellBox = el(
+        'table',
+        'pd-stats',
+        row('Casting', `${ABILITY_NAMES[caster.ability]} · DC ${caster.dc} · ${signed(caster.attack)}`),
+        row('Slots', caster.maxSlots.map((m, k) => `L${k + 1} ${left[k]}/${m}`).join(' · ') || '—'),
+        row('Prepared', `${caster.prepared.length} spells · ${caster.cantrips.length} cantrips`),
+      );
+    } else spellBox = el('p', 'small muted', `${className(s)}s don't cast spells (yet).`);
+
     const parts: HTMLElement[] = [
       nav,
       head,
       el('div', 'pd-cols', el('div', '', el('h3', '', 'Abilities'), abilities), el('div', '', el('h3', '', 'Combat'), combat)),
-      el('h3', '', 'Equipment'),
-      ...(this.message ? [el('div', 'ps-message', this.message)] : []),
-      items,
-      el('p', 'small muted', 'Click an item to swap it for something in the pack.'),
+      el(
+        'div',
+        'pd-cols',
+        el('div', '', el('h3', '', 'Equipment'), items, el('p', 'small muted', 'Click an item to change it.')),
+        el('div', '', el('h3', '', 'Spells'), spellBox),
+      ),
+      el('div', 'ps-message pd-msg', this.message || (dv.notes.length ? dv.notes.join(' · ') : '')),
     ];
-
-    const caster = casterOf(s);
-    if (caster) {
-      const left = p?.spells ? caster.maxSlots.map((m, k) => Math.max(0, m - (p.spells!.used[k] ?? 0))) : caster.maxSlots;
-      const slots = caster.maxSlots.map((m, k) => `L${k + 1}: ${left[k]}/${m}`).join(' · ');
-      const names = (ids: readonly string[]) => ids.map((x) => d.spells[x]?.name ?? x).join(', ') || 'none';
-      parts.push(
-        el('h3', '', 'Spells'),
-        el(
-          'table',
-          'pd-stats',
-          row('Casting', `${ABILITY_NAMES[caster.ability]} · attack ${signed(caster.attack)} · save DC ${caster.dc}`),
-          row('Slots left', slots),
-          row('Cantrips', names(caster.cantrips)),
-          row('Prepared', names(caster.prepared)),
-        ),
-      );
-    }
-    if (dv.notes.length) parts.push(el('p', 'small warn', dv.notes.join(' · ')));
 
     parts.push(
       el(
@@ -241,39 +242,43 @@ export class PartyDialog {
     return parts;
   }
 
-  /** One equipment slot: click the item to see what in the pack could replace it (or take it off). */
+  /** One equipment slot: click the item to choose its replacement in a pop-up. */
   private gearRow(s: CharacterSheet, slot: 'weapon' | 'armor' | 'shield', label: string, current: string): HTMLElement {
+    const item = btn(`${current} ▾`, () => this.openGear(s, slot, label, current), 'name-link pd-item');
+    return el('tr', '', el('td', 'muted', label), el('td', '', item));
+  }
+
+  /** The gear pop-up: what in the pack fits this slot (greyed out, with the reason, if the character can't use it). */
+  private openGear(s: CharacterSheet, slot: 'weapon' | 'armor' | 'shield', label: string, current: string): void {
     const d = characterData;
     const g = this.game;
-    const item = btn(`${current} ▾`, () => {
-      this.picking = this.picking === slot ? null : slot;
-      this.message = '';
-      this.render();
-    }, 'name-link pd-item');
-    const cell = el('td', '', item);
-    if (this.picking === slot) {
-      const list = el('div', 'pd-choices');
-      const refs = Object.keys(g.inventory).filter(
-        (r) => g.inventory[r] > 0 && (slot === 'shield' ? r === 'shield' : r.startsWith(`${slot}:`)),
+    const choose = (cmd: Parameters<CommandBus['dispatch']>[0]) => {
+      this.gearDlg.close();
+      this.send(cmd);
+    };
+    const list = el('div', 'gear-list');
+    const refs = Object.keys(g.inventory).filter((r) => g.inventory[r] > 0 && (slot === 'shield' ? r === 'shield' : r.startsWith(`${slot}:`)));
+    for (const ref of refs) {
+      const why = equipProblem(s, ref, d);
+      const b = btn(`${itemInfo(ref, d)?.name ?? ref}${g.inventory[ref] > 1 ? ` (${g.inventory[ref]})` : ''}`, () =>
+        choose({ type: 'equipItem', characterId: s.id, ref }),
       );
-      for (const ref of refs) {
-        const why = equipProblem(s, ref, d);
-        const b = btn(`${itemInfo(ref, d)?.name ?? ref}${g.inventory[ref] > 1 ? ` (${g.inventory[ref]})` : ''}`, () =>
-          this.send({ type: 'equipItem', characterId: s.id, ref }),
-        );
-        if (why) {
-          b.disabled = true;
-          b.title = why;
-        }
-        list.append(b);
+      if (why) {
+        b.disabled = true;
+        b.title = why;
+        b.append(el('small', 'muted', ` — ${why}`));
       }
-      if (slot !== 'weapon' && current !== 'none') {
-        list.append(btn('Take off', () => this.send({ type: 'unequipItem', characterId: s.id, slot })));
-      }
-      if (!list.childElementCount) list.append(el('span', 'small muted', slot === 'weapon' ? 'No other weapons in the pack.' : `No ${label.toLowerCase()} in the pack.`));
-      cell.append(list);
+      list.append(b);
     }
-    return el('tr', '', el('td', 'muted', label), cell);
+    if (slot !== 'weapon' && current !== 'none') list.append(btn(`Take off the ${current}`, () => choose({ type: 'unequipItem', characterId: s.id, slot })));
+    if (!list.childElementCount) list.append(el('p', 'small muted', slot === 'weapon' ? 'No other weapons in the pack.' : `No ${label.toLowerCase()} in the pack.`));
+    this.gearDlg.replaceChildren(
+      el('h3', '', `${label} for ${s.name}`),
+      el('div', 'small muted', `Now: ${current}. The old item goes back to the pack.`),
+      list,
+      el('div', 'ps-buttons', btn('Cancel', () => this.gearDlg.close(), 'close')),
+    );
+    this.gearDlg.showModal();
   }
 
   private portrait(key: string, px: number): HTMLElement {
