@@ -14,6 +14,7 @@ import {
   endTurn,
   isDown,
   isUp,
+  pathProvokes,
   planMoveTo,
   reachableSquares,
   startCombat,
@@ -332,6 +333,8 @@ export class CombatScene extends Phaser.Scene {
     else this.setCursor('move');
   }
 
+  private warned: string | null = null; // the risky move the player has been warned about once
+
   private setCursor(name: string): void {
     if (name === this.cursor) return;
     this.cursor = name;
@@ -364,8 +367,19 @@ export class CombatScene extends Phaser.Scene {
         break;
       case 'moveTo': {
         const plan = activeUnit(this.state).side === 'party' ? planMoveTo(this.state, cmd.x, cmd.y) : null;
-        if (plan) return this.walk(plan);
-        break;
+        if (!plan) break;
+        // Walking out of an enemy's reach: warn first; the same click again goes anyway (DND-11)
+        const risk = pathProvokes(this.state, plan);
+        const key = `${this.state.round}:${this.state.turnIndex}:${cmd.x},${cmd.y}`;
+        if (risk.length && this.warned !== key) {
+          this.warned = key;
+          this.state.log.push(
+            `⚠ That move leaves ${risk.map((r) => r.name).join(' and ')}'s reach — ${risk.length > 1 ? 'opportunity attacks' : 'an opportunity attack'}. Click again to go anyway, or Disengage first.`,
+          );
+          break;
+        }
+        this.warned = null;
+        return this.walk(plan);
       }
       case 'endTurn':
         endTurn(this.state, this.rng);

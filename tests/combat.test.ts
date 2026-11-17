@@ -12,6 +12,7 @@ import {
   planMoveTo,
   reachableSquares,
   startCombat,
+  pathProvokes,
   step,
   takeAction,
   turnExhausted,
@@ -262,5 +263,19 @@ describe('action economy and opportunity attacks (SRD 5.2)', () => {
     expect(a.x).toBe(1); // never left the square
     expect(s.movesLeft).toBe(0);
     expect(turnExhausted(s)).toBe(true);
+  });
+});
+
+describe('opportunity attack warning', () => {
+  it('a path out of an enemy’s reach names the enemy; Disengage or staying close does not', () => {
+    const rng = createRng(3);
+    const s = startCombat(rng, 10, 10, [
+      makeUnit({ id: 'a', side: 'party', x: 1, y: 1, speed: 6, initBonus: 99 }),
+      makeUnit({ id: 'z', side: 'enemy', x: 2, y: 1, hp: 50, initBonus: -99 }),
+    ]);
+    expect(pathProvokes(s, ['w', 'w']).map((u) => u.id)).toEqual(['z']);
+    expect(pathProvokes(s, ['n'])).toEqual([]); // still next to it
+    takeAction(s, 'disengage');
+    expect(pathProvokes(s, ['w', 'w'])).toEqual([]);
   });
 });

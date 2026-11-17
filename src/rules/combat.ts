@@ -804,11 +804,34 @@ export function planMoveTo(state: CombatState, x: number, y: number): Direction[
 }
 
 /**
+ * Which enemies would get an Opportunity Attack if the active unit walked this
+ * path (each at most once — one Reaction). For the "are you sure?" warning.
+ */
+export function pathProvokes(state: CombatState, path: readonly Direction[]): Unit[] {
+  const u = activeUnit(state);
+  if (state.disengaged) return [];
+  const hit = new Set<Unit>();
+  let x = u.x;
+  let y = u.y;
+  for (const d of path) {
+    const [dx, dy] = DIRECTION_VECTORS[d];
+    const nx = x + dx;
+    const ny = y + dy;
+    if (unitAt(state, nx, ny)) break; // the last step is the attack itself, not a move
+    for (const o of state.units)
+      if (o.side !== u.side && isUp(o) && onField(o) && !o.reactionUsed && !hasEffect(o, 'blinded') &&
+          Math.max(Math.abs(o.x - x), Math.abs(o.y - y)) === 1 && Math.max(Math.abs(o.x - nx), Math.abs(o.y - ny)) > 1)
+        hit.add(o);
+    x = nx;
+    y = ny;
+  }
+  return [...hit];
+}
+
+/**
  * True when the active unit's turn should hand over automatically (the
- * "End turn automatically" preference): it has used its action — Gold Box
- * style, acting ends the turn and any movement left is given up — or it has
- * no movement left and nothing in reach to act on. Grows with DND-10
- * (bonus actions etc.).
+ * "End turn automatically" preference): its action is used and no movement
+ * is left, or it was dropped on its own turn.
  */
 export function turnExhausted(state: CombatState): boolean {
   if (state.outcome !== 'ongoing') return false;
