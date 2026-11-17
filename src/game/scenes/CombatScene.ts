@@ -507,6 +507,7 @@ export class CombatScene extends Phaser.Scene {
     }
     this.state = snap.state;
     this.rng = createRng(snap.rng);
+    this.lastHp.clear(); // no floating numbers for rewound HP
     this.state.log.push(`⟲ Time rewinds… (${this.history.size} more)`);
   }
 
@@ -561,9 +562,32 @@ export class CombatScene extends Phaser.Scene {
     return edges;
   }
 
+  private lastHp = new Map<string, number>(); // HP at the previous redraw → floating numbers (DND-66)
+
+  /** Damage (red) or healing (green) rising from a unit's square and fading out. */
+  private floatNumber(u: { x: number; y: number }, delta: number): void {
+    const t = this.add
+      .text(u.x * TILE + TILE / 2, u.y * TILE + TILE / 3, delta < 0 ? `${delta}` : `+${delta}`, {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        fontStyle: 'bold',
+        color: delta < 0 ? '#ff5a4a' : '#5dff8a',
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(10);
+    this.tweens.add({ targets: t, y: t.y - 28, alpha: 0, duration: 1100, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+  }
+
   private redraw(): void {
     const { overlay, state } = this;
     overlay.clear();
+    for (const u of state.units) {
+      const before = this.lastHp.get(u.id);
+      if (before !== undefined && before !== u.hp && !u.fled) this.floatNumber(u, u.hp - before);
+      this.lastHp.set(u.id, u.hp);
+    }
     this.grid.setVisible(this.deps.prefs.get().grid);
     const active = state.outcome === 'ongoing' ? activeUnit(state) : undefined;
     this.antEdges = active?.side === 'party' && !this.busy && !this.aim ? this.movementEdges() : [];
