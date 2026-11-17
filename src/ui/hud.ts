@@ -52,6 +52,16 @@ export interface CardSpell {
   reason?: string;
 }
 
+/** One slot in the combat turn order bar (DND-17), starting with whoever acts now. */
+export interface TurnEntry {
+  name: string;
+  side: Side;
+  sprite: SpriteCss;
+  hpPct: number;
+  active: boolean;
+  down: boolean;
+}
+
 export interface RosterEntry {
   id: string;
   name: string;
@@ -112,6 +122,22 @@ export class Hud {
   /** Show or hide controls that only make sense in combat. */
   setCombatControls(on: boolean): void {
     must('turn-buttons').hidden = !on;
+    if (!on) this.setTurnOrder(null);
+  }
+
+  /** Initiative order, current turn first; null hides it. */
+  setTurnOrder(entries: TurnEntry[] | null): void {
+    const list = must('turn-order');
+    list.hidden = !entries?.length;
+    list.replaceChildren(
+      ...(entries ?? []).map((t) => {
+        const hp = el('div', 'to-hp');
+        hp.style.width = `${t.hpPct}%`;
+        const li = el('li', `to-${t.side}${t.active ? ' to-active' : ''}${t.down ? ' to-down' : ''}`, portrait(t.sprite, 20), el('span', 'to-name', t.name), hp);
+        li.title = t.name;
+        return li;
+      }),
+    );
   }
 
   /** Register unit names so the log can colour them by side. */

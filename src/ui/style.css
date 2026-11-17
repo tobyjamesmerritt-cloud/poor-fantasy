@@ -274,6 +274,61 @@ main {
   gap: 0.4rem;
 }
 
+/* Turn order (DND-17): current turn first */
+#turn-order[hidden] {
+  display: none;
+}
+#turn-order {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.8rem;
+  flex: 1 1 4rem;
+  min-height: 3rem;
+  overflow-y: auto;
+}
+#turn-order li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1px 4px;
+  border-left: 3px solid var(--line);
+}
+#turn-order li.to-party {
+  border-left-color: #3a7bd5;
+}
+#turn-order li.to-enemy {
+  border-left-color: #c0392b;
+}
+#turn-order li.to-active {
+  outline: 1px solid #f1c40f;
+  font-weight: bold;
+}
+#turn-order li.to-down {
+  opacity: 0.45;
+}
+#turn-order .portrait {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+#turn-order .to-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+#turn-order .to-hp {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: #2ecc71;
+}
+
 /* ---------- Right panel: log ---------- */
 #log {
   overflow-y: auto;

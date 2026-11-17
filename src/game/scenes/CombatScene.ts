@@ -15,6 +15,7 @@ import {
   isDown,
   isUp,
   pathProvokes,
+  unitById,
   planMoveTo,
   reachableSquares,
   startCombat,
@@ -653,6 +654,21 @@ export class CombatScene extends Phaser.Scene {
           : `Fell in round ${state.round} (${tally}) · seed ${this.deps.seed}`,
     );
     hud.setFlee(active?.side === 'party' && !this.busy ? canFlee(state) : null);
+    hud.setTurnOrder(
+      state.outcome !== 'ongoing'
+        ? null
+        : state.order
+            .map((_, i) => unitById(state, state.order[(state.turnIndex + i) % state.order.length]))
+            .filter((u) => u && !u.fled && !u.dead && !(u.side === 'enemy' && !isUp(u)))
+            .map((u) => ({
+              name: u!.name,
+              side: u!.side,
+              sprite: spriteCss(this.textures, u!.sprite),
+              hpPct: Math.max(0, Math.round((u!.hp / u!.maxHp) * 100)),
+              active: u === active,
+              down: !isUp(u!),
+            })),
+    );
     hud.setActive(active && active.side === 'party' ? this.card(active) : null);
     hud.setEndTurnHint(!!active && active.side === 'party' && (state.actionUsed || state.movesLeft <= 0));
     hud.setStatus(
