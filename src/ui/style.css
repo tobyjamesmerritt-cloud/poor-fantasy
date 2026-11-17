@@ -138,14 +138,18 @@ button.suggest {
 }
 
 /* ---------- Main layout ---------- */
+/* Every screen: the game on the left, the party panel on the right, the message log below (DND-70). */
 main {
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr) 19rem;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  grid-template-rows: minmax(0, 1fr) 10rem;
+  grid-template-areas: 'stage side' 'log log';
   gap: 0.5rem;
   padding: 0.5rem;
   min-height: 0;
 }
 #stage {
+  grid-area: stage;
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -161,6 +165,7 @@ main {
 
 /* ---------- Left panel: character card ---------- */
 #left {
+  grid-area: side;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -430,28 +435,19 @@ dialog li {
   }
 }
 
+#log {
+  grid-area: log;
+}
+
 @media (max-width: 900px) {
   main {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr) 6rem;
+    grid-template-areas: 'side' 'stage' 'log';
   }
 }
 
 /* ---------- Inside a location: 3D view | map | party panel, text below ---------- */
-body[data-mode='location'] main {
-  grid-template-columns: minmax(0, 1fr) 17rem;
-  grid-template-rows: minmax(0, 1fr) 10rem;
-  grid-template-areas: 'stage side' 'log log';
-}
-body[data-mode='location'] #stage {
-  grid-area: stage;
-}
-body[data-mode='location'] #left {
-  grid-area: side;
-}
-body[data-mode='location'] #log {
-  grid-area: log;
-}
 body[data-mode='location'] #touchpad {
   display: none; /* the side panel has its own movement buttons */
 }
@@ -525,13 +521,6 @@ body[data-mode='location'] #touchpad {
   gap: 0.3rem;
   margin-top: 0.6rem;
 }
-@media (max-width: 900px) {
-  body[data-mode='location'] main {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr) 6rem;
-    grid-template-areas: 'side' 'stage' 'log';
-  }
-}
 
 /* ---------- Party screen (create / edit characters) ---------- */
 #party-screen,
@@ -540,6 +529,7 @@ body[data-mode='location'] #touchpad {
 }
 body[data-mode='shop'] main {
   grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: none;
 }
 body[data-mode='shop'] main > :not(#shop-screen),
 body[data-mode='shop'] #touchpad {
@@ -606,6 +596,7 @@ body[data-mode='shop'] #shop-screen {
 }
 body[data-mode='party'] main {
   grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: none;
 }
 body[data-mode='party'] main > :not(#party-screen) {
   display: none;
