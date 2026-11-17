@@ -268,9 +268,10 @@ export class Hud {
 
   /** Dash, Dodge, Disengage — the other actions (SRD 5.2). */
   private otherActions(card: ActiveCard): HTMLElement {
-    const mk = (label: string, action: 'dash' | 'dodge' | 'disengage', title: string) => {
-      const b = el('button', '', label) as HTMLButtonElement;
-      b.title = title;
+    // The hotkey letter is underlined, Gold Box style (keys in game/input/keyboard.ts)
+    const mk = (label: string, action: 'dash' | 'dodge' | 'disengage', title: string, key: number) => {
+      const b = el('button', '', label.slice(0, key), el('u', '', label[key]), label.slice(key + 1)) as HTMLButtonElement;
+      b.title = `${title} (${label[key].toUpperCase()})`;
       b.disabled = card.actionUsed;
       b.addEventListener('click', () => this.bus.dispatch({ type: 'combatAction', action }));
       return b;
@@ -278,9 +279,9 @@ export class Hud {
     return el(
       'div',
       'other-actions',
-      mk('Dash', 'dash', 'Action: move up to your Speed again this turn'),
-      mk('Dodge', 'dodge', 'Action: attacks against you have disadvantage until your next turn (and advantage on Dexterity saves)'),
-      mk('Disengage', 'disengage', 'Action: moving away from enemies won’t provoke opportunity attacks this turn'),
+      mk('Dash', 'dash', 'Action: move up to your Speed again this turn', 3),
+      mk('Dodge', 'dodge', 'Action: attacks against you have disadvantage until your next turn (and advantage on Dexterity saves)', 1),
+      mk('Disengage', 'disengage', 'Action: moving away from enemies won’t provoke opportunity attacks this turn', 6),
     );
   }
 
