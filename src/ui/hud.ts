@@ -120,6 +120,9 @@ export class Hud {
   private namePattern: RegExp | null = null;
   private sideByName = new Map<string, Side>();
 
+  /** End turn · Rewind · Flee: shown inside the combat card, under Dash/Dodge/Disengage (kept by reference — it moves). */
+  private turnButtons = must('turn-buttons');
+
   constructor(private bus: CommandBus) {
     document.querySelectorAll<HTMLButtonElement>('[data-command]').forEach((btn) => {
       btn.addEventListener('click', () => bus.dispatch(JSON.parse(btn.dataset.command!) as Command));
@@ -128,7 +131,7 @@ export class Hud {
 
   /** Show or hide controls that only make sense in combat. */
   setCombatControls(on: boolean): void {
-    must('turn-buttons').hidden = !on;
+    this.turnButtons.hidden = !on;
     if (!on) this.setTurnOrder(null);
   }
 
@@ -193,16 +196,14 @@ export class Hud {
 
   /** Enable the Flee button only when the active character may flee; the tooltip says why not. */
   setFlee(state: { ok: boolean; reason?: string } | null): void {
-    const btn = must('flee-btn') as HTMLButtonElement;
+    const btn = this.turnButtons.querySelector('#flee-btn') as HTMLButtonElement;
     btn.disabled = !state?.ok;
     btn.title = state?.ok ? 'Flee over the map edge (F)' : (state?.reason ?? 'Flee: stand on the map edge');
   }
 
   /** Highlight the End turn button when the active unit has used its action or movement. */
   setEndTurnHint(on: boolean): void {
-    document
-      .querySelectorAll('[data-command=\'{"type":"endTurn"}\']')
-      .forEach((b) => b.classList.toggle('suggest', on));
+    this.turnButtons.querySelectorAll('[data-command=\'{"type":"endTurn"}\']').forEach((b) => b.classList.toggle('suggest', on));
   }
 
   /** Full-board victory/defeat banner; hidden while combat is ongoing. */
@@ -245,7 +246,7 @@ export class Hud {
   /** Compact active-character card: name over the portrait, stats beside it. */
   setActive(card: ActiveCard | null): void {
     if (!card) {
-      this.cardEl.replaceChildren(el('p', 'muted', 'Combat over.'));
+      this.cardEl.replaceChildren(el('p', 'muted', 'Combat over.'), this.turnButtons);
       return;
     }
     const hpPct = Math.round((card.hp / card.maxHp) * 100);
@@ -276,6 +277,7 @@ export class Hud {
           ...this.weaponSwap(card),
         ),
         this.otherActions(card),
+        this.turnButtons,
         ...(card.effects?.length || card.concentration
           ? [el('div', 'effects', [...(card.effects ?? []), card.concentration ? `concentrating: ${card.concentration}` : ''].filter(Boolean).join(' · '))]
           : []),

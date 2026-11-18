@@ -4,16 +4,18 @@
  */
 export type TextSize = 'small' | 'normal' | 'large';
 export type Difficulty = 'hard' | 'normal' | 'casual'; // retreat rules, see rules/combat.ts RetreatRule
+export type PanelSide = 'left' | 'right';
 
 export interface Prefs {
   grid: boolean; // faint grid lines on the combat map
   autoEndTurn: boolean; // hand over the turn automatically when nothing is left to do
   textSize: TextSize;
   difficulty: Difficulty; // applies from the next fight
+  panelSide: PanelSide; // side panel (party, combat card) left or right of the game, on every screen
 }
 
 const KEY = 'poor-fantasy.prefs';
-const DEFAULTS: Prefs = { grid: true, autoEndTurn: true, textSize: 'normal', difficulty: 'normal' };
+const DEFAULTS: Prefs = { grid: true, autoEndTurn: true, textSize: 'normal', difficulty: 'normal', panelSide: 'right' };
 const TEXT_PX: Record<TextSize, string> = { small: '15px', normal: '17px', large: '20px' };
 
 type Listener = (p: Prefs) => void;
@@ -55,5 +57,6 @@ export class PrefsStore {
 
   private apply(): void {
     document.documentElement.style.fontSize = TEXT_PX[this.value.textSize];
+    document.body.dataset.panel = this.value.panelSide;
   }
 }

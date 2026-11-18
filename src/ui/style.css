@@ -273,6 +273,18 @@ main {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0.4rem;
 }
+#card #turn-buttons {
+  margin: 0.1rem 0 0.2rem;
+}
+#card #turn-buttons button {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.2rem;
+  white-space: nowrap;
+}
+#card #turn-buttons small {
+  margin-left: 0.25rem;
+  opacity: 0.55;
+}
 
 /* Turn order (DND-17): current turn first */
 #turn-order[hidden] {
@@ -504,6 +516,14 @@ dialog li {
 
 #log {
   grid-area: log;
+}
+
+/* Preferences → Side panel: Left (wide screens; narrow ones stack it above the game) */
+@media (min-width: 901px) {
+  body[data-panel='left'] main {
+    grid-template-columns: 17rem minmax(0, 1fr);
+    grid-template-areas: 'side stage' 'log log';
+  }
 }
 
 @media (max-width: 900px) {
