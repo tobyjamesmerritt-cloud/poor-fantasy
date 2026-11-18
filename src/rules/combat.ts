@@ -144,6 +144,8 @@ export interface Unit {
   uses?: Partial<Record<FeatureId, number>>; // their uses left (Second Wind, Action Surge, Lay On Hands pool)
   onceTurn?: Partial<Record<'sneak' | 'slayer', string>>; // "round.turnIndex" when a once-per-turn rider was last used
   creatureType?: string; // monsters: beast, giant, undead, fiend… (Divine Smite)
+  morale?: number; // monsters: HP fraction at which it may break and run (house rule; missing = fights to the death)
+  routed?: boolean; // its nerve broke: it runs for the nearest edge
   size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan'; // monsters (missing = medium)
 }
 
@@ -943,9 +945,9 @@ function helpStabilise(state: CombatState, rng: Rng, helper: Unit, target: Unit)
 
 export function checkOutcome(state: CombatState): void {
   if (state.outcome !== 'ongoing') return;
-  if (!state.units.some((u) => u.side === 'enemy' && isUp(u))) {
+  if (!state.units.some((u) => u.side === 'enemy' && isUp(u) && onField(u))) {
     state.outcome = 'victory';
-    state.log.push('Victory!');
+    state.log.push(state.units.some((u) => u.side === 'enemy' && u.fled) ? 'Victory — the rest flee!' : 'Victory!');
   } else if (!state.units.some((u) => u.side === 'party' && isUp(u) && onField(u))) {
     if (state.units.some((u) => u.side === 'party' && u.fled)) {
       state.outcome = 'fled';
@@ -962,8 +964,11 @@ export function runEnemyTurn(state: CombatState, rng: Rng): void {
   while (state.outcome === 'ongoing' && activeUnit(state).side === 'enemy') {
     const u = activeUnit(state);
     breakFree(state, rng, u);
-    for (let guard = 0; guard < 30 && state.outcome === 'ongoing'; guard++) {
-      const target = nearest(state, u, 'party');
+    checkMorale(state, rng, u);
+    if (u.routed) runAway(state, rng, u);
+    let target = u.routed ? undefined : pickTarget(state, u);
+    for (let guard = 0; guard < 30 && state.outcome === 'ongoing' && target; guard++) {
+      if (!isUp(target) || !onField(target)) target = pickTarget(state, u);
       if (!target) break;
       if (chebyshev(u, target) === 1) {
         if (!state.actionUsed) {
@@ -978,7 +983,15 @@ export function runEnemyTurn(state: CombatState, rng: Rng): void {
         break;
       }
       if (state.movesLeft <= 0) break;
-      const dir = bestStepToward(state, u, target);
+      let dir = bestStepToward(state, u, target);
+      if (!dir) {
+        // boxed in on the way to its pick (other monsters in the way): go for whoever is nearest instead
+        const near = nearest(state, u, 'party');
+        if (near && near !== target) {
+          target = near;
+          dir = bestStepToward(state, u, target);
+        }
+      }
       if (!dir || !step(state, rng, dir)) break;
     }
     if (state.outcome !== 'ongoing') return;
@@ -1005,13 +1018,130 @@ function breakFree(state: CombatState, rng: Rng, u: Unit): void {
   } else state.log.push(`${u.name} strains against the vines (${total} vs DC ${vines.dc}).`);
 }
 
+/** Average of damage expressions like "1d6+3". */
+const avgDamage = (parts: readonly string[]): number =>
+  parts.reduce((sum, p) => {
+    const d = parseDice(p);
+    return sum + d.count * (d.sides + 1) / 2 + d.modifier;
+  }, 0);
+
+/**
+ * Enemy AI v2 (DND-16): who to go for.
+ * - Already next to someone: fight there (walking off would draw Opportunity Attacks).
+ * - Otherwise, among the party it can reach this turn: someone it can finish off, then a
+ *   concentrating caster, then the easiest to hit (low AC), then the most hurt. Pack Tactics
+ *   creatures favour targets an ally is already next to. Nobody in reach: the nearest.
+ */
+export function pickTarget(state: CombatState, u: Unit): Unit | undefined {
+  const foes = state.units.filter((o) => o.side !== u.side && isUp(o) && onField(o));
+  if (!foes.length) return undefined;
+  const adjacent = foes.filter((f) => chebyshev(u, f) === 1);
+  const pool = adjacent.length ? adjacent : foes.filter((f) => chebyshev(u, f) - 1 <= state.movesLeft);
+  if (!pool.length) return nearest(state, u, u.side === 'enemy' ? 'party' : 'enemy');
+  const hit = avgDamage(u.damage) * (u.attacks ?? 1);
+  const pack = u.traits.includes('pack-tactics');
+  const score = (f: Unit) =>
+    (f.hp + (f.tempHp ?? 0) <= hit ? 0 : 100) +
+    (f.concentration ? 0 : 40) +
+    acOf(f) * 3 +
+    f.hp / 2 +
+    chebyshev(u, f) +
+    (pack && state.units.some((o) => o !== u && o.side === u.side && isUp(o) && onField(o) && chebyshev(o, f) === 1) ? -30 : 0);
+  return [...pool].sort((a, b) => score(a) - score(b) || a.id.localeCompare(b.id))[0];
+}
+
+/**
+ * Morale (house rule — the SRD leaves it to the DM): a creature with `morale` that is
+ * down to that fraction of its hit points, or whose side has lost over half its number,
+ * makes a DC 10 Wisdom save at the start of its turn; on a failure it breaks and runs.
+ */
+function checkMorale(state: CombatState, rng: Rng, u: Unit): void {
+  if (!u.morale || u.routed || !isUp(u)) return;
+  const side = state.units.filter((o) => o.side === u.side);
+  const lost = side.filter((o) => !isUp(o) || !onField(o)).length;
+  const shaken = u.hp <= u.maxHp * u.morale || (side.length > 1 && lost * 2 > side.length);
+  if (!shaken) return;
+  const total = saveTotal(rng, u, 'wis');
+  if (total >= 10) return;
+  u.routed = true;
+  state.log.push(`${u.name} loses its nerve and turns to flee! (WIS ${total} vs DC 10)`);
+}
+
+/** A routed creature Dashes for the nearest map edge, away from its foes, and leaves when it gets there. */
+function runAway(state: CombatState, rng: Rng, u: Unit): void {
+  if (!state.actionUsed && !hasEffect(u, 'restrained')) {
+    state.actionUsed = true;
+    state.movesLeft += u.speed; // Dash
+  }
+  for (let guard = 0; guard < 40 && isUp(u) && onField(u) && state.outcome === 'ongoing'; guard++) {
+    const onEdge = u.x === 0 || u.y === 0 || u.x === state.width - 1 || u.y === state.height - 1;
+    if (onEdge && state.movesLeft > 0) {
+      const ox = u.x === 0 ? -1 : u.x === state.width - 1 ? 1 : 0;
+      const oy = ox ? 0 : u.y === 0 ? -1 : 1;
+      if (!provoke(state, rng, u, u.x + ox, u.y + oy)) return; // cut down on the way out
+      u.fled = true;
+      state.log.push(`${u.name} escapes off the edge of the field.`);
+      checkOutcome(state);
+      return;
+    }
+    if (state.movesLeft <= 0) return;
+    // step that gets closest to an edge, breaking ties by distance from the nearest foe
+    const foes = state.units.filter((o) => o.side !== u.side && isUp(o) && onField(o));
+    const edgeDist = (x: number, y: number) => Math.min(x, y, state.width - 1 - x, state.height - 1 - y);
+    let best: Direction | undefined;
+    let bestScore = edgeDist(u.x, u.y) * 10 - Math.min(99, ...foes.map((f) => chebyshev(u, f)));
+    for (const [dir, [dx, dy]] of Object.entries(DIRECTION_VECTORS) as [Direction, readonly [number, number]][]) {
+      const nx = u.x + dx;
+      const ny = u.y + dy;
+      if (nx < 0 || ny < 0 || nx >= state.width || ny >= state.height || unitAt(state, nx, ny)) continue;
+      const sc = edgeDist(nx, ny) * 10 - Math.min(99, ...foes.map((f) => chebyshev({ x: nx, y: ny }, f)));
+      if (sc < bestScore) {
+        bestScore = sc;
+        best = dir;
+      }
+    }
+    if (!best || !step(state, rng, best)) return;
+  }
+}
+
 function nearest(state: CombatState, from: Unit, side: Side): Unit | undefined {
   return state.units
     .filter((u) => u.side === side && isUp(u) && onField(u))
     .sort((a, b) => chebyshev(from, a) - chebyshev(from, b))[0];
 }
 
+/**
+ * First step of a shortest walk (around anyone in the way) to a square next to
+ * `target`; falls back to the greedy step. Undefined if there is no way through.
+ */
 function bestStepToward(state: CombatState, u: Unit, target: Unit): Direction | undefined {
+  const W = state.width;
+  const key = (x: number, y: number) => y * W + x;
+  const first = new Map<number, Direction>();
+  const seen = new Set<number>([key(u.x, u.y)]);
+  let frontier: { x: number; y: number }[] = [{ x: u.x, y: u.y }];
+  const dirs = Object.entries(DIRECTION_VECTORS) as [Direction, readonly [number, number]][];
+  while (frontier.length) {
+    const next: { x: number; y: number }[] = [];
+    for (const p of frontier) {
+      for (const [dir, [dx, dy]] of dirs) {
+        const nx = p.x + dx;
+        const ny = p.y + dy;
+        const k = key(nx, ny);
+        if (nx < 0 || ny < 0 || nx >= W || ny >= state.height || seen.has(k) || unitAt(state, nx, ny)) continue;
+        seen.add(k);
+        const d = p.x === u.x && p.y === u.y ? dir : first.get(key(p.x, p.y))!;
+        if (chebyshev({ x: nx, y: ny }, target) === 1) return d;
+        first.set(k, d);
+        next.push({ x: nx, y: ny });
+      }
+    }
+    frontier = next;
+  }
+  return greedyStepToward(state, u, target);
+}
+
+function greedyStepToward(state: CombatState, u: Unit, target: Unit): Direction | undefined {
   let best: Direction | undefined;
   let bestDist = chebyshev(u, target);
   for (const [dir, [dx, dy]] of Object.entries(DIRECTION_VECTORS) as [Direction, readonly [number, number]][]) {

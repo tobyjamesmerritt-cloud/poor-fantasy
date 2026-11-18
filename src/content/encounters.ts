@@ -47,6 +47,7 @@ export interface MonsterDef {
   regeneration?: number; // HP regained at the start of each turn (stopped for a turn by acid or fire)
   traits: string[];
   type?: string; // SRD creature type: beast, giant, undead, fiend… (Divine Smite)
+  morale?: number; // house rule: HP fraction at which it may break and flee (missing = fights to the death)
   size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
 }
 
@@ -248,6 +249,7 @@ export function buildUnits(
       saves: m.saves,
       ...(m.type ? { creatureType: m.type } : {}),
       ...(m.size ? { size: m.size } : {}),
+      ...(m.morale ? { morale: m.morale } : {}),
       attackName: m.attack.name,
       attackBonus: m.attack.bonus,
       damage: m.attack.damage,

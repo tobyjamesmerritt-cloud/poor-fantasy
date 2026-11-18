@@ -1,8 +1,9 @@
 /**
  * Rewards after a fight: experience points and treasure.
  * XP: the XP of every defeated monster, divided evenly among the characters
- * who are still alive at the end (SRD 5.2 "Experience Points"). Fleeing still
- * earns XP for the monsters already slain.
+ * who are still alive at the end (SRD 5.2 "Experience Points"). Monsters that
+ * broke and fled count as overcome. A party that flees still earns XP for the
+ * monsters already slain.
  * Treasure: wild beasts carry none (house rule); lairs and guarded rooms hold
  * the treasure listed in content/treasure.json, taken when the fight is won.
  */
@@ -23,7 +24,8 @@ export function awardXp(
   roster: CharacterSheet[],
   combat: CombatState,
 ): { each: number; total: number; who: string[] } {
-  const total = combat.units.filter((u) => u.side === 'enemy' && u.dead).reduce((sum, u) => sum + (u.xp ?? 0), 0);
+  // slain or routed off the field (DND-16): both count as overcome
+  const total = combat.units.filter((u) => u.side === 'enemy' && (u.dead || u.fled)).reduce((sum, u) => sum + (u.xp ?? 0), 0);
   const fighters = party.filter((p) => !p.dead && combat.units.some((u) => u.id === p.id));
   if (!total || !fighters.length) return { each: 0, total, who: [] };
   const each = Math.floor(total / fighters.length);

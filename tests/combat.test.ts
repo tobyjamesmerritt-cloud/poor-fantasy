@@ -16,6 +16,10 @@ import {
   step,
   takeAction,
   turnExhausted,
+  pickTarget,
+  runEnemyTurn,
+  type CombatState,
+  type Unit,
 } from '../src/rules/combat';
 import { makeUnit, scripted, skirmishUnits } from './helpers';
 
@@ -277,5 +281,57 @@ describe('opportunity attack warning', () => {
     expect(pathProvokes(s, ['n'])).toEqual([]); // still next to it
     takeAction(s, 'disengage');
     expect(pathProvokes(s, ['w', 'w'])).toEqual([]);
+  });
+});
+
+describe('enemy AI v2 (DND-16)', () => {
+  const board = (units: Unit[]): CombatState => ({
+    width: 12,
+    height: 9,
+    units,
+    order: units.map((u) => u.id),
+    turnIndex: 0,
+    round: 1,
+    movesLeft: units[0].speed,
+    actionUsed: false,
+    outcome: 'ongoing',
+    retreat: 'normal',
+    bonusUsed: false,
+    slotUsed: false,
+    potions: 0,
+    log: [],
+  });
+
+  it('goes for someone it can finish off, then the easiest to hit — and fights whoever is next to it', () => {
+    const rat = makeUnit({ id: 'rat', side: 'enemy', x: 5, y: 4, damage: ['1d4+3'] });
+    const tank = makeUnit({ id: 'tank', side: 'party', x: 3, y: 4, hp: 30, ac: 18 });
+    const weak = makeUnit({ id: 'weak', side: 'party', x: 7, y: 4, hp: 4, ac: 16 });
+    const soft = makeUnit({ id: 'soft', side: 'party', x: 5, y: 7, hp: 20, ac: 10 });
+    const s = board([rat, tank, weak, soft]);
+    expect(pickTarget(s, rat)?.id).toBe('weak'); // 4 HP: one bite drops it
+    weak.hp = 20;
+    expect(pickTarget(s, rat)?.id).toBe('soft'); // AC 10
+    tank.x = 4; // now adjacent
+    expect(pickTarget(s, rat)?.id).toBe('tank');
+  });
+
+  it('walks around fallen bodies instead of freezing', () => {
+    const rat = makeUnit({ id: 'rat', side: 'enemy', x: 2, y: 5 });
+    const a = makeUnit({ id: 'a', side: 'party', x: 0, y: 3, hp: 10 });
+    const b1 = makeUnit({ id: 'b1', side: 'party', x: 1, y: 4, hp: 0, stable: true });
+    const b2 = makeUnit({ id: 'b2', side: 'party', x: 0, y: 4, hp: 0, stable: true });
+    const s = board([rat, a, b1, b2]);
+    runEnemyTurn(s, createRng(1));
+    expect(s.log.join('\n')).toMatch(/RAT (hits|misses|CRITS) A/);
+  });
+
+  it('a beast at low HP may break and run off the field; routed foes still count as beaten', () => {
+    const rat = makeUnit({ id: 'rat', side: 'enemy', x: 1, y: 4, hp: 1, maxHp: 20, morale: 0.25, saves: { wis: -100 }, speed: 6 });
+    const hero = makeUnit({ id: 'hero', side: 'party', x: 5, y: 4 });
+    const s = board([rat, hero]);
+    runEnemyTurn(s, createRng(2));
+    expect(rat.routed).toBe(true);
+    expect(rat.fled).toBe(true);
+    expect(s.outcome).toBe('victory');
   });
 });
