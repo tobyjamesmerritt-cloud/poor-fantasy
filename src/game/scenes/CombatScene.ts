@@ -14,6 +14,7 @@ import {
   endTurn,
   isDown,
   isUp,
+  checkOutcome,
   pathProvokes,
   unitById,
   planMoveTo,
@@ -393,6 +394,12 @@ export class CombatScene extends Phaser.Scene {
         break;
       case 'combatAction':
         if (activeUnit(this.state).side === 'party') takeAction(this.state, cmd.action);
+        break;
+      case 'debug':
+        if (cmd.text.trim().toLowerCase() !== 'kill') return;
+        for (const u of this.state.units) if (u.side === 'enemy' && isUp(u)) u.hp = 0;
+        this.state.log.push('Debug: every enemy drops.');
+        checkOutcome(this.state);
         break;
       default:
         return; // navigation commands are handled in main.ts

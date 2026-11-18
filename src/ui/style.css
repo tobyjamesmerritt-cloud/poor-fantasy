@@ -1331,3 +1331,14 @@ button.danger {
 .gear-list button {
   text-align: left;
 }
+
+/* Debug console (About dialog, DND-20) */
+.debug-console {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.debug-console input {
+  flex: 1;
+  font-family: monospace;
+}

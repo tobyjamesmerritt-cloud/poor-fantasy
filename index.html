@@ -180,6 +180,10 @@
         <button data-command='{"type":"debug","text":"xp"}'>+300 XP each</button>
         <button data-command='{"type":"debug","text":"fog"}'>Reset fog of war</button>
       </div>
+      <form id="debug-console" class="debug-console" autocomplete="off">
+        <input id="debug-input" type="text" placeholder="debug command — type help" aria-label="Debug command" spellcheck="false" />
+        <button type="submit">Run</button>
+      </form>
       <p id="about-debug-note" class="hint" aria-live="polite"></p>
       <button class="close">Close</button>
     </dialog>

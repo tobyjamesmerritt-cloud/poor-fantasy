@@ -57,6 +57,12 @@ import './ui/style.css';
 // ?seed=123 in the URL jumps straight into the test fight with those dice — paste it into bug reports.
 const params = new URLSearchParams(location.search);
 let seed = params.has('seed') ? Number(params.get('seed')) : randomSeed();
+let pinnedSeed: number | null = null; // debug console "seed N": the next fight uses these dice
+const nextSeed = (): number => {
+  const s = pinnedSeed ?? randomSeed();
+  pinnedSeed = null;
+  return s;
+};
 let encounter = params.get('encounter') ?? DEFAULT_ENCOUNTER; // ?encounter=ruins-crawlers for testing
 let origin: string | undefined; // what the current fight belongs to (location:spot), for the cleared flag
 type SceneKey = 'world' | 'combat' | 'location' | 'camp' | 'party' | 'shop';
@@ -354,7 +360,7 @@ function startQuestFight(f: Extract<Request, { kind: 'fight' }>, confirmed = fal
   fightDifficulty = f.difficulty ?? zone;
   fightShare = zone ? wanderShare : undefined;
   fightTweaks = f.tweaks;
-  seed = randomSeed();
+  seed = nextSeed();
   show('combat');
 }
 const PREPARE_FLAG = 'spells:prepare'; // set at camp after a Long Rest, cleared on leaving camp
@@ -570,7 +576,7 @@ bus.subscribe((cmd) => {
         fightTweaks = undefined;
         fightShare = undefined;
       }
-      seed = randomSeed();
+      seed = nextSeed();
       delete gameState.flags[PREPARE_FLAG];
       show('combat');
       break;
@@ -835,27 +841,72 @@ bus.subscribe((cmd) => {
       break;
     }
     case 'debug': {
-      // Testing aids (About menu). Not available mid-fight, so a fight's numbers stay honest.
+      // Testing aids: About menu buttons + the debug console (DND-20). Only "kill" works
+      // mid-fight (CombatScene handles it); everything else waits, so a fight's numbers stay honest.
       const mode = document.body.dataset.mode;
-      if (mode === 'combat') {
-        hud.setStatus('Debug options are not available during a fight.');
-        debugNote('Not available during a fight.');
+      const [verb = '', arg] = cmd.text.trim().toLowerCase().split(/\s+/);
+      const n = arg !== undefined && Number.isFinite(Number(arg)) ? Number(arg) : undefined;
+      if (verb === 'help' || verb === '') {
+        debugNote(
+          'Commands: gold [gp] · xp [n] · heal (everyone full, raises the dead) · fight <encounter> · time <hours> · seed <n> (next fight’s dice) · fog · kill (in a fight: all enemies drop).',
+        );
         break;
       }
-      if (cmd.text === 'gold') {
-        gameState.coins += 100 * 100;
-        notices.push('Debug: +100 gp.');
-        debugNote(`+100 gp — purse now ${formatCoins(gameState.coins)}.`);
-      } else if (cmd.text === 'xp') {
-        for (const r of gameState.roster) r.xp = (r.xp ?? 0) + 300;
+      if (verb === 'kill') {
+        if (mode !== 'combat') debugNote('kill only works during a fight.');
+        break; // CombatScene does the killing
+      }
+      if (mode === 'combat') {
+        hud.setStatus('Debug options are not available during a fight (except kill).');
+        debugNote('Not available during a fight — only kill works here.');
+        break;
+      }
+      if (verb === 'seed') {
+        if (n === undefined) debugNote(`Usage: seed <number>. Current fight seed: ${seed}.`);
+        else {
+          pinnedSeed = n;
+          exploreRng = createRng(n ^ 0x5eed);
+          debugNote(`Next fight uses seed ${n}; exploration dice reseeded too.`);
+        }
+        break;
+      }
+      if (verb === 'fight' || verb === 'spawn') {
+        if (!arg || !encounters[arg]) {
+          debugNote(`Unknown encounter. Try one of: ${Object.keys(encounters).sort().join(', ')}.`);
+          break;
+        }
+        (document.getElementById('about') as HTMLDialogElement | null)?.close();
+        bus.dispatch({ type: 'fight', encounter: arg, confirmed: true });
+        break;
+      }
+      if (verb === 'gold') {
+        const gp = n ?? 100;
+        gameState.coins = Math.max(0, gameState.coins + gp * 100);
+        notices.push(`Debug: ${gp >= 0 ? '+' : ''}${gp} gp.`);
+        debugNote(`${gp >= 0 ? '+' : ''}${gp} gp — purse now ${formatCoins(gameState.coins)}.`);
+      } else if (verb === 'xp') {
+        const xp = n ?? 300;
+        for (const r of gameState.roster) r.xp = Math.max(0, (r.xp ?? 0) + xp);
         persistLibrary();
-        debugNote(`+300 XP each — ${gameState.roster.map((r) => `${r.name} ${r.xp}`).join(', ')}.`);
-        notices.push('Debug: +300 XP for everyone in the party. Level up from Party (above the names).');
-      } else if (cmd.text === 'fog') {
+        debugNote(`+${xp} XP each — ${gameState.roster.map((r) => `${r.name} ${r.xp}`).join(', ')}.`);
+        notices.push(`Debug: +${xp} XP for everyone in the party. Level up from Party (above the names).`);
+      } else if (verb === 'heal') {
+        gameState.party = gameState.roster.map(freshOf);
+        debugNote('Everyone is alive, awake and at full HP and Hit Dice (spell slots: take a Long Rest).');
+        notices.push('Debug: the party is fully healed.');
+      } else if (verb === 'time') {
+        const h = n ?? 8;
+        gameState.time += Math.round(h * 60);
+        debugNote(`${h} hour${h === 1 ? '' : 's'} pass.`);
+        notices.push(`Debug: ${h} hours pass.`);
+      } else if (verb === 'fog') {
         gameState.explored = {};
         debugNote('Fog of war reset — every map is unexplored again (except what the party sees right now).');
         notices.push('Debug: fog of war reset on every map.');
-      } else break;
+      } else {
+        debugNote(`Unknown command “${verb}”. Type help.`);
+        break;
+      }
       if (mode === 'shop') shopScreen.refresh(notices.pop());
       else if (mode === 'party') partyScreen.refresh(undefined, notices.pop());
       else show(returnTo); // redraw the current place with the new purse
@@ -926,3 +977,12 @@ function debugNote(text: string): void {
   const el = document.getElementById('about-debug-note');
   if (el) el.textContent = text;
 }
+
+// Debug console in the About dialog (DND-20): type a command, Enter runs it.
+document.getElementById('debug-console')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = document.getElementById('debug-input') as HTMLInputElement;
+  const text = input.value.trim();
+  input.value = '';
+  bus.dispatch({ type: 'debug', text: text || 'help' });
+});
