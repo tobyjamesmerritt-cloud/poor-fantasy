@@ -240,7 +240,7 @@ export interface DerivedStats {
 export const PROFICIENCY_BONUS_L1 = 2;
 
 /** Species traits and feats that already change the numbers (the rest are listed but not in effect yet). */
-export const IMPLEMENTED: readonly string[] = ['Alert', 'Dwarven Toughness', 'Ability Score Improvement', 'Spellcasting', 'Arcane Recovery'];
+export const IMPLEMENTED: readonly string[] = ['Alert', 'Dwarven Toughness', 'Ability Score Improvement', 'Spellcasting', 'Arcane Recovery', "Paladin's Smite", 'Favored Enemy'];
 
 export function deriveStats(sheet: CharacterSheet, data: CharacterData): DerivedStats {
   const cls = data.classes[sheet.classId];

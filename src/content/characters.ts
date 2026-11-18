@@ -56,6 +56,13 @@ export const characterData: CharacterData = (() => {
       for (const k of ['cantrips', 'prepared', 'slots'] as const) if (sc[k].length < 5) errors.push(`class ${id}: spellcasting.${k} needs levels 1-5`);
     }
   }
+  // always-prepared and free spells (Paladin's Smite, Favored Enemy) must exist and be on the class list
+  for (const [cid, cls] of Object.entries(data.classes)) {
+    const sc = cls.spellcasting;
+    for (const ref of [...(sc?.always ?? []).map((a) => a.spell), ...(sc?.free ?? []).map((f) => f.spell)]) {
+      if (!data.spells[ref]?.classes.includes(cid)) errors.push(`class "${cid}": spell "${ref}" is not a ${cid} spell in spells.json`);
+    }
+  }
   for (const [id, s] of Object.entries(data.spells)) errors.push(...checkSpell(id, s, data));
   if (errors.length) throw new Error('Invalid character data:\n- ' + errors.join('\n- '));
   return data;
@@ -67,7 +74,10 @@ function checkSpell(id: string, s: SpellDef, data: CharacterData): string[] {
   if (!Number.isInteger(s.level) || s.level < 0 || s.level > 9) errors.push(`${where}: bad level`);
   for (const c of s.classes) if (!data.classes[c]) errors.push(`${where}: unknown class "${c}"`);
   const e = s.effect as unknown as Record<string, unknown>;
-  const dice = [e.damage, e.dice, e.upcast, (e.burst as Record<string, unknown> | undefined)?.damage].filter((d): d is string => typeof d === 'string');
+  const after = e.after as Record<string, unknown> | undefined;
+  const dice = [e.damage, e.dice, e.upcast, (e.burst as Record<string, unknown> | undefined)?.damage, after?.dice, after?.upcast].filter(
+    (d): d is string => typeof d === 'string',
+  );
   for (const d of dice) {
     try {
       parseDice(d);
@@ -75,7 +85,7 @@ function checkSpell(id: string, s: SpellDef, data: CharacterData): string[] {
       errors.push(`${where}: bad dice "${d}"`);
     }
   }
-  const kinds = ['attack', 'save', 'missiles', 'heal', 'buff', 'stabilize', 'teleport', 'ward', 'temp-hp'];
+  const kinds = ['attack', 'save', 'missiles', 'heal', 'buff', 'stabilize', 'teleport', 'ward', 'temp-hp', 'mark', 'smite'];
   if (!kinds.includes(s.effect.kind)) errors.push(`${where}: unknown effect "${s.effect.kind}"`);
   return errors;
 }

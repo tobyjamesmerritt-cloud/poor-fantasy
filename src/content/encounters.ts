@@ -5,7 +5,7 @@
  * letter suffixes ("Giant Rat A", "Giant Rat B").
  */
 import { parseDice } from '../engine/dice';
-import { slotsLeft } from '../rules/spells';
+import { freeLeft, slotsLeft } from '../rules/spells';
 import type { Difficulty, FightTweaks } from '../rules/quests';
 import { fightBudget, fillerCount, fillerSquares, XP_BUDGET } from '../rules/scaling';
 import type { PartyMemberState } from '../engine/state';
@@ -45,6 +45,8 @@ export interface MonsterDef {
   multiattack?: number; // attacks per Attack action (default 1)
   regeneration?: number; // HP regained at the start of each turn (stopped for a turn by acid or fire)
   traits: string[];
+  type?: string; // SRD creature type: beast, giant, undead, fiend… (Divine Smite)
+  size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
 }
 
 
@@ -192,7 +194,17 @@ export function buildUnits(
       ...combatStats,
       ...start,
       hp,
-      ...(caster ? { caster: { ...caster, slots: slotsLeft(caster.maxSlots, now?.spells), cantrips: [...caster.cantrips], prepared: [...caster.prepared] } } : {}),
+      ...(caster
+        ? {
+            caster: {
+              ...caster,
+              slots: slotsLeft(caster.maxSlots, now?.spells),
+              cantrips: [...caster.cantrips],
+              prepared: [...caster.prepared],
+              ...(caster.freeMax ? { free: freeLeft(caster.freeMax, now?.spells) } : {}),
+            },
+          }
+        : {}),
       ...(now?.tempHp ? { tempHp: now.tempHp } : {}),
       ...(warded ? { ac: p.unarmoredAc!, mageArmor: true } : {}),
       side: 'party',
@@ -231,6 +243,8 @@ export function buildUnits(
       speed: m.speed,
       initBonus: m.initBonus,
       saves: m.saves,
+      ...(m.type ? { creatureType: m.type } : {}),
+      ...(m.size ? { size: m.size } : {}),
       attackName: m.attack.name,
       attackBonus: m.attack.bonus,
       damage: m.attack.damage,

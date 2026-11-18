@@ -86,6 +86,13 @@ const EFFECT_NAMES: Record<EffectKind, string> = {
   poisoned: 'Poisoned',
   blinded: 'Blinded',
   'no-heal': "Can't heal",
+  'divine-favor': 'Divine Favor',
+  marked: "Hunter's Mark",
+  searing: 'Burning',
+  outlined: 'Outlined',
+  restrained: 'Restrained',
+  heroism: 'Heroism',
+  'magic-weapon': 'Magic Weapon',
 };
 
 /** One side of a grid square on the edge of the movement range: from (x1,y1) to (x2,y2) in pixels. */
@@ -291,6 +298,8 @@ export class CombatScene extends Phaser.Scene {
                 o.spell.time === 'bonus' ? 'bonus action' : 'action',
                 o.spell.range === 0 ? 'self' : o.spell.range === 5 ? 'touch' : `${o.spell.range} ft`,
                 o.spell.concentration ? 'concentration' : '',
+                o.move ? 'move the mark: free' : o.free ? `${o.free} free` : '',
+                o.spell.effect.kind === 'smite' ? 'fires on your next hit' : '',
               ]
                 .filter(Boolean)
                 .join(' · '),

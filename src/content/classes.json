@@ -310,6 +310,66 @@
         "Extra Attack",
         "Faithful Steed"
       ]
+    },
+    "spellcasting": {
+      "ability": "cha",
+      "cantrips": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "prepared": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "slots": [
+        [
+          2
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4,
+          2
+        ]
+      ],
+      "recommended": {
+        "cantrips": [],
+        "prepared": [
+          "heroism",
+          "searing-smite"
+        ]
+      },
+      "always": [
+        {
+          "spell": "divine-smite",
+          "from": 2
+        }
+      ],
+      "free": [
+        {
+          "spell": "divine-smite",
+          "uses": [
+            0,
+            1,
+            1,
+            1,
+            1
+          ]
+        }
+      ]
     }
   },
   "ranger": {
@@ -357,6 +417,66 @@
       ],
       "5": [
         "Extra Attack"
+      ]
+    },
+    "spellcasting": {
+      "ability": "wis",
+      "cantrips": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "prepared": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "slots": [
+        [
+          2
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4,
+          2
+        ]
+      ],
+      "recommended": {
+        "cantrips": [],
+        "prepared": [
+          "cure-wounds",
+          "ensnaring-strike"
+        ]
+      },
+      "always": [
+        {
+          "spell": "hunters-mark",
+          "from": 1
+        }
+      ],
+      "free": [
+        {
+          "spell": "hunters-mark",
+          "uses": [
+            2,
+            2,
+            2,
+            2,
+            3
+          ]
+        }
       ]
     }
   },

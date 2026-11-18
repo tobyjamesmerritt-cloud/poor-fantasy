@@ -85,6 +85,7 @@ export interface SpellState {
   recovered?: boolean; // Wizard Arcane Recovery used since the last Long Rest
   prayed?: boolean; // had Prayer of Healing since the last Long Rest
   mageArmorUntil?: number; // game time Mage Armor ends
+  free?: Record<string, number>; // free casts spent since the last Long Rest (Paladin's Smite, Favored Enemy), by spell id
 }
 
 export function newGameState(seed: number): GameState {

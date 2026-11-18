@@ -25,13 +25,14 @@ import {
   blessBonus,
   chebyshev,
   checkOutcome,
-  endConcentration,
   hasEffect,
   healUnit,
+  hitRiders,
   hurt,
   isDown,
   isUp,
   onField,
+  startConcentration,
   unitAt,
 } from './combat';
 
@@ -48,6 +49,10 @@ export interface SpellcastingDef {
   spellbook?: { start: number; perLevel: number }; // Wizard
   arcaneRecovery?: boolean; // Wizard
   recommended: { cantrips: string[]; prepared: string[]; spellbook?: string[] };
+  /** Spells a class feature keeps prepared from a class level on (Paladin's Smite, Favored Enemy); they don't count against the prepared number. */
+  always?: { spell: string; from: number }[];
+  /** Casts without a slot per Long Rest, by class level (index 0 = level 1). */
+  free?: { spell: string; uses: number[] }[];
 }
 
 export type Rider = 'slowed' | 'guided' | 'poisoned' | 'blinded' | 'no-heal';
@@ -70,7 +75,24 @@ export type SpellEffect =
   | { kind: 'save'; save: Ability; damage?: string; type?: string; half: boolean; upcast?: string; rider?: Rider; push?: number; area: Area }
   | { kind: 'missiles'; count: number; damage: string; type: string }
   | { kind: 'heal'; dice: string; addMod: boolean; targets: number; upcast?: string; shortRest?: boolean }
-  | { kind: 'buff'; buff: 'bless' | 'shield-of-faith'; targets: number; upcastTargets?: number }
+  | {
+      kind: 'buff';
+      buff: 'bless' | 'shield-of-faith' | 'heroism' | 'magic-weapon' | 'divine-favor';
+      targets: number;
+      upcastTargets?: number;
+      self?: boolean; // only the caster (Divine Favor)
+      rounds?: number; // lasts this long when it isn't Concentration (1 minute = 10, 1 hour = 600)
+    }
+  | { kind: 'mark'; damage: string; type: string } // Hunter's Mark: the caster's hits on the marked creature deal extra damage
+  | {
+      // readied, goes off on the caster's next weapon hit this turn (see ReadiedSmite in combat.ts)
+      kind: 'smite';
+      damage?: string; // extra damage on the hit (Ensnaring Strike has none)
+      type: string;
+      upcast?: string;
+      bonusVs?: { types: string[]; dice: string };
+      after?: { effect: 'searing' | 'outlined' | 'restrained'; dice?: string; upcast?: string; save?: Ability };
+    }
   | { kind: 'stabilize' }
   | { kind: 'teleport' }
   | { kind: 'ward'; ward: 'mage-armor'; hours: number }
@@ -92,7 +114,29 @@ export interface SpellDef {
 export type Spells = Record<string, SpellDef>;
 
 /** Concentration spells: how long they last, in rounds (1 minute = 10 rounds). */
-const CONCENTRATION_ROUNDS: Record<string, number> = { bless: 10, 'shield-of-faith': 100 };
+const CONCENTRATION_ROUNDS: Record<string, number> = {
+  bless: 10,
+  'shield-of-faith': 100,
+  'hunters-mark': 600, // 1 hour
+  heroism: 10,
+  'shining-smite': 10,
+  'ensnaring-strike': 10,
+};
+
+/** Spells a feature keeps prepared at this class level (they don't count against the prepared number). */
+export const alwaysPrepared = (sc: SpellcastingDef, level: number): string[] => (sc.always ?? []).filter((a) => level >= a.from).map((a) => a.spell);
+
+/** Free casts per Long Rest at this class level, by spell id. */
+export function freeCasts(sc: SpellcastingDef, level: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const f of sc.free ?? []) if ((f.uses[level - 1] ?? 0) > 0) out[f.spell] = f.uses[level - 1];
+  return out;
+}
+
+/** Free casts left: the class's per-rest uses minus those spent (SpellState.free). */
+export function freeLeft(max: Record<string, number> | undefined, st?: SpellState): Record<string, number> {
+  return Object.fromEntries(Object.entries(max ?? {}).map(([id, n]) => [id, Math.max(0, n - (st?.free?.[id] ?? 0))]));
+}
 
 // ---------------------------------------------------------------------------
 // The character side: what a caster knows and prepares
@@ -135,7 +179,8 @@ export interface SpellChoices {
 export function preparePool(sheet: CharacterSheet, sc: SpellcastingDef, spells: Spells, choices?: Pick<SpellChoices, 'spellbook'>): string[] {
   const maxLevel = maxSpellLevel(sc, sheet.level);
   if (sc.spellbook) return (choices?.spellbook ?? spellChoices(sheet, sc, spells).spellbook).filter((id) => spells[id] && spells[id].level <= maxLevel);
-  return classSpells(spells, sheet.classId, 'leveled', maxLevel);
+  const always = alwaysPrepared(sc, sheet.level);
+  return classSpells(spells, sheet.classId, 'leveled', maxLevel).filter((id) => !always.includes(id));
 }
 
 /**
@@ -153,7 +198,10 @@ export function spellChoices(sheet: CharacterSheet, sc: SpellcastingDef, spells:
   const spellbook = sc.spellbook
     ? pick(sheet.spellbook, sc.recommended.spellbook ?? [], classSpells(spells, sheet.classId, 'leveled', maxLevel), spellbookSize(sc, sheet.level))
     : [];
-  const pool = sc.spellbook ? spellbook.filter((id) => spells[id]?.level <= maxLevel) : classSpells(spells, sheet.classId, 'leveled', maxLevel);
+  const always = alwaysPrepared(sc, sheet.level);
+  const pool = sc.spellbook
+    ? spellbook.filter((id) => spells[id]?.level <= maxLevel)
+    : classSpells(spells, sheet.classId, 'leveled', maxLevel).filter((id) => !always.includes(id));
   const prepared = pick(sheet.prepared, sc.recommended.prepared, pool, preparedCount(sc, sheet.level));
   return { cantrips, spellbook, prepared };
 }
@@ -235,6 +283,14 @@ function damageDice(base: string, upcast: string | undefined, extra: number, sca
   return parts;
 }
 
+/** ["1d6", "1d6", "1d6"] → "3d6" (same die; the first part's modifier kept). */
+function sumDice(parts: string[]): string {
+  const ps = parts.map((p) => parseDice(p));
+  const n = ps.reduce((a, p) => a + p.count, 0);
+  const m = ps[0].modifier;
+  return `${n}d${ps[0].sides}${m ? (m > 0 ? `+${m}` : m) : ''}`;
+}
+
 const rollAll = (rng: Rng, parts: string[]): number => parts.reduce((sum, p) => sum + Math.max(0, roll(rng, p).total), 0);
 
 // ---------------------------------------------------------------------------
@@ -274,7 +330,12 @@ export function targetingOf(spell: SpellDef, slot: number, level: number): Targe
     case 'heal':
       return { kind: 'creatures', side: 'ally', count: e.targets, repeat: false, range, down: 'also' };
     case 'buff':
+      if (e.self) return { kind: 'self' };
       return { kind: 'creatures', side: 'ally', count: e.targets + extra * (e.upcastTargets ?? 0), repeat: false, range, down: 'no' };
+    case 'mark':
+      return { kind: 'creatures', side: 'enemy', count: 1, repeat: false, range, down: 'no' };
+    case 'smite':
+      return { kind: 'self' };
     case 'stabilize':
       return { kind: 'creatures', side: 'ally', count: 1, repeat: false, range: range * (level >= 5 ? 2 : 1), down: 'only' };
     case 'teleport':
@@ -396,8 +457,10 @@ export interface CastOption {
   id: string; // spell id, or "scroll:<spell id>" to read a Spell Scroll from the pack
   scroll?: boolean;
   spell: SpellDef;
-  levels: number[]; // slot levels it can be cast with now (cantrips: [0])
+  levels: number[]; // slot levels it can be cast with now (cantrips: [0]; 0 for a level 1+ spell = a free cast)
   reason?: string; // why it can't be cast right now
+  free?: number; // free casts left (Paladin's Smite, Favored Enemy)
+  move?: boolean; // Hunter's Mark: its creature dropped — move the mark (no slot, Bonus Action)
 }
 
 /** The active unit's spells and whether each can be cast right now. */
@@ -409,15 +472,23 @@ export function castOptions(state: CombatState, spells: Spells): CastOption[] {
     .filter((id) => spells[id] && spells[id].where !== 'rest')
     .map((id): CastOption => {
       const spell = spells[id];
-      const levels = spell.level === 0 ? [0] : c.slots.map((n, i) => (n > 0 && i + 1 >= spell.level ? i + 1 : 0)).filter(Boolean);
+      const free = c.free?.[id] ?? 0;
+      // Hunter's Mark (SRD 5.2): if the marked creature drops, a Bonus Action moves the mark — no new slot
+      const move =
+        spell.effect.kind === 'mark' &&
+        u.concentration?.spell === id &&
+        !state.units.some((x) => isUp(x) && x.effects?.some((e) => e.kind === 'marked' && e.owner === u.id));
+      const slotLevels = state.slotUsed ? [] : c.slots.map((n, i) => (n > 0 && i + 1 >= spell.level ? i + 1 : 0)).filter(Boolean);
+      const levels = spell.level === 0 ? [0] : [...(free > 0 || move ? [0] : []), ...slotLevels];
       let reason: string | undefined;
-      if (spell.time === 'action' && state.actionUsed) reason = 'Action already used';
+      if (spell.effect.kind === 'smite' && state.smite) reason = state.smite.spellId === id ? 'Ready — goes off on your next weapon hit' : `${state.smite.name} is ready`;
+      else if (spell.time === 'action' && state.actionUsed) reason = 'Action already used';
       else if (spell.time === 'bonus' && state.bonusUsed) reason = 'Bonus Action already used';
-      else if (spell.level > 0 && state.slotUsed) reason = 'Only one spell slot per turn';
+      else if (spell.level > 0 && !levels.length && state.slotUsed) reason = 'Only one spell slot per turn';
       else if (!levels.length) reason = 'No spell slots left';
       else if (spell.effect.kind === 'teleport' && u.carrying) reason = 'Put your load down first';
       else if (!validTargets(state, spells, id, levels[0]).length) reason = 'No target in range';
-      return { id, spell, levels, reason };
+      return { id, spell, levels, reason, ...(free ? { free } : {}), ...(move ? { move } : {}) };
     })
     .concat(scrollOptions(state, spells));
 }
@@ -430,7 +501,7 @@ function scrollOptions(state: CombatState, spells: Spells): CastOption[] {
   const u = activeUnit(state);
   const c = u.caster!;
   return Object.entries(state.scrolls ?? {})
-    .filter(([id, n]) => n > 0 && spells[id]?.classes.includes(c.classId) && spells[id].where !== 'rest')
+    .filter(([id, n]) => n > 0 && spells[id]?.classes.includes(c.classId) && spells[id].where !== 'rest' && spells[id].effect.kind !== 'smite')
     .map(([id]) => {
       const spell = spells[id];
       const ref = `scroll:${id}`;
@@ -470,10 +541,32 @@ export function castSpell(
     if (!t.repeat && new Set(targets.map((p) => `${p.x},${p.y}`)).size !== targets.length) return false;
   } else if (targets.length !== 1) return false;
 
-  // Pay for it: a spell slot, or the scroll (which crumbles to dust)
+  // A smite is only readied: it goes off — and is paid for — on the next weapon hit this turn
+  const e0 = spell.effect;
+  if (e0.kind === 'smite') {
+    const extra = (slot || spell.level) - spell.level;
+    state.smite = {
+      spellId,
+      name: spell.name,
+      slot,
+      dice: e0.damage ? damageDice(e0.damage, e0.upcast, extra) : [],
+      type: e0.type,
+      ...(e0.bonusVs ? { bonusVs: e0.bonusVs } : {}),
+      ...(e0.after
+        ? { after: { effect: e0.after.effect, ...(e0.after.dice ? { dice: sumDice(damageDice(e0.after.dice, e0.after.upcast, extra)) } : {}), ...(e0.after.save ? { save: e0.after.save } : {}) } }
+        : {}),
+      ...(spell.concentration ? { concentration: CONCENTRATION_ROUNDS[spellId] ?? 10 } : {}),
+    };
+    state.log.push(`✦ ${u.name} readies ${spell.name}${slot ? (slot > spell.level ? ` (level ${slot} slot)` : '') : ' (free)'} — it goes off on the next weapon hit this turn.`);
+    return true;
+  }
+
+  // Pay for it: a spell slot, a free cast, or the scroll (which crumbles to dust)
   const scroll = option.scroll ? baseSpellId(spellId) : null;
   if (scroll) state.scrolls![scroll] -= 1;
-  else if (spell.level > 0) {
+  else if (spell.level > 0 && slot === 0) {
+    if (!option.move) c.free![spellId] -= 1;
+  } else if (spell.level > 0) {
     c.slots[slot - 1] -= 1;
     state.slotUsed = true;
   }
@@ -481,8 +574,16 @@ export function castSpell(
   else {
     state.actionUsed = true; // movement can still be used before or after (SRD 5.2)
   }
-  const upcast = slot > spell.level && spell.level > 0 ? ` (level ${slot} slot)` : '';
+  const upcast = slot > spell.level && spell.level > 0 ? ` (level ${slot} slot)` : spell.level > 0 && slot === 0 ? (option.move ? ' (moving the mark)' : ' (free)') : '';
   state.log.push(`✦ ${u.name} ${scroll ? 'reads a scroll of' : 'casts'} ${spell.name}${upcast}.`);
+  if (option.move) {
+    for (const x of state.units) x.effects = x.effects?.filter((e) => !(e.kind === 'marked' && e.owner === u.id));
+    const t = unitAt(state, targets[0].x, targets[0].y)!;
+    addEffect(t, { kind: 'marked', owner: u.id, ends: 'concentration' });
+    state.log.push(`${u.name} marks ${t.name} as the quarry.`);
+    return true;
+  }
+  if (spell.level > 0 && slot === 0) slot = spell.level; // a free cast works as the spell's own level
   if (scroll && spell.level > c.maxSlots.length) {
     // SRD 5.2 Spell Scroll: a spell above what you can cast needs a spellcasting ability check, DC 10 + its level.
     const d20 = rng.int(1, 20);
@@ -513,10 +614,7 @@ function resolveSpell(
   const u = activeUnit(state);
   const c = u.caster!;
   spellId = baseSpellId(spellId);
-  if (spell.concentration) {
-    if (u.concentration) endConcentration(state, u, `${u.name} begins ${spell.name}`);
-    u.concentration = { spell: spellId, name: spell.name, round: state.round, rounds: CONCENTRATION_ROUNDS[spellId] ?? 10 };
-  }
+  if (spell.concentration) startConcentration(state, u, spellId, spell.name, CONCENTRATION_ROUNDS[spellId] ?? 10);
 
   const extra = spell.level > 0 ? slot - spell.level : 0;
   const scale = spell.level === 0 ? cantripScale(c.level) : 1;
@@ -580,11 +678,32 @@ function resolveSpell(
       break;
     }
     case 'buff': {
-      for (const target of unitsAt(targets)) addEffect(target, { kind: e.buff as EffectKind, owner: u.id, ends: 'concentration' });
+      // Heroism: temp HP = spellcasting modifier each turn; Magic Weapon: +1 (+2 with a level 3–5 slot)
+      const amount = e.buff === 'heroism' ? Math.max(0, c.mod) : e.buff === 'magic-weapon' ? (slot >= 6 ? 3 : slot >= 3 ? 2 : 1) : undefined;
+      const lasting = spell.concentration ? { ends: 'concentration' as const } : { ends: 'start' as const, skip: (e.rounds ?? 10) - 1 };
+      for (const target of unitsAt(targets)) addEffect(target, { kind: e.buff as EffectKind, owner: u.id, ...lasting, ...(amount !== undefined ? { amount } : {}) });
       const who = unitsAt(targets).map((x) => x.name).join(', ');
-      state.log.push(e.buff === 'bless' ? `${who} ${targets.length > 1 ? 'are' : 'is'} blessed (+1d4 to attacks and saves).` : `A shimmering field surrounds ${who} (+2 AC).`);
+      const many = targets.length > 1;
+      state.log.push(
+        {
+          bless: `${who} ${many ? 'are' : 'is'} blessed (+1d4 to attacks and saves).`,
+          'shield-of-faith': `A shimmering field surrounds ${who} (+2 AC).`,
+          heroism: `${who} ${many ? 'are' : 'is'} filled with courage (${amount} temporary HP each turn).`,
+          'magic-weapon': `${who}'s weapon glows (+${amount} to attack and damage).`,
+          'divine-favor': `${who}'s weapon shines with divine radiance (+1d4 radiant on hits).`,
+        }[e.buff],
+      );
       break;
     }
+    case 'mark': {
+      for (const target of unitsAt(targets)) {
+        addEffect(target, { kind: 'marked', owner: u.id, ends: 'concentration' });
+        state.log.push(`${u.name} marks ${target.name} as the quarry (+${e.damage} ${e.type} on hits).`);
+      }
+      break;
+    }
+    case 'smite':
+      break; // readied in castSpell
     case 'stabilize': {
       for (const target of unitsAt(targets)) {
         target.stable = true;
@@ -630,7 +749,7 @@ function spellAttack(
   const bless = blessBonus(rng, caster);
   if (bless) notes.push(`bless +${bless}`);
   const ac = acOf(target);
-  const r = resolveAttack(rng, { attackBonus: caster.caster!.attack + bless, targetAc: ac, damage: dice, mode });
+  const r = resolveAttack(rng, { attackBonus: caster.caster!.attack + bless, targetAc: ac, damage: [...dice, ...hitRiders(caster, target, false)], mode });
   const tag = notes.length ? ` [${notes.join(', ')}]` : '';
   if (!r.hit) {
     state.log.push(`It misses ${target.name} (${r.attackTotal} vs AC ${ac})${tag}.`);
@@ -832,7 +951,14 @@ export function spellsAfterCombat(p: PartyMemberState, u: Unit, now: number): vo
   if (!p.tempHp) delete p.tempHp;
   if (u.caster) {
     const used = u.caster.maxSlots.map((n, i) => n - u.caster!.slots[i]);
+    const free = Object.fromEntries(
+      Object.entries(u.caster.freeMax ?? {})
+        .map(([id, n]) => [id, n - (u.caster!.free?.[id] ?? n)])
+        .filter(([, n]) => (n as number) > 0),
+    );
     p.spells = { ...(p.spells ?? {}), used };
+    if (Object.keys(free).length) p.spells.free = free;
+    else delete p.spells.free;
   }
   if (u.mageArmor && !((p.spells?.mageArmorUntil ?? -1) > now)) {
     p.spells = p.spells ?? { used: [] };
@@ -852,6 +978,8 @@ export function casterInfo(
   const choices = spellChoices(sheet, sc, spells);
   const n = spellNumbers(score, pb);
   const maxSlots = slotsAt(sc, sheet.level);
+  const freeMax = freeCasts(sc, sheet.level);
+  const prepared = [...choices.prepared, ...alwaysPrepared(sc, sheet.level).filter((id) => spells[id] && !choices.prepared.includes(id))];
   return {
     classId: sheet.classId,
     ability: sc.ability,
@@ -860,8 +988,9 @@ export function casterInfo(
     dc: n.dc,
     level: sheet.level,
     cantrips: choices.cantrips,
-    prepared: choices.prepared,
+    prepared,
     maxSlots: [...maxSlots],
     slots: slotsLeft(maxSlots, st),
+    ...(Object.keys(freeMax).length ? { freeMax, free: freeLeft(freeMax, st) } : {}),
   };
 }

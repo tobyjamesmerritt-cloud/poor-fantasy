@@ -18,7 +18,7 @@
  */
 import type { Direction } from '../engine/commands';
 import { DIRECTION_VECTORS } from '../engine/commands';
-import { resolveRollMode, rollD20 } from '../engine/dice';
+import { parseDice, resolveRollMode, roll, rollD20 } from '../engine/dice';
 import type { Rng } from '../engine/rng';
 import type { Ability } from '../engine/state';
 import { resolveAttack } from './attack';
@@ -41,12 +41,48 @@ export type Trait = 'pack-tactics';
  * first, so "the end of your next turn" is ends 'end', skip 1), or when the
  * owner's Concentration ends.
  */
-export type EffectKind = 'bless' | 'shield-of-faith' | 'guided' | 'slowed' | 'poisoned' | 'blinded' | 'no-heal' | 'dodging';
+export type EffectKind =
+  | 'bless'
+  | 'shield-of-faith'
+  | 'guided'
+  | 'slowed'
+  | 'poisoned'
+  | 'blinded'
+  | 'no-heal'
+  | 'dodging'
+  // Paladin and Ranger magic (SRD 5.2)
+  | 'divine-favor' // weapon hits +1d4 radiant
+  | 'marked' // Hunter's Mark: the owner's attack-roll hits +1d6 force
+  | 'searing' // Searing Smite: fire at the start of its turns until a Con save
+  | 'outlined' // Shining Smite: attack rolls against it have Advantage
+  | 'restrained' // Ensnaring Strike: Speed 0, attacks against it have Advantage, its attacks Disadvantage; piercing each turn
+  | 'heroism' // temporary HP at the start of each of its turns
+  | 'magic-weapon'; // +amount to weapon attack and damage rolls
 export interface Effect {
   kind: EffectKind;
   owner: string;
   ends: 'start' | 'end' | 'concentration';
   skip?: number;
+  dice?: string; // damage at the start of the bearer's turn (searing, restrained)
+  dc?: number; // save to end it (searing: Con; restrained: Str (Athletics) to break free)
+  amount?: number; // heroism: temp HP; magic-weapon: bonus
+}
+
+/**
+ * A smite readied on the active creature's turn (Divine/Searing/Shining Smite,
+ * Ensnaring Strike). SRD 5.2 casts these as a Bonus Action right after a hit;
+ * here you ready one and it goes off on your next weapon hit this turn. Its slot
+ * and Bonus Action are spent only then, so readying costs nothing on a miss.
+ */
+export interface ReadiedSmite {
+  spellId: string;
+  name: string;
+  slot: number; // 0 = a free cast (Paladin's Smite)
+  dice: string[]; // extra damage on the hit (before doubling on a critical)
+  type: string;
+  bonusVs?: { types: string[]; dice: string }; // Divine Smite: +1d8 against Fiends and Undead
+  after?: { effect: 'searing' | 'outlined' | 'restrained'; dice?: string; save?: Ability };
+  concentration?: number; // rounds, for smites you concentrate on
 }
 
 /** What a spellcaster brings into a fight (built by rules/spells.ts from the character sheet). */
@@ -61,6 +97,8 @@ export interface CasterInfo {
   prepared: string[];
   slots: number[]; // slots left per level (index 0 = level 1)
   maxSlots: number[];
+  free?: Record<string, number>; // casts left without a slot (Paladin's Smite, Favored Enemy), by spell id
+  freeMax?: Record<string, number>;
 }
 
 export interface Unit {
@@ -100,6 +138,8 @@ export interface Unit {
   regenBlocked?: boolean; // …unless it took acid or fire damage since (SRD 5.2 Troll)
   fumble?: number; // house rule for quest tweaks (a drunk troll): chance each attack simply misses
   reactionUsed?: boolean; // SRD 5.2: one Reaction per round, regained at the start of its own turn
+  creatureType?: string; // monsters: beast, giant, undead, fiend… (Divine Smite)
+  size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan'; // monsters (missing = medium)
 }
 
 export interface CombatState {
@@ -118,6 +158,7 @@ export interface CombatState {
   disengaged?: boolean; // the active creature took the Disengage action: its movement provokes no Opportunity Attacks
   potions: number; // Potions of Healing in the party pack
   scrolls?: Record<string, number>; // Spell Scrolls in the party pack, by spell id
+  smite?: ReadiedSmite; // readied by the active creature; goes off on its next weapon hit this turn
   log: string[];
 }
 
@@ -163,7 +204,7 @@ export function startCombat(
     scrolls: { ...scrolls },
     log: ['Roll for initiative! ' + rolled.map((r) => `${nameOf(units, r.id)} ${r.init}`).join(', ')],
   };
-  beginTurn(state);
+  beginTurn(state, rng);
   runEnemyTurn(state, rng); // enemies that win initiative act immediately
   return state;
 }
@@ -390,12 +431,12 @@ function advance(state: CombatState, rng: Rng): void {
       if (!isUp(u)) continue;
       if (u.carriedBy) drop(state, unitById(state, u.carriedBy)); // woke up: back on their feet
     }
-    beginTurn(state);
+    beginTurn(state, rng);
     return;
   }
 }
 
-function beginTurn(state: CombatState): void {
+function beginTurn(state: CombatState, rng: Rng): void {
   const u = activeUnit(state);
   expireEffects(state, u.id, 'start');
   if (u.concentration && state.round - u.concentration.round >= u.concentration.rounds) {
@@ -411,14 +452,57 @@ function beginTurn(state: CombatState): void {
     }
     u.regenBlocked = false;
   }
-  // Ray of Frost: Speed −10 ft (2 squares)
-  state.movesLeft = hasEffect(u, 'slowed') ? Math.max(0, u.speed - 2) : u.speed;
+  startOfTurnEffects(state, rng, u);
+  // Ray of Frost: Speed −10 ft (2 squares); Restrained: Speed 0
+  state.movesLeft = hasEffect(u, 'restrained') ? 0 : hasEffect(u, 'slowed') ? Math.max(0, u.speed - 2) : u.speed;
   state.actionUsed = false;
   state.bonusUsed = false;
   state.slotUsed = false;
   state.disengaged = false;
+  state.smite = undefined;
   u.reactionUsed = false; // SRD 5.2: a creature regains its Reaction at the start of its turn
   if (u.side === 'party') state.log.push(`▶ ${u.name}'s turn.`);
+}
+
+/**
+ * What lingering magic does to a creature as its turn starts (SRD 5.2):
+ * Heroism tops up Temporary HP; Searing Smite burns (1d6 fire, then a Con
+ * save ends it); Ensnaring Strike's vines pierce (1d6).
+ */
+function startOfTurnEffects(state: CombatState, rng: Rng, u: Unit): void {
+  if (!u.effects?.length || !isUp(u)) return;
+  for (const e of [...u.effects]) {
+    if (!isUp(u)) break;
+    if (e.kind === 'heroism' && (e.amount ?? 0) > (u.tempHp ?? 0)) {
+      u.tempHp = e.amount;
+      state.log.push(`${u.name} feels heroic (${u.tempHp} temporary HP).`);
+    } else if (e.kind === 'searing' && e.dice) {
+      const dmg = roll(rng, e.dice).total;
+      hurt(state, rng, u, dmg, `${u.name} burns for ${dmg} fire`, 'fire');
+      if (!isUp(u)) break;
+      const total = saveTotal(rng, u, 'con');
+      if (total >= (e.dc ?? 0)) {
+        u.effects = u.effects!.filter((x) => x !== e);
+        state.log.push(`${u.name} puts out the flames (CON ${total} vs DC ${e.dc}).`);
+      }
+    } else if (e.kind === 'restrained' && e.dice) {
+      const dmg = roll(rng, e.dice).total;
+      hurt(state, rng, u, dmg, `The vines dig into ${u.name} for ${dmg} piercing`, 'piercing');
+    }
+  }
+  checkOutcome(state);
+}
+
+/** A saving throw total: d20 + bonus + Bless; Advantage on Dex saves while Dodging. */
+export function saveTotal(rng: Rng, u: Unit, ability: Ability, advantage = false): number {
+  const d20 = advantage || (ability === 'dex' && hasEffect(u, 'dodging')) ? Math.max(rng.int(1, 20), rng.int(1, 20)) : rng.int(1, 20);
+  return d20 + (u.saves?.[ability] ?? 0) + blessBonus(rng, u);
+}
+
+/** Begin concentrating on a spell (ending any other), for `rounds` rounds. */
+export function startConcentration(state: CombatState, u: Unit, spell: string, name: string, rounds: number): void {
+  if (u.concentration) endConcentration(state, u, `${u.name} begins ${name}`);
+  u.concentration = { spell, name, round: state.round, rounds };
 }
 
 // ---------------------------------------------------------------------------
@@ -492,6 +576,18 @@ export function attackMode(state: CombatState, attacker: Unit, target: Unit, ran
   if (hasEffect(target, 'blinded')) {
     adv++;
     notes.push('target blinded');
+  }
+  if (hasEffect(target, 'outlined')) {
+    adv++;
+    notes.push('target outlined');
+  }
+  if (hasEffect(target, 'restrained')) {
+    adv++;
+    notes.push('target restrained');
+  }
+  if (hasEffect(attacker, 'restrained')) {
+    dis++;
+    notes.push('restrained');
   }
   if (hasEffect(attacker, 'poisoned')) {
     dis++;
@@ -625,15 +721,84 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
   const bless = blessBonus(rng, attacker);
   if (bless) notes.push(`bless +${bless}`);
   const ac = acOf(target);
-  const r = resolveAttack(rng, { attackBonus: attacker.attackBonus + bless, targetAc: ac, damage: attacker.damage, mode });
+  // Weapon magic on the hit (SRD 5.2): Magic Weapon (+attack, +damage), Divine Favor (+1d4 radiant), Hunter's Mark (+1d6 force)
+  const magic = effectOf(attacker, 'magic-weapon')?.amount ?? 0;
+  const extras = [...attacker.damage, ...(magic ? [`${magic}`] : []), ...hitRiders(attacker, target, true)];
+  const r = resolveAttack(rng, { attackBonus: attacker.attackBonus + bless + magic, targetAc: ac, damage: extras, mode });
   const adv = notes.length ? ` [${notes.join(', ')}]` : '';
   if (!r.hit) {
     state.log.push(`${lead}${attacker.name} misses ${target.name} (${r.attackTotal} vs AC ${ac})${adv}.`);
     return;
   }
   const verb = r.critical ? 'CRITS' : 'hits';
-  hurt(state, rng, target, r.damage, `${lead}${attacker.name} ${verb} ${target.name} for ${r.damage}${adv}`);
+  const smite = !reaction ? fireSmite(state, rng, attacker, target, r.critical) : null;
+  hurt(state, rng, target, r.damage + (smite?.damage ?? 0), `${lead}${attacker.name} ${verb} ${target.name} for ${r.damage + (smite?.damage ?? 0)}${adv}${smite?.text ?? ''}`);
+  if (smite) smite.after();
   checkOutcome(state);
+}
+
+const effectOf = (u: Unit, kind: EffectKind): Effect | undefined => u.effects?.find((e) => e.kind === kind);
+
+/** Extra damage dice on a hit: Hunter's Mark (any attack roll by its owner); Divine Favor (weapons only). */
+export function hitRiders(attacker: Unit, target: Unit, weapon: boolean): string[] {
+  const out: string[] = [];
+  if (target.effects?.some((e) => e.kind === 'marked' && e.owner === attacker.id)) out.push('1d6');
+  if (weapon && hasEffect(attacker, 'divine-favor')) out.push('1d4');
+  return out;
+}
+
+/**
+ * The readied smite goes off on this hit if it still can: the Bonus Action is
+ * unused and a slot of its level (or a free cast) is left. Pays for it and rolls
+ * the extra damage (dice doubled on a critical). `after` applies its lasting
+ * effect once the damage has landed.
+ */
+function fireSmite(state: CombatState, rng: Rng, u: Unit, target: Unit, critical: boolean): { damage: number; text: string; after: () => void } | null {
+  const s = state.smite;
+  const c = u.caster;
+  if (!s || !c || activeUnit(state) !== u) return null;
+  state.smite = undefined;
+  const free = s.slot === 0;
+  if (state.bonusUsed || (free ? !(c.free?.[s.spellId] ?? 0) : !(c.slots[s.slot - 1] > 0) || state.slotUsed)) {
+    state.log.push(`${s.name} fizzles — ${state.bonusUsed ? 'no Bonus Action left' : 'no spell slot left'}.`);
+    return null;
+  }
+  if (free) c.free![s.spellId] -= 1;
+  else {
+    c.slots[s.slot - 1] -= 1;
+    state.slotUsed = true;
+  }
+  state.bonusUsed = true;
+  const dice = [...s.dice];
+  if (s.bonusVs && target.creatureType && s.bonusVs.types.includes(target.creatureType)) dice.push(s.bonusVs.dice);
+  const damage = dice.reduce((sum, d) => {
+    const p = parseDice(d);
+    return sum + Math.max(0, roll(rng, { ...p, count: p.count * (critical ? 2 : 1) }).total);
+  }, 0);
+  const after = () => {
+    if (!s.after || !isUp(target)) return;
+    const dc = c.dc;
+    if (s.concentration) startConcentration(state, u, s.spellId, s.name, s.concentration);
+    if (s.after.effect === 'searing') {
+      addEffect(target, { kind: 'searing', owner: u.id, ends: 'start', skip: 9, dice: s.after.dice, dc });
+      state.log.push(`${target.name} is set ablaze.`);
+    } else if (s.after.effect === 'outlined') {
+      addEffect(target, { kind: 'outlined', owner: u.id, ends: 'concentration' });
+      state.log.push(`${target.name} sheds bright light — attacks against it have Advantage.`);
+    } else if (s.after.effect === 'restrained') {
+      // Strength save; Large or bigger creatures have Advantage (SRD 5.2 Ensnaring Strike)
+      const big = !!target.size && ['large', 'huge', 'gargantuan'].includes(target.size);
+      const total = saveTotal(rng, target, 'str', big);
+      if (total >= dc) {
+        state.log.push(`${target.name} tears free of the vines (STR ${total} vs DC ${dc}).`);
+        endConcentration(state, u, 'the vines fail');
+      } else {
+        addEffect(target, { kind: 'restrained', owner: u.id, ends: 'concentration', dice: s.after.dice, dc });
+        state.log.push(`Vines hold ${target.name} fast (STR ${total} vs DC ${dc}) — Restrained.`);
+      }
+    }
+  };
+  return { damage, text: dice.length ? ` (+${damage} ${s.type}, ${s.name}${free ? ', free' : ''})` : ` (${s.name})`, after };
 }
 
 /** Help action to stabilise: DC 10 Wisdom (Medicine) check. */
@@ -669,6 +834,7 @@ export function checkOutcome(state: CombatState): void {
 export function runEnemyTurn(state: CombatState, rng: Rng): void {
   while (state.outcome === 'ongoing' && activeUnit(state).side === 'enemy') {
     const u = activeUnit(state);
+    breakFree(state, rng, u);
     for (let guard = 0; guard < 30 && state.outcome === 'ongoing'; guard++) {
       const target = nearest(state, u, 'party');
       if (!target) break;
@@ -691,6 +857,25 @@ export function runEnemyTurn(state: CombatState, rng: Rng): void {
     if (state.outcome !== 'ongoing') return;
     advance(state, rng);
   }
+}
+
+/**
+ * Restrained by Ensnaring Strike with no foe in reach: spend the action on a
+ * Strength (Athletics) check against the caster's DC (Strength save bonus used
+ * for Athletics — monsters don't list skills yet).
+ */
+function breakFree(state: CombatState, rng: Rng, u: Unit): void {
+  const vines = effectOf(u, 'restrained');
+  if (!vines || !isUp(u) || state.actionUsed) return;
+  if (state.units.some((o) => o.side !== u.side && isUp(o) && onField(o) && chebyshev(o, u) === 1)) return;
+  state.actionUsed = true;
+  const total = rng.int(1, 20) + (u.saves?.str ?? 0);
+  if (total >= (vines.dc ?? 0)) {
+    const owner = state.units.find((o) => o.id === vines.owner);
+    state.log.push(`${u.name} rips free of the vines (${total} vs DC ${vines.dc}).`);
+    if (owner) endConcentration(state, owner, `${u.name} broke free`);
+    else u.effects = u.effects!.filter((e) => e !== vines);
+  } else state.log.push(`${u.name} strains against the vines (${total} vs DC ${vines.dc}).`);
 }
 
 function nearest(state: CombatState, from: Unit, side: Side): Unit | undefined {

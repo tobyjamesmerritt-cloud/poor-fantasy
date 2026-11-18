@@ -1,5 +1,5 @@
 {
-  "_note": "SRD 5.2 spells (CC-BY-4.0) the game implements so far: numbers from the SRD, summaries in our own words. Ranges and areas in feet. Only Cleric and Wizard can cast yet (DND-23); Paladin and Ranger spells follow as data. effect.kind: attack | save | missiles | heal | buff | stabilize | teleport | ward | temp-hp. where: combat | any (also outside fights) | rest (outside fights only).",
+  "_note": "SRD 5.2 spells (CC-BY-4.0) the game implements so far: numbers from the SRD, summaries in our own words. Ranges and areas in feet. Cleric, Wizard, Paladin and Ranger cast (Aid and the rest of the half-caster lists follow as data). effect.kind: attack | save | missiles | heal | buff | stabilize | teleport | ward | temp-hp | mark | smite (readied: fires on the next weapon hit that turn). where: combat | any (also outside fights) | rest (outside fights only).",
   "sacred-flame": {
     "name": "Sacred Flame", "level": 0, "school": "Evocation", "classes": ["cleric"],
     "time": "action", "range": 60, "where": "combat",
@@ -49,13 +49,13 @@
     "summary": "Ranged spell attack, 30 ft: 1d12 poison damage."
   },
   "bless": {
-    "name": "Bless", "level": 1, "school": "Enchantment", "classes": ["cleric"],
+    "name": "Bless", "level": 1, "school": "Enchantment", "classes": ["cleric", "paladin"],
     "time": "action", "range": 30, "where": "combat", "concentration": true,
     "effect": { "kind": "buff", "buff": "bless", "targets": 3, "upcastTargets": 1 },
     "summary": "Up to three allies within 30 ft add 1d4 to attack rolls and saving throws (concentration, 1 minute). One more ally per slot level above 1."
   },
   "cure-wounds": {
-    "name": "Cure Wounds", "level": 1, "school": "Abjuration", "classes": ["cleric"],
+    "name": "Cure Wounds", "level": 1, "school": "Abjuration", "classes": ["cleric", "paladin", "ranger"],
     "time": "action", "range": 5, "where": "any",
     "effect": { "kind": "heal", "dice": "2d8", "addMod": true, "targets": 1, "upcast": "2d8" },
     "summary": "Touch: an ally regains 2d8 + your Wisdom modifier hit points (+2d8 per slot level above 1)."
@@ -79,13 +79,13 @@
     "summary": "Touch: Constitution save, 2d10 necrotic damage (half on a success; +1d10 per slot level above 1)."
   },
   "shield-of-faith": {
-    "name": "Shield of Faith", "level": 1, "school": "Abjuration", "classes": ["cleric"],
+    "name": "Shield of Faith", "level": 1, "school": "Abjuration", "classes": ["cleric", "paladin"],
     "time": "bonus", "range": 60, "where": "combat", "concentration": true,
     "effect": { "kind": "buff", "buff": "shield-of-faith", "targets": 1 },
     "summary": "Bonus Action, 60 ft: an ally gets +2 AC (concentration, 10 minutes)."
   },
   "prayer-of-healing": {
-    "name": "Prayer of Healing", "level": 2, "school": "Abjuration", "classes": ["cleric"],
+    "name": "Prayer of Healing", "level": 2, "school": "Abjuration", "classes": ["cleric", "paladin"],
     "time": "10 minutes", "range": 30, "where": "rest",
     "effect": { "kind": "heal", "dice": "2d8", "addMod": false, "targets": 5, "upcast": "1d8", "shortRest": true },
     "summary": "10 minutes, outside fights: up to five allies gain the benefits of a Short Rest and regain 2d8 hit points. Each can benefit once per Long Rest."
@@ -176,5 +176,53 @@
     "time": "action", "range": 0, "where": "combat",
     "effect": { "kind": "save", "save": "dex", "damage": "8d6", "type": "lightning", "half": true, "upcast": "1d6", "area": { "shape": "line", "size": 100 } },
     "summary": "A 100-ft line of lightning from you: Dexterity save, 8d6 lightning (half on a success)."
+  },
+  "divine-favor": {
+    "name": "Divine Favor", "level": 1, "school": "Transmutation", "classes": ["paladin"],
+    "time": "bonus", "range": 0, "where": "combat",
+    "effect": { "kind": "buff", "buff": "divine-favor", "targets": 1, "self": true, "rounds": 10 },
+    "summary": "For 1 minute your weapon attacks deal an extra 1d4 radiant damage on a hit."
+  },
+  "divine-smite": {
+    "name": "Divine Smite", "level": 1, "school": "Evocation", "classes": ["paladin"],
+    "time": "bonus", "range": 0, "where": "combat",
+    "effect": { "kind": "smite", "damage": "2d8", "type": "radiant", "upcast": "1d8", "bonusVs": { "types": ["fiend", "undead"], "dice": "1d8" } },
+    "summary": "Ready it: your next melee weapon hit this turn deals an extra 2d8 radiant (+1d8 per slot level above 1; +1d8 more against Fiends and Undead). Uses your Bonus Action and slot only when it lands."
+  },
+  "heroism": {
+    "name": "Heroism", "level": 1, "school": "Enchantment", "classes": ["paladin"],
+    "time": "action", "range": 5, "where": "combat", "concentration": true,
+    "effect": { "kind": "buff", "buff": "heroism", "targets": 1, "upcastTargets": 1 },
+    "summary": "A creature you touch gains temporary hit points equal to your spellcasting modifier at the start of each of its turns and can't be Frightened. One more creature per slot level above 1."
+  },
+  "searing-smite": {
+    "name": "Searing Smite", "level": 1, "school": "Evocation", "classes": ["paladin"],
+    "time": "bonus", "range": 0, "where": "combat",
+    "effect": { "kind": "smite", "damage": "1d6", "type": "fire", "upcast": "1d6", "after": { "effect": "searing", "dice": "1d6", "upcast": "1d6", "save": "con" } },
+    "summary": "Ready it: your next melee weapon hit this turn deals an extra 1d6 fire and sets the target ablaze — 1d6 fire at the start of each of its turns until it makes a Constitution save (1 minute). All damage +1d6 per slot level above 1."
+  },
+  "shining-smite": {
+    "name": "Shining Smite", "level": 2, "school": "Transmutation", "classes": ["paladin"],
+    "time": "bonus", "range": 0, "where": "combat", "concentration": true,
+    "effect": { "kind": "smite", "damage": "2d6", "type": "radiant", "upcast": "1d6", "after": { "effect": "outlined" } },
+    "summary": "Ready it: your next melee weapon hit this turn deals an extra 2d6 radiant and the target glows — attack rolls against it have Advantage (Concentration, 1 minute). +1d6 per slot level above 2."
+  },
+  "magic-weapon": {
+    "name": "Magic Weapon", "level": 2, "school": "Transmutation", "classes": ["paladin", "ranger", "wizard"],
+    "time": "bonus", "range": 5, "where": "combat",
+    "effect": { "kind": "buff", "buff": "magic-weapon", "targets": 1, "rounds": 600 },
+    "summary": "A weapon you touch becomes magic for 1 hour: +1 to its attack and damage rolls (+2 with a level 3–5 slot)."
+  },
+  "hunters-mark": {
+    "name": "Hunter's Mark", "level": 1, "school": "Divination", "classes": ["ranger"],
+    "time": "bonus", "range": 90, "where": "combat", "concentration": true,
+    "effect": { "kind": "mark", "damage": "1d6", "type": "force" },
+    "summary": "Mark a creature within 90 ft: your attack-roll hits against it deal an extra 1d6 force (Concentration, 1 hour). If it drops, a Bonus Action moves the mark — no new slot."
+  },
+  "ensnaring-strike": {
+    "name": "Ensnaring Strike", "level": 1, "school": "Conjuration", "classes": ["ranger"],
+    "time": "bonus", "range": 0, "where": "combat", "concentration": true,
+    "effect": { "kind": "smite", "type": "piercing", "after": { "effect": "restrained", "dice": "1d6", "upcast": "1d6", "save": "str" } },
+    "summary": "Ready it: your next weapon hit this turn ensnares the target — Strength save (Large or bigger: Advantage) or Restrained (Speed 0, attacks against it have Advantage, its own Disadvantage) taking 1d6 piercing at the start of each of its turns. It can spend its action to break free (Strength (Athletics) vs your DC). +1d6 per slot level above 1."
   }
 }

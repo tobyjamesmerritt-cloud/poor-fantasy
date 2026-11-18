@@ -3,7 +3,7 @@ import { buildUnits, encounters } from '../src/content/encounters';
 import { casterOf, characterData, checkSheet, choicesOf, membersOf, pregens, spells, statsOf } from '../src/content/characters';
 import { createRng } from '../src/engine/rng';
 import type { CharacterSheet, PartyMemberState } from '../src/engine/state';
-import { acOf, type CasterInfo, type CombatState, endTurn, hasEffect, hurt, type Unit } from '../src/rules/combat';
+import { acOf, type CasterInfo, type CombatState, endTurn, hasEffect, hitRiders, hurt, step, type Unit } from '../src/rules/combat';
 import { freshParty, afterCombat } from '../src/rules/party';
 import { rest } from '../src/rules/rest';
 import {
@@ -12,8 +12,10 @@ import {
   castOptions,
   castOutside,
   castSpell,
+  longRestSpells,
   slotsAt,
   spellChoices,
+  spellsAfterCombat,
 } from '../src/rules/spells';
 import { makeUnit, scripted } from './helpers';
 
@@ -265,5 +267,127 @@ describe('spells between fights', () => {
     expect(arcaneRecovery(p, 3)).toEqual([2]);
     expect(p.spells!.used).toEqual([2, 0]);
     expect(arcaneRecovery(p, 3)).toEqual([]);
+  });
+});
+
+describe('Paladin and Ranger magic (SRD 5.2)', () => {
+  const paladin = pregens.find((p) => p.classId === 'paladin')!;
+  const ranger = pregens.find((p) => p.classId === 'ranger')!;
+
+  it('half-caster tables; Divine Smite and Hunter’s Mark are always prepared and don’t count', () => {
+    expect([1, 2, 3, 4, 5].map((l) => slotsAt(sc('paladin'), l))).toEqual([[2], [2], [3], [3], [4, 2]]);
+    expect([1, 2, 3, 4, 5].map((l) => slotsAt(sc('ranger'), l))).toEqual([[2], [2], [3], [3], [4, 2]]);
+    const r1 = casterOf({ ...ranger, level: 1 })!;
+    expect(choicesOf({ ...ranger, level: 1 })!.prepared).toHaveLength(2);
+    expect(r1.prepared).toContain('hunters-mark');
+    expect(r1.free).toEqual({ 'hunters-mark': 2 });
+    expect(casterOf({ ...paladin, level: 1, hpGains: [] })!.prepared).not.toContain('divine-smite');
+    const p2 = casterOf({ ...paladin, level: 2, hpGains: [6] })!;
+    expect(p2.prepared).toContain('divine-smite');
+    expect(p2.free).toEqual({ 'divine-smite': 1 });
+  });
+
+  const smiter = () =>
+    makeUnit({
+      id: 'pal',
+      side: 'party',
+      x: 1,
+      y: 1,
+      attackBonus: 50,
+      damage: ['1'],
+      caster: caster({ classId: 'paladin', ability: 'cha', prepared: ['divine-smite', 'searing-smite'], cantrips: [], slots: [2], maxSlots: [2], free: { 'divine-smite': 1 }, freeMax: { 'divine-smite': 1 } }),
+    });
+
+  it('a readied smite costs nothing until the hit, then spends the slot and the Bonus Action', () => {
+    const foe = makeUnit({ id: 'orc', side: 'enemy', x: 2, y: 1, hp: 200, ac: 1 });
+    const s = fight([smiter(), foe]);
+    const opt = castOptions(s, spells).find((o) => o.id === 'divine-smite')!;
+    expect(opt.levels).toEqual([0, 1]); // free cast first, then a level 1 slot
+    expect(castSpell(s, createRng(1), spells, 'divine-smite', 1, [{ x: 1, y: 1 }])).toBe(true);
+    expect(s.smite?.spellId).toBe('divine-smite');
+    expect(s.units[0].caster!.slots).toEqual([2]);
+    expect(s.bonusUsed).toBe(false);
+    step(s, createRng(1), 'e'); // attack the orc
+    expect(s.units[0].caster!.slots).toEqual([1]);
+    expect(s.bonusUsed).toBe(true);
+    expect(s.smite).toBeUndefined();
+    expect(s.log.join('\n')).toMatch(/radiant, Divine Smite/);
+    expect(foe.hp).toBeLessThan(200 - 2); // 1 + 2d8
+  });
+
+  it('Searing Smite keeps burning until a Constitution save', () => {
+    const foe = makeUnit({ id: 'orc', side: 'enemy', x: 2, y: 1, hp: 200, ac: 1, saves: { con: -100 } });
+    const s = fight([smiter(), foe]);
+    castSpell(s, createRng(2), spells, 'searing-smite', 1, [{ x: 1, y: 1 }]);
+    step(s, createRng(2), 'e');
+    expect(hasEffect(foe, 'searing')).toBe(true);
+    endTurn(s, createRng(3)); // the orc's turn starts: it burns
+    expect(s.log.join('\n')).toMatch(/Orc burns for \d+ fire/i);
+  });
+
+  it('Hunter’s Mark: free casts, +1d6 on hits, and the mark moves for free when its creature drops', () => {
+    const r = makeUnit({
+      id: 'rgr',
+      side: 'party',
+      x: 1,
+      y: 1,
+      attackBonus: 50,
+      caster: caster({ classId: 'ranger', ability: 'wis', prepared: ['hunters-mark'], cantrips: [], slots: [2], maxSlots: [2], free: { 'hunters-mark': 2 }, freeMax: { 'hunters-mark': 2 } }),
+    });
+    const a = makeUnit({ id: 'a', side: 'enemy', x: 2, y: 1, hp: 100, ac: 1 });
+    const b = makeUnit({ id: 'b', side: 'enemy', x: 6, y: 6, hp: 100 });
+    const s = fight([r, a, b]);
+    expect(castSpell(s, createRng(1), spells, 'hunters-mark', 0, [{ x: 2, y: 1 }])).toBe(true);
+    expect(r.caster!.free!['hunters-mark']).toBe(1);
+    expect(r.caster!.slots).toEqual([2]);
+    expect(r.concentration?.spell).toBe('hunters-mark');
+    expect(hitRiders(r, a, true)).toEqual(['1d6']);
+    expect(hitRiders(r, b, true)).toEqual([]);
+    a.hp = 0; // the quarry drops
+    s.bonusUsed = false;
+    const opt = castOptions(s, spells).find((o) => o.id === 'hunters-mark')!;
+    expect(opt.move).toBe(true);
+    castSpell(s, createRng(1), spells, 'hunters-mark', 0, [{ x: 6, y: 6 }]);
+    expect(r.caster!.free!['hunters-mark']).toBe(1); // moving the mark is free
+    expect(hasEffect(b, 'marked')).toBe(true);
+  });
+
+  it('Ensnaring Strike restrains on a failed Strength save: Speed 0, vines each turn; the caster concentrates', () => {
+    const r = makeUnit({
+      id: 'rgr',
+      side: 'party',
+      x: 1,
+      y: 1,
+      attackBonus: 50,
+      caster: caster({ classId: 'ranger', ability: 'wis', prepared: ['ensnaring-strike'], cantrips: [], slots: [2], maxSlots: [2] }),
+    });
+    const foe = makeUnit({ id: 'orc', side: 'enemy', x: 2, y: 1, hp: 200, ac: 1, saves: { str: -100 } });
+    const s = fight([r, foe]);
+    castSpell(s, createRng(1), spells, 'ensnaring-strike', 1, [{ x: 1, y: 1 }]);
+    step(s, createRng(1), 'e');
+    expect(hasEffect(foe, 'restrained')).toBe(true);
+    expect(r.concentration?.spell).toBe('ensnaring-strike');
+    endTurn(s, createRng(5));
+    expect(s.log.join('\n')).toMatch(/vines dig into Orc/i);
+    expect(s.log.join('\n')).toMatch(/restrained/); // its attack had Disadvantage
+  });
+
+  it('free casts spent are kept after the fight and come back on a Long Rest', () => {
+    const u = smiter();
+    u.caster!.free = { 'divine-smite': 0 };
+    const p: PartyMemberState = { id: 'pal', hp: 10, hitDice: 1, dead: false, wakesAt: null };
+    spellsAfterCombat(p, u, 0);
+    expect(p.spells?.free).toEqual({ 'divine-smite': 1 });
+    longRestSpells(p);
+    expect(p.spells?.free).toBeUndefined();
+  });
+
+  it('Heroism tops up temporary HP at the start of the target’s turns', () => {
+    const p = makeUnit({ id: 'pal', side: 'party', x: 1, y: 1, caster: caster({ classId: 'paladin', ability: 'cha', mod: 3, prepared: ['heroism'], cantrips: [], slots: [2], maxSlots: [2] }) });
+    const foe = makeUnit({ id: 'orc', side: 'enemy', x: 8, y: 8, hp: 50 });
+    const s = fight([p, foe]);
+    castSpell(s, createRng(1), spells, 'heroism', 1, [{ x: 1, y: 1 }]);
+    endTurn(s, createRng(1)); // orc's turn, then back to the paladin
+    expect(p.tempHp).toBe(3);
   });
 });

@@ -72,6 +72,18 @@ function botCast(s: ReturnType<typeof startCombat>, rng: ReturnType<typeof creat
   if (word && dying && validTargets(s, spells, 'healing-word', word.levels[0]).some((p) => p.x === dying.x && p.y === dying.y)) {
     castSpell(s, rng, spells, 'healing-word', word.levels[0], [{ x: dying.x, y: dying.y }]);
   }
+  // Ranger: Hunter's Mark on the nearest foe (free casts first) when not already concentrating on it
+  const mark = ready.find((o) => o.id === 'hunters-mark');
+  if (mark && foes.length && (u.concentration?.spell !== 'hunters-mark' || mark.move)) {
+    const valid = validTargets(s, spells, 'hunters-mark', mark.levels[0]);
+    const quarry = foes.find((f) => valid.some((p) => p.x === f.x && p.y === f.y));
+    if (quarry) castSpell(s, rng, spells, 'hunters-mark', mark.levels[0], [{ x: quarry.x, y: quarry.y }]);
+  }
+  // Paladin / Ranger: ready a smite before closing in (free cast first; slots kept for when one is free)
+  for (const id of ['divine-smite', 'ensnaring-strike']) {
+    const o = castOptions(s, spells).find((x) => x.id === id && !x.reason);
+    if (o && !s.smite && (o.levels[0] === 0 || id === 'divine-smite')) castSpell(s, rng, spells, id, o.levels[0], [{ x: u.x, y: u.y }]);
+  }
   if (!foes.length || chebyshev(u, foes[0]) === 1) return;
   for (const id of ['magic-missile', 'guiding-bolt', 'fire-bolt', 'sacred-flame']) {
     const o = castOptions(s, spells).find((x) => x.id === id && !x.reason);
