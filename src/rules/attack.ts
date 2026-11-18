@@ -7,6 +7,7 @@ export interface AttackInput {
   targetAc: number;
   damage: string | DiceExpr | (string | DiceExpr)[]; // e.g. "1d8+3" or ["1d4+3", "2d4"] (bite + poison)
   mode?: RollMode;
+  critOn?: number; // lowest natural roll that is a critical hit (Improved Critical: 19)
 }
 
 export interface AttackResult {
@@ -25,7 +26,7 @@ export interface AttackResult {
 export function resolveAttack(rng: Rng, input: AttackInput): AttackResult {
   const { kept, dice } = rollD20(rng, input.mode ?? 'normal');
   const attackTotal = kept + input.attackBonus;
-  const critical = kept === 20;
+  const critical = kept >= (input.critOn ?? 20);
   const hit = critical || (kept !== 1 && attackTotal >= input.targetAc);
 
   let damage = 0;

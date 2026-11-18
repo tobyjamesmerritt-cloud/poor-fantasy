@@ -77,6 +77,7 @@ export interface PartyMemberState {
   wakesAt: number | null; // unconscious + stable: game time they regain 1 HP (SRD: after 1d4 hours)
   tempHp?: number; // Temporary Hit Points (last until used up or a Long Rest)
   spells?: SpellState; // casters only
+  featureUses?: Record<string, number>; // class feature uses spent since they last came back (rules/features.ts)
 }
 
 /** A caster's magic between fights (rules/spells.ts). */

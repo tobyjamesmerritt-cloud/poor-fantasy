@@ -22,6 +22,7 @@ import { parseDice, resolveRollMode, roll, rollD20 } from '../engine/dice';
 import type { Rng } from '../engine/rng';
 import type { Ability } from '../engine/state';
 import { resolveAttack } from './attack';
+import type { CombatFeatures, FeatureId } from './features';
 
 export type Side = 'party' | 'enemy';
 
@@ -99,6 +100,7 @@ export interface CasterInfo {
   maxSlots: number[];
   free?: Record<string, number>; // casts left without a slot (Paladin's Smite, Favored Enemy), by spell id
   freeMax?: Record<string, number>;
+  discipleOfLife?: boolean; // Life Domain: slot-cast healing +2 + slot level
 }
 
 export interface Unit {
@@ -138,6 +140,9 @@ export interface Unit {
   regenBlocked?: boolean; // …unless it took acid or fire damage since (SRD 5.2 Troll)
   fumble?: number; // house rule for quest tweaks (a drunk troll): chance each attack simply misses
   reactionUsed?: boolean; // SRD 5.2: one Reaction per round, regained at the start of its own turn
+  features?: CombatFeatures; // characters: class features in combat (rules/features.ts)
+  uses?: Partial<Record<FeatureId, number>>; // their uses left (Second Wind, Action Surge, Lay On Hands pool)
+  onceTurn?: Partial<Record<'sneak' | 'slayer', string>>; // "round.turnIndex" when a once-per-turn rider was last used
   creatureType?: string; // monsters: beast, giant, undead, fiend… (Divine Smite)
   size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan'; // monsters (missing = medium)
 }
@@ -159,6 +164,8 @@ export interface CombatState {
   potions: number; // Potions of Healing in the party pack
   scrolls?: Record<string, number>; // Spell Scrolls in the party pack, by spell id
   smite?: ReadiedSmite; // readied by the active creature; goes off on its next weapon hit this turn
+  attacksMade?: number; // attacks so far in this turn's Attack action (Extra Attack: the action ends at `attacks`)
+  surged?: boolean; // Action Surge used this turn
   log: string[];
 }
 
@@ -255,6 +262,7 @@ export function step(state: CombatState, rng: Rng, dir: Direction): boolean {
       attack(state, rng, u, occupant);
       return true;
     }
+    if (state.attacksMade) return false; // mid-Attack action: only more attacks
     if (isDown(occupant) && !occupant.stable) {
       helpStabilise(state, rng, u, occupant);
       return true;
@@ -308,23 +316,109 @@ function provoke(state: CombatState, rng: Rng, mover: Unit, nx: number, ny: numb
 
 /** The Dash, Dodge and Disengage actions (SRD 5.2). Returns false if not allowed now. */
 export type CombatAction = 'dash' | 'dodge' | 'disengage';
-export function takeAction(state: CombatState, action: CombatAction): boolean {
-  if (state.outcome !== 'ongoing' || state.actionUsed) return false;
+/** `bonus`: as a Bonus Action (Rogue's Cunning Action: Dash or Disengage). */
+export function takeAction(state: CombatState, action: CombatAction, bonus = false): boolean {
+  if (state.outcome !== 'ongoing') return false;
   const u = activeUnit(state);
   if (!isUp(u)) return false;
-  state.actionUsed = true;
+  if (bonus) {
+    if (!u.features?.cunningAction || action === 'dodge' || state.bonusUsed) return false;
+    state.bonusUsed = true;
+  } else {
+    if (state.actionUsed || state.attacksMade) return false;
+    state.actionUsed = true;
+  }
   if (action === 'dash') {
-    // Dash: extra movement equal to your Speed (after modifiers, e.g. Slowed)
-    const speed = hasEffect(u, 'slowed') ? Math.max(0, u.speed - 2) : u.speed;
+    // Dash: extra movement equal to your Speed (after modifiers: Slowed −2, Restrained 0)
+    const speed = hasEffect(u, 'restrained') ? 0 : hasEffect(u, 'slowed') ? Math.max(0, u.speed - 2) : u.speed;
     state.movesLeft += speed;
-    state.log.push(`${u.name} dashes (+${speed} squares of movement).`);
+    state.log.push(`${u.name} dashes${bonus ? ' (Cunning Action)' : ''} (+${speed} squares of movement).`);
   } else if (action === 'dodge') {
     // Dodge: until the start of your next turn, attacks against you have Disadvantage and you have Advantage on Dexterity saves
     addEffect(u, { kind: 'dodging', owner: u.id, ends: 'start' });
     state.log.push(`${u.name} takes the Dodge action — attacks against them have disadvantage until their next turn.`);
   } else {
     state.disengaged = true;
-    state.log.push(`${u.name} disengages — moving away won't provoke opportunity attacks this turn.`);
+    state.log.push(`${u.name} disengages${bonus ? ' (Cunning Action)' : ''} — moving away won't provoke opportunity attacks this turn.`);
+  }
+  return true;
+}
+
+/** Class features the active character can use now (SRD 5.2), with targets for Lay On Hands. */
+export interface FeatureOption {
+  id: FeatureId;
+  name: string;
+  left: number; // uses (Lay On Hands: hit points in the pool)
+  reason?: string; // why not now
+  targets?: { id: string; name: string; missing: number }[]; // Lay On Hands
+  summary: string;
+}
+export function featureOptions(state: CombatState): FeatureOption[] {
+  const u = activeUnit(state);
+  if (u.side !== 'party' || !u.uses || state.outcome !== 'ongoing' || !isUp(u)) return [];
+  const out: FeatureOption[] = [];
+  const left = (id: FeatureId) => u.uses?.[id] ?? 0;
+  if (u.uses['second-wind'] !== undefined) {
+    out.push({
+      id: 'second-wind',
+      name: 'Second Wind',
+      left: left('second-wind'),
+      reason: !left('second-wind') ? 'No uses left (one back on a Short Rest)' : state.bonusUsed ? 'Bonus Action already used' : u.hp >= u.maxHp ? 'Not hurt' : undefined,
+      summary: `Bonus Action: regain 1d10 + ${u.features?.secondWindBonus ?? 1} HP.`,
+    });
+  }
+  if (u.uses['action-surge'] !== undefined) {
+    out.push({
+      id: 'action-surge',
+      name: 'Action Surge',
+      left: left('action-surge'),
+      reason: !left('action-surge') ? 'Used — back on a Short Rest' : state.surged ? 'Already surged this turn' : !state.actionUsed ? 'Use your action first' : undefined,
+      summary: 'Take one more action this turn (another Attack, Dash, Disengage or Dodge).',
+    });
+  }
+  if (u.uses['lay-on-hands'] !== undefined) {
+    const targets = state.units
+      .filter((o) => o.side === u.side && !o.dead && onField(o) && chebyshev(o, u) <= 1 && o.hp < o.maxHp)
+      .map((o) => ({ id: o.id, name: o === u ? 'yourself' : o.name, missing: o.maxHp - Math.max(0, o.hp) }));
+    out.push({
+      id: 'lay-on-hands',
+      name: 'Lay On Hands',
+      left: left('lay-on-hands'),
+      targets,
+      reason: !left('lay-on-hands') ? 'The pool is empty until a Long Rest' : state.bonusUsed ? 'Bonus Action already used' : !targets.length ? 'Nobody hurt within reach' : undefined,
+      summary: 'Bonus Action: touch a creature and restore hit points from your pool (5 × Paladin level per Long Rest).',
+    });
+  }
+  return out;
+}
+
+/** Use a class feature. Returns false if not allowed now. */
+export function useFeature(state: CombatState, rng: Rng, id: FeatureId, targetId?: string): boolean {
+  const u = activeUnit(state);
+  const opt = featureOptions(state).find((o) => o.id === id);
+  if (!opt || opt.reason || !u.uses) return false;
+  if (id === 'second-wind') {
+    const gained = healUnit(u, rng.int(1, 10) + (u.features?.secondWindBonus ?? 1));
+    u.uses['second-wind']! -= 1;
+    state.bonusUsed = true;
+    state.log.push(`${u.name} catches a Second Wind and regains ${gained} HP (${u.hp}/${u.maxHp}).`);
+  } else if (id === 'action-surge') {
+    u.uses['action-surge']! -= 1;
+    state.surged = true;
+    state.actionUsed = false;
+    state.attacksMade = 0;
+    state.log.push(`${u.name} surges into action — one more action this turn!`);
+  } else {
+    const t = opt.targets?.find((x) => x.id === targetId) ?? opt.targets?.[0];
+    if (!t) return false;
+    const target = unitById(state, t.id);
+    const amount = Math.min(u.uses['lay-on-hands']!, t.missing);
+    const wasDown = target.hp <= 0;
+    const gained = healUnit(target, amount);
+    if (!gained) return false;
+    u.uses['lay-on-hands']! -= gained;
+    state.bonusUsed = true;
+    state.log.push(`${u.name} lays hands on ${target === u ? 'themself' : target.name}: +${gained} HP (${target.hp}/${target.maxHp})${wasDown ? ` — ${target.name} is back on their feet!` : '.'} Pool: ${u.uses['lay-on-hands']}.`);
   }
   return true;
 }
@@ -460,6 +554,8 @@ function beginTurn(state: CombatState, rng: Rng): void {
   state.slotUsed = false;
   state.disengaged = false;
   state.smite = undefined;
+  state.attacksMade = 0;
+  state.surged = false;
   u.reactionUsed = false; // SRD 5.2: a creature regains its Reaction at the start of its turn
   if (u.side === 'party') state.log.push(`▶ ${u.name}'s turn.`);
 }
@@ -711,7 +807,11 @@ export function applyDamage(target: Unit, amount: number): string {
 }
 
 function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reaction = false): void {
-  if (!reaction) state.actionUsed = true;
+  if (!reaction) {
+    // Extra Attack / Multiattack: the Attack action lasts until all its attacks are made (move between them freely)
+    state.attacksMade = (state.attacksMade ?? 0) + 1;
+    if (state.attacksMade >= (attacker.attacks ?? 1)) state.actionUsed = true;
+  }
   const lead = reaction ? `Opportunity attack! ` : '';
   if (attacker.fumble && rng.int(1, 100) <= Math.round(attacker.fumble * 100)) {
     state.log.push(`${lead}${attacker.name} lurches, swings wide and misses ${target.name}.`);
@@ -723,8 +823,26 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
   const ac = acOf(target);
   // Weapon magic on the hit (SRD 5.2): Magic Weapon (+attack, +damage), Divine Favor (+1d4 radiant), Hunter's Mark (+1d6 force)
   const magic = effectOf(attacker, 'magic-weapon')?.amount ?? 0;
-  const extras = [...attacker.damage, ...(magic ? [`${magic}`] : []), ...hitRiders(attacker, target, true)];
-  const r = resolveAttack(rng, { attackBonus: attacker.attackBonus + bless + magic, targetAc: ac, damage: extras, mode });
+  // Once-per-turn riders (SRD 5.2): Sneak Attack — Advantage, or another enemy of the target next to it and no Disadvantage;
+  // Colossus Slayer — the target is missing hit points. Used only if this attack hits.
+  const turn = `${state.round}.${state.turnIndex}`;
+  const f = attacker.features;
+  const ally = state.units.some((o) => o !== attacker && o.side === attacker.side && isUp(o) && onField(o) && chebyshev(o, target) === 1);
+  const sneak = !!f?.sneakAttack && attacker.onceTurn?.sneak !== turn && (mode === 'advantage' || (ally && mode !== 'disadvantage'));
+  const slayer = !!f?.colossusSlayer && attacker.onceTurn?.slayer !== turn && target.hp < target.maxHp;
+  const extras = [
+    ...attacker.damage,
+    ...(magic ? [`${magic}`] : []),
+    ...hitRiders(attacker, target, true),
+    ...(sneak ? [f!.sneakAttack!] : []),
+    ...(slayer ? ['1d8'] : []),
+  ];
+  const r = resolveAttack(rng, { attackBonus: attacker.attackBonus + bless + magic, targetAc: ac, damage: extras, mode, critOn: f?.critOn });
+  if (r.hit && (sneak || slayer)) {
+    attacker.onceTurn = { ...attacker.onceTurn, ...(sneak ? { sneak: turn } : {}), ...(slayer ? { slayer: turn } : {}) };
+    if (sneak) notes.push('sneak attack');
+    if (slayer) notes.push('colossus slayer');
+  }
   const adv = notes.length ? ` [${notes.join(', ')}]` : '';
   if (!r.hit) {
     state.log.push(`${lead}${attacker.name} misses ${target.name} (${r.attackTotal} vs AC ${ac})${adv}.`);
@@ -732,7 +850,16 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
   }
   const verb = r.critical ? 'CRITS' : 'hits';
   const smite = !reaction ? fireSmite(state, rng, attacker, target, r.critical) : null;
-  hurt(state, rng, target, r.damage + (smite?.damage ?? 0), `${lead}${attacker.name} ${verb} ${target.name} for ${r.damage + (smite?.damage ?? 0)}${adv}${smite?.text ?? ''}`);
+  let dmg = r.damage + (smite?.damage ?? 0);
+  // Uncanny Dodge (SRD 5.2 Rogue): Reaction to halve the damage of an attack from an attacker you can see
+  let dodge = '';
+  if (target.features?.uncannyDodge && !target.reactionUsed && isUp(target) && !hasEffect(target, 'blinded') && dmg > 1) {
+    target.reactionUsed = true;
+    dmg = Math.floor(dmg / 2);
+    dodge = ` — Uncanny Dodge halves it`;
+  }
+  const tags = r.hit && (sneak || slayer) ? ` [${notes.join(', ')}]` : adv;
+  hurt(state, rng, target, dmg, `${lead}${attacker.name} ${verb} ${target.name} for ${dmg}${tags}${smite?.text ?? ''}${dodge}`);
   if (smite) smite.after();
   checkOutcome(state);
 }

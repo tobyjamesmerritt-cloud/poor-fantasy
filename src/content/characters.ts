@@ -24,6 +24,7 @@ import gearRaw from './gear.json';
 import partyRaw from './party.json';
 import speciesRaw from './species.json';
 import spellsRaw from './spells.json';
+import { type CombatFeatures, combatFeatures } from '../rules/features';
 
 const strip = <T>(raw: unknown): T => {
   const { _note: _ignored, ...rest } = raw as Record<string, unknown>;
@@ -111,6 +112,7 @@ export interface PartyMemberDef {
   saves: Record<Ability, number>;
   unarmoredAc?: number;
   caster?: CasterInfo; // slots are full here; buildUnits applies what has been spent
+  features?: CombatFeatures; // class features that work in combat (rules/features.ts)
 }
 
 /** The caster block for a sheet (undefined for classes without Spellcasting). */
@@ -118,7 +120,9 @@ export function casterOf(sheet: CharacterSheet): CasterInfo | undefined {
   const sc = characterData.classes[sheet.classId]?.spellcasting;
   if (!sc) return undefined;
   const d = derive(sheet);
-  return casterInfo(sheet, sc, characterData.spells, d.scores[sc.ability], proficiencyBonus(sheet.level));
+  const info = casterInfo(sheet, sc, characterData.spells, d.scores[sc.ability], proficiencyBonus(sheet.level));
+  // Life Domain, Disciple of Life (SRD 5.2): healing spells cast with a slot heal 2 + the slot's level more
+  return d.features.includes('Cleric Subclass (Life Domain)') ? { ...info, discipleOfLife: true } : info;
 }
 
 /** Cantrips, spellbook and prepared spells, with the class's recommended picks filling any gaps. */
@@ -156,6 +160,10 @@ export function memberOf(sheet: CharacterSheet): PartyMemberDef {
     saves: d.saves,
     ...(d.unarmoredAc !== undefined ? { unarmoredAc: d.unarmoredAc } : {}),
     ...(casterOf(sheet) ? { caster: casterOf(sheet) } : {}),
+    ...(() => {
+      const f = combatFeatures(sheet.classId, sheet.level, d.features, d.finesse);
+      return Object.keys(f).length ? { features: f } : {};
+    })(),
   };
 }
 
@@ -173,7 +181,16 @@ export const statsOf = (roster: readonly CharacterSheet[]): MemberStats[] =>
       level: roster[i].level,
       noArmor: !equipped(roster[i], characterData).armor,
       ...(m.caster && sc
-        ? { caster: { classId: m.caster.classId, mod: m.caster.mod, maxSlots: m.caster.maxSlots, arcaneRecovery: !!sc.arcaneRecovery, prepared: m.caster.prepared } }
+        ? {
+            caster: {
+              classId: m.caster.classId,
+              mod: m.caster.mod,
+              maxSlots: m.caster.maxSlots,
+              arcaneRecovery: !!sc.arcaneRecovery,
+              prepared: m.caster.prepared,
+              ...(m.caster.discipleOfLife ? { discipleOfLife: true } : {}),
+            },
+          }
         : {}),
     };
   });

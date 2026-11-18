@@ -6,6 +6,7 @@ import type { PartyMemberState } from '../engine/state';
 import type { Rng } from '../engine/rng';
 import type { CombatState, RetreatRule } from './combat';
 import { type CasterStats, spellsAfterCombat } from './spells';
+import { usesSpent } from './features';
 
 /** The fixed stats the rules need about a character. */
 export interface MemberStats {
@@ -74,6 +75,9 @@ export function afterCombat(
     p.hp = Math.max(0, u.hp);
     p.dead = u.dead;
     spellsAfterCombat(p, u, now);
+    const spent = usesSpent(u.features?.uses, u.uses);
+    if (spent) p.featureUses = spent;
+    else delete p.featureUses;
     if (p.dead) {
       p.wakesAt = null;
       if (combat.outcome !== 'defeat') notes.push(`${name} is dead.`);

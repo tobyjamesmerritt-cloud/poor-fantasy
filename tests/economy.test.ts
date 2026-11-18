@@ -31,10 +31,10 @@ describe('shop (SRD 5.2 prices; equipment sells for half)', () => {
     expect(equip(fighter, p, 'shield', characterData)).toBeNull();
     expect(p.inventory).toEqual({ 'weapon:greatsword': 1 });
     const d = derive(fighter);
-    expect(d.ac).toBe(18);
+    expect(d.ac).toBe(19); // chain mail 16 + shield 2 + Fighting Style (Defense) 1
     expect(d.damage).toEqual(['1d8+3']);
     expect(unequip(fighter, p, 'shield', characterData)).toBeNull();
-    expect(derive(fighter).ac).toBe(16);
+    expect(derive(fighter).ac).toBe(17);
   });
 
   it('training: wizards can’t wear armor; rogues use finesse/light martial weapons; others lose proficiency', () => {

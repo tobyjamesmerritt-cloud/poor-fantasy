@@ -57,8 +57,8 @@ describe('ability scores (SRD 5.2)', () => {
 
 describe('derived stats (level 1)', () => {
   it('fighter: chain mail, greatsword, Hit Die max + Con', () => {
-    const d = derive(base); // Str 17, Dex 13, Con 15
-    expect(d).toMatchObject({ hp: 12, ac: 16, speed: 6, attackBonus: 5, damage: ['2d6+3'], initBonus: 1 });
+    const d = derive(base); // Str 17, Dex 13, Con 15; chain mail 16 + Defense 1
+    expect(d).toMatchObject({ hp: 12, ac: 17, speed: 6, attackBonus: 5, damage: ['2d6+3'], initBonus: 1 });
   });
 
   it('finesse weapons use Dexterity when better; Alert adds the proficiency bonus to initiative', () => {

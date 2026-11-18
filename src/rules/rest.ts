@@ -16,6 +16,7 @@ import type { PartyMemberState } from '../engine/state';
 import type { Rng } from '../engine/rng';
 import { levelOf, type MemberStats, nameOf, passTime } from './party';
 import { arcaneRecovery, longRestSpells } from './spells';
+import { restFeatures } from './features';
 
 export type RestKind = 'short' | 'long';
 export type SiteKind = 'forest' | 'meadow' | 'rocks' | 'riverside' | 'cave' | 'ruins' | 'inn';
@@ -103,6 +104,7 @@ export function rest(kind: RestKind, r: RestInput, rng: Rng): RestResult {
       p.hitDice = levelOf(s);
       delete p.tempHp;
       longRestSpells(p);
+      restFeatures(p, 'long');
     }
     log.push(
       r.stats.some((s) => s.caster)
@@ -114,6 +116,7 @@ export function rest(kind: RestKind, r: RestInput, rng: Rng): RestResult {
       if (!eligible.has(p.id)) continue;
       const s = statsOf(r.stats, p.id);
       spendHitDice(p, s, rng, log);
+      restFeatures(p, 'short');
       if (s.caster?.arcaneRecovery) {
         const got = arcaneRecovery(p, levelOf(s));
         if (got.length) log.push(`${s.name} studies their spellbook and recovers ${got.map((l) => `a level ${l}`).join(' and ')} slot (Arcane Recovery).`);

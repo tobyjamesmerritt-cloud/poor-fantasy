@@ -14,7 +14,8 @@ export type Command =
   | { type: 'step'; dir: 'forward' | 'back' | 'left' | 'right' } // inside a location, keeps facing
   | { type: 'attack'; targetId: string }
   | { type: 'endTurn' }
-  | { type: 'combatAction'; action: 'dash' | 'dodge' | 'disengage' } // combat: SRD 5.2 actions besides Attack
+  | { type: 'combatAction'; action: 'dash' | 'dodge' | 'disengage'; bonus?: boolean } // combat: SRD 5.2 actions besides Attack (bonus: Cunning Action)
+  | { type: 'useFeature'; feature: 'second-wind' | 'action-surge' | 'lay-on-hands'; targetId?: string } // combat: class features
   | { type: 'flee' } // leave the battle from a map-edge square
   | { type: 'usePotion'; targetId: string } // Potion of Healing: drink or give (Bonus Action)
   | { type: 'undo' } // rewind one player action (debug now; patron-god mechanic later, DND-27)

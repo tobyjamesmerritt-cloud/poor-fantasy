@@ -283,6 +283,9 @@ function damageDice(base: string, upcast: string | undefined, extra: number, sca
   return parts;
 }
 
+/** Life Domain, Disciple of Life (SRD 5.2): a healing spell cast with a spell slot restores 2 + the slot's level more. */
+const lifeBonus = (c: { discipleOfLife?: boolean }, spell: SpellDef, slot: number): number => (c.discipleOfLife && spell.level > 0 && slot > 0 ? 2 + slot : 0);
+
 /** ["1d6", "1d6", "1d6"] → "3d6" (same die; the first part's modifier kept). */
 function sumDice(parts: string[]): string {
   const ps = parts.map((p) => parseDice(p));
@@ -482,7 +485,7 @@ export function castOptions(state: CombatState, spells: Spells): CastOption[] {
       const levels = spell.level === 0 ? [0] : [...(free > 0 || move ? [0] : []), ...slotLevels];
       let reason: string | undefined;
       if (spell.effect.kind === 'smite' && state.smite) reason = state.smite.spellId === id ? 'Ready — goes off on your next weapon hit' : `${state.smite.name} is ready`;
-      else if (spell.time === 'action' && state.actionUsed) reason = 'Action already used';
+      else if (spell.time === 'action' && (state.actionUsed || state.attacksMade)) reason = state.attacksMade ? 'Finish your attacks first' : 'Action already used';
       else if (spell.time === 'bonus' && state.bonusUsed) reason = 'Bonus Action already used';
       else if (spell.level > 0 && !levels.length && state.slotUsed) reason = 'Only one spell slot per turn';
       else if (!levels.length) reason = 'No spell slots left';
@@ -666,7 +669,7 @@ function resolveSpell(
     }
     case 'heal': {
       for (const target of unitsAt(targets)) {
-        const amount = rollAll(rng, damageDice(e.dice, e.upcast, extra)) + (e.addMod ? c.mod : 0);
+        const amount = rollAll(rng, damageDice(e.dice, e.upcast, extra)) + (e.addMod ? c.mod : 0) + lifeBonus(c, spell, slot);
         const wasDown = target.hp <= 0;
         const gained = healUnit(target, Math.max(0, amount));
         state.log.push(
@@ -815,7 +818,7 @@ export interface CasterStats {
   level?: number; // default 1
   hitDie: number;
   conMod: number;
-  caster?: { classId: string; mod: number; maxSlots: number[]; arcaneRecovery: boolean; prepared: string[] };
+  caster?: { classId: string; mod: number; maxSlots: number[]; arcaneRecovery: boolean; prepared: string[]; discipleOfLife?: boolean };
   noArmor?: boolean; // wearing no armour (Mage Armor can help)
 }
 
@@ -918,7 +921,7 @@ export function castOutside(
     const p = party.find((x) => x.id === id)!;
     const s = stats.find((x) => x.id === id)!;
     if (e.kind === 'heal') {
-      const amount = rollAll(rng, damageDice(e.dice, e.upcast, extra)) + (e.addMod ? caster.caster!.mod : 0);
+      const amount = rollAll(rng, damageDice(e.dice, e.upcast, extra)) + (e.addMod ? caster.caster!.mod : 0) + (option.scroll ? 0 : lifeBonus(caster.caster!, spell, slot));
       const before = Math.max(0, p.hp);
       p.hp = Math.min(s.hp, before + Math.max(0, amount));
       if (before <= 0 && p.hp > 0) p.wakesAt = null;

@@ -10,6 +10,7 @@
 import type { Rng } from '../engine/rng';
 import type { Ability, AbilityScores, CharacterSheet, Gear } from '../engine/state';
 import { checkSpellChoices, type SpellcastingDef, type Spells } from './spells';
+import { defenseStyle, featureNames } from './features';
 
 export const ABILITIES: readonly Ability[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 export const ABILITY_NAMES: Record<Ability, string> = {
@@ -228,6 +229,8 @@ export interface DerivedStats {
   attackName: string;
   attackBonus: number;
   damage: string[];
+  finesse: boolean; // the weapon in hand has Finesse (Sneak Attack)
+  features: string[]; // class feature names up to this level
   medicine: number;
   hitDie: number;
   conMod: number;
@@ -240,7 +243,27 @@ export interface DerivedStats {
 export const PROFICIENCY_BONUS_L1 = 2;
 
 /** Species traits and feats that already change the numbers (the rest are listed but not in effect yet). */
-export const IMPLEMENTED: readonly string[] = ['Alert', 'Dwarven Toughness', 'Ability Score Improvement', 'Spellcasting', 'Arcane Recovery', "Paladin's Smite", 'Favored Enemy'];
+export const IMPLEMENTED: readonly string[] = [
+  'Alert',
+  'Dwarven Toughness',
+  'Ability Score Improvement',
+  'Spellcasting',
+  'Arcane Recovery',
+  "Paladin's Smite",
+  'Favored Enemy',
+  // rules/features.ts
+  'Fighting Style',
+  'Second Wind',
+  'Action Surge',
+  'Extra Attack',
+  'Fighter Subclass (Champion)',
+  'Sneak Attack',
+  'Cunning Action',
+  'Uncanny Dodge',
+  'Lay On Hands',
+  'Ranger Subclass (Hunter)',
+  'Cleric Subclass (Life Domain)',
+];
 
 export function deriveStats(sheet: CharacterSheet, data: CharacterData): DerivedStats {
   const cls = data.classes[sheet.classId];
@@ -263,6 +286,10 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
   if (armor) ac = armor.base + (armor.dexMax === null ? mod('dex') : Math.min(armor.dexMax, mod('dex')));
   const shieldAc = gear.shield && trainedWithArmor(cls, 'shield') ? 2 : 0; // SRD 5.2: shield AC only with training
   ac += shieldAc;
+  // Fighting Style (house pick: Defense): +1 AC while wearing armour
+  const features = featureNames(cls, sheet.level);
+  const defense = defenseStyle(features, !!armor);
+  ac += defense;
 
   // Speed: species; heavy armor without the Strength it needs costs 10 ft.
   let speedFt = species.speed;
@@ -270,6 +297,7 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
     speedFt -= 10;
     notes.push(`${armor.name}: Speed −10 ft (needs Strength ${armor.strength}).`);
   }
+  if (defense) notes.push('Fighting Style (Defense): +1 AC in armour.');
 
   // Weapon attack: Strength, or Dexterity for a Finesse weapon if better; proficient with class kit.
   const weapon = weaponDef(data, gear.weapon)!;
@@ -297,6 +325,8 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
     attackName: weapon.name,
     attackBonus: atkMod + (proficient ? pb : 0) + weapon.bonus,
     damage,
+    finesse: !!weapon.finesse,
+    features,
     medicine: mod('wis'),
     hitDie: cls.hitDie,
     conMod: mod('con'),

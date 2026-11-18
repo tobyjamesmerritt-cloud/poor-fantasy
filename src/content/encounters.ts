@@ -6,6 +6,7 @@
  */
 import { parseDice } from '../engine/dice';
 import { freeLeft, slotsLeft } from '../rules/spells';
+import { usesLeft } from '../rules/features';
 import type { Difficulty, FightTweaks } from '../rules/quests';
 import { fightBudget, fillerCount, fillerSquares, XP_BUDGET } from '../rules/scaling';
 import type { PartyMemberState } from '../engine/state';
@@ -206,6 +207,8 @@ export function buildUnits(
           }
         : {}),
       ...(now?.tempHp ? { tempHp: now.tempHp } : {}),
+      ...(p.features?.attacks ? { attacks: p.features.attacks } : {}),
+      ...(p.features?.uses ? { uses: usesLeft(p.features.uses, now) } : {}),
       ...(warded ? { ac: p.unarmoredAc!, mageArmor: true } : {}),
       side: 'party',
       maxHp: p.hp,

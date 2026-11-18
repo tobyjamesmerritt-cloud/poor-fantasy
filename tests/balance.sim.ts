@@ -8,7 +8,8 @@
  */
 import { it } from 'vitest';
 import { createRng } from '../src/engine/rng';
-import { activeUnit, chebyshev, endTurn, isDown, isUp, planMoveTo, reachableSquares, startCombat, step } from '../src/rules/combat';
+import { activeUnit, chebyshev, endTurn, featureOptions, isDown, isUp, planMoveTo, reachableSquares, startCombat, step, useFeature } from '../src/rules/combat';
+import { DIRECTION_VECTORS, type Direction } from '../src/engine/commands';
 import { buildUnits, encounters, encounterXp, resolveEncounter } from '../src/content/encounters';
 import { membersOf, pregens, spells, characterData } from '../src/content/characters';
 import { averageHitDie } from '../src/rules/character';
@@ -49,6 +50,7 @@ for (const r of runs) it(`balance: ${r.label ?? r.id} L${r.level}`, () => {
         const p = sq && planMoveTo(s, sq.x, sq.y);
         if (p) for (const d of p) step(s, rng, d);
       }
+      if (s.outcome === 'ongoing' && activeUnit(s) === u) botFeatures(s, rng);
       if (s.outcome === 'ongoing' && activeUnit(s) === u) endTurn(s, rng);
     }
     if (s.outcome === 'victory') wins++;
@@ -62,6 +64,37 @@ for (const r of runs) it(`balance: ${r.label ?? r.id} L${r.level}`, () => {
       `avg rounds ${(rounds / N).toFixed(1)} · avg dead ${(dead / N).toFixed(2)} · avg down at end ${(down / N).toFixed(2)}`,
   );
 });
+
+/**
+ * Class features, the obvious way: finish Extra Attack on an adjacent foe; Action Surge for another round of
+ * attacks; Second Wind below half HP; Lay On Hands on a fallen ally (or yourself below half).
+ */
+function botFeatures(s: ReturnType<typeof startCombat>, rng: ReturnType<typeof createRng>): void {
+  const u = activeUnit(s);
+  const adjacentFoe = () => s.units.find((e) => e.side === 'enemy' && isUp(e) && chebyshev(u, e) === 1);
+  const swing = () => {
+    for (let k = 0; k < 4 && !s.actionUsed && (s.attacksMade ?? 0) > 0 && s.outcome === 'ongoing'; k++) {
+      const f = adjacentFoe();
+      if (!f) break;
+      const dir = (Object.entries(DIRECTION_VECTORS) as [Direction, [number, number]][]).find(([, [dx, dy]]) => u.x + dx === f.x && u.y + dy === f.y)![0];
+      step(s, rng, dir);
+    }
+  };
+  swing();
+  const opts = () => featureOptions(s);
+  if (s.actionUsed && adjacentFoe() && opts().some((o) => o.id === 'action-surge' && !o.reason)) {
+    useFeature(s, rng, 'action-surge');
+    const f = adjacentFoe();
+    const dir = f && (Object.entries(DIRECTION_VECTORS) as [Direction, [number, number]][]).find(([, [dx, dy]]) => u.x + dx === f.x && u.y + dy === f.y)![0];
+    if (dir) step(s, rng, dir);
+    swing();
+  }
+  const lay = opts().find((o) => o.id === 'lay-on-hands' && !o.reason);
+  const fallen = lay?.targets?.find((t) => s.units.find((x) => x.id === t.id)!.hp <= 0);
+  if (fallen) useFeature(s, rng, 'lay-on-hands', fallen.id);
+  else if (lay && u.hp < u.maxHp / 2) useFeature(s, rng, 'lay-on-hands', u.id);
+  if (u.hp < u.maxHp / 2 && opts().some((o) => o.id === 'second-wind' && !o.reason)) useFeature(s, rng, 'second-wind');
+}
 
 /** Simple caster bot: Healing Word on a dying ally; else, with no enemy adjacent, the first attack spell that reaches. */
 function botCast(s: ReturnType<typeof startCombat>, rng: ReturnType<typeof createRng>, foes: ReturnType<typeof activeUnit>[]): void {

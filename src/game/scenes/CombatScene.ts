@@ -15,7 +15,9 @@ import {
   isDown,
   isUp,
   checkOutcome,
+  featureOptions,
   pathProvokes,
+  useFeature,
   unitById,
   planMoveTo,
   reachableSquares,
@@ -286,6 +288,13 @@ export class CombatScene extends Phaser.Scene {
       tempHp: u.tempHp,
       effects: (u.effects ?? []).map((e) => EFFECT_NAMES[e.kind]),
       concentration: u.concentration?.name,
+      ...(u.side === 'party'
+        ? {
+            attacks: { made: this.state.attacksMade ?? 0, of: u.attacks ?? 1 },
+            cunning: !!u.features?.cunningAction,
+            features: featureOptions(this.state),
+          }
+        : {}),
       ...(c
         ? {
             slots: c.maxSlots.map((max, i) => ({ level: i + 1, max, left: c.slots[i] })),
@@ -365,7 +374,7 @@ export class CombatScene extends Phaser.Scene {
       if (cmd.type === 'cancel') return this.redraw();
     }
     if (cmd.type === 'aimSpell') return this.startAim(cmd.spellId, cmd.slot);
-    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee' || cmd.type === 'usePotion' || cmd.type === 'combatAction') && this.state.outcome === 'ongoing') {
+    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee' || cmd.type === 'usePotion' || cmd.type === 'combatAction' || cmd.type === 'useFeature') && this.state.outcome === 'ongoing') {
       before = JSON.stringify(this.state);
       this.history.push({ state: this.state, rng: this.rng.state });
     }
@@ -402,7 +411,10 @@ export class CombatScene extends Phaser.Scene {
         usePotion(this.state, this.rng, cmd.targetId);
         break;
       case 'combatAction':
-        if (activeUnit(this.state).side === 'party') takeAction(this.state, cmd.action);
+        if (activeUnit(this.state).side === 'party') takeAction(this.state, cmd.action, !!cmd.bonus);
+        break;
+      case 'useFeature':
+        if (activeUnit(this.state).side === 'party') useFeature(this.state, this.rng, cmd.feature, cmd.targetId);
         break;
       case 'debug':
         if (cmd.text.trim().toLowerCase() !== 'kill') return;

@@ -40,6 +40,9 @@ export interface ActiveCard {
   slots?: { level: number; left: number; max: number }[];
   spells?: CardSpell[];
   aiming?: { name: string; picked: number; count: number; hint: string; canCastNow: boolean };
+  attacks?: { made: number; of: number }; // Extra Attack: attacks in this Attack action
+  cunning?: boolean; // Rogue: Dash/Disengage as a Bonus Action
+  features?: { id: 'second-wind' | 'action-surge' | 'lay-on-hands'; name: string; left: number; reason?: string; summary: string; targets?: { id: string; name: string; missing: number }[] }[];
 }
 
 export interface CardSpell {
@@ -244,6 +247,7 @@ export class Hud {
           ? [el('div', 'effects', [...(card.effects ?? []), card.concentration ? `concentrating: ${card.concentration}` : ''].filter(Boolean).join(' · '))]
           : []),
         ...(card.spells ? [this.spellAction(card)] : []),
+        ...this.featureActions(card),
         this.potionAction(card),
       ),
     );
@@ -259,7 +263,13 @@ export class Hud {
     return el(
       'div',
       'economy',
-      pip('Action', card.actionUsed, 'One action per turn: Attack, Dash, Dodge, Disengage, Help, or a spell'),
+      pip(
+        card.attacks && card.attacks.of > 1 && card.attacks.made > 0 && !card.actionUsed ? `Attack ${card.attacks.made}/${card.attacks.of}` : 'Action',
+        card.actionUsed,
+        card.attacks && card.attacks.of > 1
+          ? `One action per turn. Extra Attack: the Attack action is ${card.attacks.of} attacks — move between them`
+          : 'One action per turn: Attack, Dash, Dodge, Disengage, Help, or a spell',
+      ),
       pip('Bonus', card.bonusUsed, 'One Bonus Action per turn: a potion, some spells'),
       pip('Reaction', card.reactionUsed, 'One Reaction per round: an opportunity attack when an enemy leaves your reach'),
       ...(card.disengaged ? [el('span', 'eco note', 'Disengaged')] : []),
@@ -272,8 +282,11 @@ export class Hud {
     const mk = (label: string, action: 'dash' | 'dodge' | 'disengage', title: string, key: number) => {
       const b = el('button', '', label.slice(0, key), el('u', '', label[key]), label.slice(key + 1)) as HTMLButtonElement;
       b.title = `${title} (${label[key].toUpperCase()})`;
-      b.disabled = card.actionUsed;
-      b.addEventListener('click', () => this.bus.dispatch({ type: 'combatAction', action }));
+      // Rogue's Cunning Action: once the action is spent, Dash and Disengage still work as a Bonus Action
+      const bonus = !!card.cunning && action !== 'dodge' && (card.actionUsed || (card.attacks?.made ?? 0) > 0) && !card.bonusUsed;
+      b.disabled = (card.actionUsed || (card.attacks?.made ?? 0) > 0) && !bonus;
+      if (bonus) b.title = `Bonus Action (Cunning Action): ${title.replace(/^Action: /, '')}`;
+      b.addEventListener('click', () => this.bus.dispatch({ type: 'combatAction', action, ...(bonus ? { bonus } : {}) }));
       return b;
     };
     return el(
@@ -283,6 +296,28 @@ export class Hud {
       mk('Dodge', 'dodge', 'Action: attacks against you have disadvantage until your next turn (and advantage on Dexterity saves)', 1),
       mk('Disengage', 'disengage', 'Action: moving away from enemies won’t provoke opportunity attacks this turn', 6),
     );
+  }
+
+  /** Class features: Second Wind, Action Surge, Lay On Hands (targets as buttons). */
+  private featureActions(card: ActiveCard): HTMLElement[] {
+    return (card.features ?? []).map((f) => {
+      const box = el('div', f.reason ? 'action disabled' : 'action', `✚ ${f.name}${f.id === 'lay-on-hands' ? ` (pool ${f.left})` : ` ×${f.left}`}`);
+      box.title = f.summary;
+      if (f.reason) {
+        box.append(el('small', '', f.reason));
+        return box;
+      }
+      const row = el('div', 'potion-row');
+      const targets = f.targets ?? [{ id: '', name: '', missing: 0 }];
+      for (const t of targets) {
+        const b = el('button', '', f.targets ? `Heal ${t.name}` : f.id === 'action-surge' ? 'Surge' : 'Use') as HTMLButtonElement;
+        b.title = f.summary;
+        b.addEventListener('click', () => this.bus.dispatch({ type: 'useFeature', feature: f.id, ...(t.id ? { targetId: t.id } : {}) }));
+        row.append(b);
+      }
+      box.append(row);
+      return box;
+    });
   }
 
   private spellsOpen = true;
