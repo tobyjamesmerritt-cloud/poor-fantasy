@@ -841,6 +841,13 @@ bus.subscribe((cmd) => {
       partyDialog.refresh();
       break;
     }
+    case 'openDebug': {
+      // backtick: the About dialog with the debug console focused (DND-83)
+      const about = document.getElementById('about') as HTMLDialogElement | null;
+      if (about && !about.open) about.showModal();
+      (document.getElementById('debug-input') as HTMLInputElement | null)?.focus();
+      break;
+    }
     case 'debug': {
       // Testing aids: About menu buttons + the debug console (DND-20). Only "kill" works
       // mid-fight (CombatScene handles it); everything else waits, so a fight's numbers stay honest.

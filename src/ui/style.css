@@ -321,6 +321,18 @@ main {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+#turn-order li {
+  cursor: pointer;
+}
+#turn-order li.to-open {
+  background: #1d1a0c;
+}
+#turn-order .to-detail {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem 0.35rem 1.6rem;
+  border-left: 3px solid var(--line);
+  opacity: 0.85;
+}
 #turn-order .to-hp {
   position: absolute;
   left: 0;

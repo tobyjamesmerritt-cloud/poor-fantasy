@@ -29,6 +29,7 @@ const KEY_MAP: Record<string, Command> = {
   KeyC: { type: 'move', dir: 'se' },
   Space: { type: 'endTurn' },
   KeyF: { type: 'flee' },
+  Backquote: { type: 'openDebug' },
   // combat actions — the underlined letter on the card buttons
   KeyH: { type: 'combatAction', action: 'dash' },
   KeyO: { type: 'combatAction', action: 'dodge' },

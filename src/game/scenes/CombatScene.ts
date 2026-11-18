@@ -278,6 +278,23 @@ export class CombatScene extends Phaser.Scene {
     }
   }
 
+  /** What a tap on a turn-order row shows (DND-83). */
+  private inspectLines(u: Unit): string[] {
+    const lines = [
+      `HP ${Math.max(0, u.hp)}/${u.maxHp}${u.tempHp ? ` (+${u.tempHp} temp)` : ''} · AC ${acOf(u)} · Speed ${u.speed * 5} ft`,
+      `⚔ ${u.attackName} +${u.attackBonus} · ${u.damage.join(' + ')}${(u.attacks ?? 1) > 1 ? ` · ×${u.attacks}` : ''}`,
+    ];
+    const what = [u.size && u.size !== 'medium' ? u.size : '', u.creatureType ?? ''].filter(Boolean).join(' ');
+    if (what) lines.push(what[0].toUpperCase() + what.slice(1));
+    if (!isUp(u) && !u.dead) lines.push(u.stable ? 'Unconscious, stable' : `Dying — saves ${u.deathSaves.successes}✓ ${u.deathSaves.failures}✗`);
+    const conds = (u.effects ?? []).map((e) => EFFECT_NAMES[e.kind]);
+    if (u.routed) conds.push('Fleeing');
+    if (conds.length) lines.push(conds.join(' · '));
+    if (u.concentration) lines.push(`Concentrating on ${u.concentration.name}`);
+    if (u.caster) lines.push(`Spell slots ${u.caster.slots.map((n, i) => `L${i + 1}: ${n}/${u.caster!.maxSlots[i]}`).join(' · ') || 'none'}`);
+    return lines;
+  }
+
   private card(u: Unit): ActiveCard {
     const c = u.caster;
     const options = c ? castOptions(this.state, spells) : [];
@@ -702,6 +719,8 @@ export class CombatScene extends Phaser.Scene {
             .map((_, i) => unitById(state, state.order[(state.turnIndex + i) % state.order.length]))
             .filter((u) => u && !u.fled && !u.dead && !(u.side === 'enemy' && !isUp(u)))
             .map((u) => ({
+              id: u!.id,
+              detail: this.inspectLines(u!),
               name: u!.name,
               side: u!.side,
               sprite: spriteCss(this.textures, u!.sprite),

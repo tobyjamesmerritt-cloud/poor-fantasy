@@ -59,6 +59,8 @@ export interface CardSpell {
 
 /** One slot in the combat turn order bar (DND-17), starting with whoever acts now. */
 export interface TurnEntry {
+  id: string;
+  detail: string[]; // shown when the row is tapped (DND-83): HP, AC, attack, conditions…
   name: string;
   side: Side;
   sprite: SpriteCss;
@@ -131,16 +133,44 @@ export class Hud {
   }
 
   /** Initiative order, current turn first; null hides it. */
+  private inspected: string | null = null; // turn-order row opened for a closer look
+  private lastTurnOrder: TurnEntry[] | null = null;
+
   setTurnOrder(entries: TurnEntry[] | null): void {
+    this.lastTurnOrder = entries;
     const list = must('turn-order');
     list.hidden = !entries?.length;
+    if (!entries?.some((t) => t.id === this.inspected)) this.inspected = null;
     list.replaceChildren(
       ...(entries ?? []).map((t) => {
         const hp = el('div', 'to-hp');
         hp.style.width = `${t.hpPct}%`;
-        const li = el('li', `to-${t.side}${t.active ? ' to-active' : ''}${t.down ? ' to-down' : ''}`, portrait(t.sprite, 20), el('span', 'to-name', t.name), hp);
-        li.title = t.name;
-        return li;
+        const open = this.inspected === t.id;
+        const li = el(
+          'li',
+          `to-${t.side}${t.active ? ' to-active' : ''}${t.down ? ' to-down' : ''}${open ? ' to-open' : ''}`,
+          portrait(t.sprite, 20),
+          el('span', 'to-name', t.name),
+          hp,
+        );
+        li.title = open ? 'Tap to close' : `${t.name} — tap for details`;
+        li.tabIndex = 0;
+        li.setAttribute('role', 'button');
+        li.setAttribute('aria-expanded', String(open));
+        const toggle = () => {
+          this.inspected = open ? null : t.id;
+          this.setTurnOrder(this.lastTurnOrder);
+        };
+        li.addEventListener('click', toggle);
+        li.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle();
+          }
+        });
+        if (!open) return li;
+        const box = el('div', 'to-detail', ...t.detail.map((d) => el('div', '', d)));
+        return el('div', 'to-wrap', li, box);
       }),
     );
   }
