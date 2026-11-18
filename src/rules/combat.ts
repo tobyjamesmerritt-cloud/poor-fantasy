@@ -75,6 +75,16 @@ export interface Effect {
  * here you ready one and it goes off on your next weapon hit this turn. Its slot
  * and Bonus Action are spent only then, so readying costs nothing on a miss.
  */
+/** A weapon a character can switch to mid-fight (built from the sheet and the pack). */
+export interface WeaponOption {
+  ref: string; // gear ref, e.g. "weapon:dagger"
+  name: string;
+  attackBonus: number;
+  damage: string[];
+  finesse: boolean;
+  fromPack: boolean; // false = the one they came in with
+}
+
 export interface ReadiedSmite {
   spellId: string;
   name: string;
@@ -141,6 +151,9 @@ export interface Unit {
   fumble?: number; // house rule for quest tweaks (a drunk troll): chance each attack simply misses
   reactionUsed?: boolean; // SRD 5.2: one Reaction per round, regained at the start of its own turn
   features?: CombatFeatures; // characters: class features in combat (rules/features.ts)
+  finesse?: boolean; // the weapon in hand has Finesse (Sneak Attack)
+  weapons?: WeaponOption[]; // characters: what they can switch to (DND-24)
+  weaponRef?: string; // the weapon in hand
   uses?: Partial<Record<FeatureId, number>>; // their uses left (Second Wind, Action Surge, Lay On Hands pool)
   onceTurn?: Partial<Record<'sneak' | 'slayer', string>>; // "round.turnIndex" when a once-per-turn rider was last used
   creatureType?: string; // monsters: beast, giant, undead, fiend… (Divine Smite)
@@ -167,6 +180,8 @@ export interface CombatState {
   scrolls?: Record<string, number>; // Spell Scrolls in the party pack, by spell id
   smite?: ReadiedSmite; // readied by the active creature; goes off on its next weapon hit this turn
   attacksMade?: number; // attacks so far in this turn's Attack action (Extra Attack: the action ends at `attacks`)
+  objectUsed?: boolean; // this turn's free object interaction (drawing another weapon)
+  packWeapons?: Record<string, number>; // spare weapons in the party pack, by gear ref
   surged?: boolean; // Action Surge used this turn
   log: string[];
 }
@@ -193,6 +208,7 @@ export function startCombat(
   retreat: RetreatRule = 'normal',
   potions = 0,
   scrolls: Record<string, number> = {},
+  packWeapons: Record<string, number> = {},
 ): CombatState {
   const rolled = units.map((u) => ({ id: u.id, init: rollD20(rng).kept + u.initBonus, tie: u.initBonus }));
   rolled.sort((a, b) => b.init - a.init || b.tie - a.tie);
@@ -211,6 +227,7 @@ export function startCombat(
     slotUsed: false,
     potions,
     scrolls: { ...scrolls },
+    packWeapons: { ...packWeapons },
     log: ['Roll for initiative! ' + rolled.map((r) => `${nameOf(units, r.id)} ${r.init}`).join(', ')],
   };
   beginTurn(state, rng);
@@ -344,6 +361,35 @@ export function takeAction(state: CombatState, action: CombatAction, bonus = fal
     state.log.push(`${u.name} disengages${bonus ? ' (Cunning Action)' : ''} — moving away won't provoke opportunity attacks this turn.`);
   }
   return true;
+}
+
+/**
+ * Switch weapons (SRD 5.2: one free object interaction a turn) — to the weapon
+ * they came in with or a spare from the party pack. Only for this fight: the
+ * pack and the character's gear are unchanged afterwards.
+ */
+export function swapWeapon(state: CombatState, ref: string): boolean {
+  const u = activeUnit(state);
+  if (state.outcome !== 'ongoing' || u.side !== 'party' || !isUp(u) || state.objectUsed || u.weaponRef === ref) return false;
+  const next = u.weapons?.find((w) => w.ref === ref);
+  const cur = u.weapons?.find((w) => w.ref === u.weaponRef);
+  if (!next) return false;
+  const pack = (state.packWeapons ??= {});
+  if (next.fromPack && !(pack[ref] > 0)) return false;
+  if (cur?.fromPack) pack[cur.ref] = (pack[cur.ref] ?? 0) + 1;
+  if (next.fromPack) pack[ref] -= 1;
+  Object.assign(u, { weaponRef: ref, attackName: next.name, attackBonus: next.attackBonus, damage: [...next.damage], finesse: next.finesse });
+  state.objectUsed = true;
+  state.log.push(`${u.name} draws ${/^[aeiou]/i.test(next.name) ? 'an' : 'a'} ${next.name}.`);
+  return true;
+}
+
+/** Weapons the active character could switch to now (not the one in hand). */
+export function weaponChoices(state: CombatState): (WeaponOption & { available: boolean })[] {
+  const u = activeUnit(state);
+  return (u.weapons ?? [])
+    .filter((w) => w.ref !== u.weaponRef)
+    .map((w) => ({ ...w, available: !w.fromPack || (state.packWeapons?.[w.ref] ?? 0) > 0 }));
 }
 
 /** Class features the active character can use now (SRD 5.2), with targets for Lay On Hands. */
@@ -558,6 +604,7 @@ function beginTurn(state: CombatState, rng: Rng): void {
   state.smite = undefined;
   state.attacksMade = 0;
   state.surged = false;
+  state.objectUsed = false;
   u.reactionUsed = false; // SRD 5.2: a creature regains its Reaction at the start of its turn
   if (u.side === 'party') state.log.push(`▶ ${u.name}'s turn.`);
 }
@@ -830,7 +877,7 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
   const turn = `${state.round}.${state.turnIndex}`;
   const f = attacker.features;
   const ally = state.units.some((o) => o !== attacker && o.side === attacker.side && isUp(o) && onField(o) && chebyshev(o, target) === 1);
-  const sneak = !!f?.sneakAttack && attacker.onceTurn?.sneak !== turn && (mode === 'advantage' || (ally && mode !== 'disadvantage'));
+  const sneak = !!f?.sneakAttack && !!attacker.finesse && attacker.onceTurn?.sneak !== turn && (mode === 'advantage' || (ally && mode !== 'disadvantage'));
   const slayer = !!f?.colossusSlayer && attacker.onceTurn?.slayer !== turn && target.hp < target.maxHp;
   const extras = [
     ...attacker.damage,

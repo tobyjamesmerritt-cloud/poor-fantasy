@@ -42,7 +42,8 @@ export function featureNames(classDef: { features?: string[]; featuresByLevel?: 
 }
 
 /** The combat numbers for a character's features. `finesse`: the weapon in hand has Finesse (Sneak Attack). */
-export function combatFeatures(classId: string, level: number, names: readonly string[], finesse: boolean): CombatFeatures {
+export function combatFeatures(classId: string, level: number, names: readonly string[], finesse = false): CombatFeatures {
+  void finesse;
   const has = (n: string) => names.includes(n);
   const f: CombatFeatures = {};
   const uses: Partial<Record<FeatureId, number>> = {};
@@ -53,7 +54,7 @@ export function combatFeatures(classId: string, level: number, names: readonly s
   }
   if (has('Action Surge')) uses['action-surge'] = 1;
   if (has('Lay On Hands')) uses['lay-on-hands'] = 5 * level;
-  if (has('Sneak Attack') && finesse) f.sneakAttack = `${Math.ceil(level / 2)}d6`;
+  if (has('Sneak Attack')) f.sneakAttack = `${Math.ceil(level / 2)}d6`; // needs a Finesse weapon in hand (checked per attack)
   if (has('Cunning Action')) f.cunningAction = true;
   if (has('Uncanny Dodge')) f.uncannyDodge = true;
   if (has('Fighter Subclass (Champion)')) f.critOn = 19;

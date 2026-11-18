@@ -42,6 +42,8 @@ export interface ActiveCard {
   aiming?: { name: string; picked: number; count: number; hint: string; canCastNow: boolean };
   attacks?: { made: number; of: number }; // Extra Attack: attacks in this Attack action
   cunning?: boolean; // Rogue: Dash/Disengage as a Bonus Action
+  weapons?: { ref: string; name: string; detail: string; available: boolean }[]; // weapons to switch to (DND-24)
+  objectUsed?: boolean; // free object interaction spent this turn
   features?: { id: 'second-wind' | 'action-surge' | 'lay-on-hands'; name: string; left: number; reason?: string; summary: string; targets?: { id: string; name: string; missing: number }[] }[];
 }
 
@@ -241,6 +243,7 @@ export class Hud {
           card.actionUsed ? 'action used' : 'action',
           `⚔ ${card.attackName} +${card.attackBonus} · ${card.damage}`,
           el('small', '', card.actionUsed ? 'action used this turn — you can still move' : 'click an enemy · or a fallen ally'),
+          ...this.weaponSwap(card),
         ),
         this.otherActions(card),
         ...(card.effects?.length || card.concentration
@@ -296,6 +299,24 @@ export class Hud {
       mk('Dodge', 'dodge', 'Action: attacks against you have disadvantage until your next turn (and advantage on Dexterity saves)', 1),
       mk('Disengage', 'disengage', 'Action: moving away from enemies won’t provoke opportunity attacks this turn', 6),
     );
+  }
+
+  /** Other weapons to draw (from the pack): a free object interaction, once a turn. */
+  private weaponSwap(card: ActiveCard): HTMLElement[] {
+    if (!card.weapons?.length) return [];
+    const row = el('div', 'potion-row weapon-row');
+    for (const w of card.weapons) {
+      const b = el('button', '', `⇄ ${w.name}`) as HTMLButtonElement;
+      b.disabled = !!card.objectUsed || !w.available;
+      b.title = card.objectUsed
+        ? 'You have already handled an object this turn'
+        : !w.available
+          ? 'Someone else is already holding the spare'
+          : `Draw it (free, once a turn): ${w.detail}`;
+      b.addEventListener('click', () => this.bus.dispatch({ type: 'swapWeapon', ref: w.ref }));
+      row.append(b);
+    }
+    return [row];
   }
 
   /** Class features: Second Wind, Action Surge, Lay On Hands (targets as buttons). */

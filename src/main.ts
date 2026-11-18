@@ -15,7 +15,7 @@ import { Hud } from './ui/hud';
 import { initMenu } from './ui/menu';
 import { PrefsStore } from './ui/prefs';
 import { BOARD, DEFAULT_ENCOUNTER, encounters, locationContent, resolveEncounter } from './content/encounters';
-import { characterData, checkSheet, derive, membersOf, pregens, startingCoins, statsOf } from './content/characters';
+import { characterData, checkSheet, derive, membersForFight, pregens, startingCoins, statsOf } from './content/characters';
 import { roll4d6DropLowest, startingCopper } from './rules/character';
 import { PartyScreen } from './ui/partyScreen';
 import { ShopScreen } from './ui/shopScreen';
@@ -499,9 +499,10 @@ function show(key: SceneKey): void {
       seed,
       encounter,
       onVictory,
-      members: membersOf(gameState.roster),
+      members: membersForFight(gameState.roster, gameState.inventory),
       party: gameState.party,
       potions: gameState.inventory[POTION] ?? 0,
+      packWeapons: Object.fromEntries(Object.entries(gameState.inventory).filter(([ref, n]) => ref.startsWith('weapon:') && n > 0)),
       scrolls: Object.fromEntries(
         Object.entries(gameState.inventory)
           .filter(([ref]) => ref.startsWith('scroll:'))

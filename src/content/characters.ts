@@ -25,6 +25,7 @@ import partyRaw from './party.json';
 import speciesRaw from './species.json';
 import spellsRaw from './spells.json';
 import { type CombatFeatures, combatFeatures } from '../rules/features';
+import type { WeaponOption } from '../rules/combat';
 
 const strip = <T>(raw: unknown): T => {
   const { _note: _ignored, ...rest } = raw as Record<string, unknown>;
@@ -113,6 +114,9 @@ export interface PartyMemberDef {
   unarmoredAc?: number;
   caster?: CasterInfo; // slots are full here; buildUnits applies what has been spent
   features?: CombatFeatures; // class features that work in combat (rules/features.ts)
+  finesse: boolean; // weapon in hand has Finesse
+  weaponRef: string; // gear ref of the weapon in hand
+  weapons?: WeaponOption[]; // what they can switch to in a fight (membersForFight)
 }
 
 /** The caster block for a sheet (undefined for classes without Spellcasting). */
@@ -154,6 +158,8 @@ export function memberOf(sheet: CharacterSheet): PartyMemberDef {
     attackName: d.attackName,
     attackBonus: d.attackBonus,
     damage: d.damage,
+    finesse: d.finesse,
+    weaponRef: `weapon:${equipped(sheet, characterData).weapon}`,
     medicine: d.medicine,
     hitDie: d.hitDie,
     conMod: d.conMod,
@@ -168,6 +174,23 @@ export function memberOf(sheet: CharacterSheet): PartyMemberDef {
 }
 
 export const membersOf = (roster: readonly CharacterSheet[]): PartyMemberDef[] => roster.map(memberOf);
+
+/**
+ * Members for a fight, each with the weapons they could switch to: the one in
+ * hand plus every weapon in the party pack (DND-24), with that weapon's numbers.
+ */
+export function membersForFight(roster: readonly CharacterSheet[], inventory: Record<string, number>): PartyMemberDef[] {
+  const spare = Object.keys(inventory).filter((ref) => ref.startsWith('weapon:') && inventory[ref] > 0);
+  return roster.map((sheet) => {
+    const m = memberOf(sheet);
+    const option = (ref: string, fromPack: boolean): WeaponOption => {
+      const d = derive({ ...sheet, gear: { ...equipped(sheet, characterData), weapon: ref.slice(7) } });
+      return { ref, name: d.attackName, attackBonus: d.attackBonus, damage: d.damage, finesse: d.finesse, fromPack };
+    };
+    const weapons = [option(m.weaponRef, false), ...spare.filter((r) => r !== m.weaponRef).map((r) => option(r, true))];
+    return weapons.length > 1 ? { ...m, weapons } : m;
+  });
+}
 
 export const statsOf = (roster: readonly CharacterSheet[]): MemberStats[] =>
   membersOf(roster).map((m, i) => {

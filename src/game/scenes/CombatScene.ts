@@ -17,7 +17,9 @@ import {
   checkOutcome,
   featureOptions,
   pathProvokes,
+  swapWeapon,
   useFeature,
+  weaponChoices,
   unitById,
   planMoveTo,
   reachableSquares,
@@ -68,6 +70,7 @@ export interface CombatSceneDeps {
   onEnd?: (state: CombatState) => void; // once, when the fight is won, lost or fled
   potions?: number; // Potions of Healing in the party pack
   scrolls?: Record<string, number>; // Spell Scrolls in the pack, by spell id
+  packWeapons?: Record<string, number>; // spare weapons in the pack, by gear ref (DND-24)
   now?: number; // game time (Mage Armor still running?)
 }
 
@@ -148,7 +151,7 @@ export class CombatScene extends Phaser.Scene {
 
   create(): void {
     this.rng = createRng(this.deps.seed);
-    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, this.deps.members, this.deps.party, this.deps.now ?? 0, this.deps.tweaks), this.deps.prefs.get().difficulty, this.deps.potions ?? 0, this.deps.scrolls ?? {});
+    this.state = startCombat(this.rng, this.enc.width, this.enc.height, buildUnits(this.enc, this.deps.members, this.deps.party, this.deps.now ?? 0, this.deps.tweaks), this.deps.prefs.get().difficulty, this.deps.potions ?? 0, this.deps.scrolls ?? {}, this.deps.packWeapons ?? {});
     this.cameras.main.setZoom(1).setScroll(0, 0);
 
     this.deps.hud.setNames(this.state.units);
@@ -293,6 +296,13 @@ export class CombatScene extends Phaser.Scene {
             attacks: { made: this.state.attacksMade ?? 0, of: u.attacks ?? 1 },
             cunning: !!u.features?.cunningAction,
             features: featureOptions(this.state),
+            weapons: weaponChoices(this.state).map((w) => ({
+              ref: w.ref,
+              name: w.name,
+              detail: `+${w.attackBonus} · ${w.damage.join(' + ')}`,
+              available: w.available,
+            })),
+            objectUsed: !!this.state.objectUsed,
           }
         : {}),
       ...(c
@@ -374,7 +384,7 @@ export class CombatScene extends Phaser.Scene {
       if (cmd.type === 'cancel') return this.redraw();
     }
     if (cmd.type === 'aimSpell') return this.startAim(cmd.spellId, cmd.slot);
-    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee' || cmd.type === 'usePotion' || cmd.type === 'combatAction' || cmd.type === 'useFeature') && this.state.outcome === 'ongoing') {
+    if ((cmd.type === 'move' || cmd.type === 'moveTo' || cmd.type === 'endTurn' || cmd.type === 'flee' || cmd.type === 'usePotion' || cmd.type === 'combatAction' || cmd.type === 'useFeature' || cmd.type === 'swapWeapon') && this.state.outcome === 'ongoing') {
       before = JSON.stringify(this.state);
       this.history.push({ state: this.state, rng: this.rng.state });
     }
@@ -412,6 +422,9 @@ export class CombatScene extends Phaser.Scene {
         break;
       case 'combatAction':
         if (activeUnit(this.state).side === 'party') takeAction(this.state, cmd.action, !!cmd.bonus);
+        break;
+      case 'swapWeapon':
+        swapWeapon(this.state, cmd.ref);
         break;
       case 'useFeature':
         if (activeUnit(this.state).side === 'party') useFeature(this.state, this.rng, cmd.feature, cmd.targetId);

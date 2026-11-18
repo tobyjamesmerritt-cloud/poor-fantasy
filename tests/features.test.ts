@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { characterData, memberOf, pregens } from '../src/content/characters';
+import { characterData, memberOf, membersForFight, pregens } from '../src/content/characters';
 import { createRng } from '../src/engine/rng';
 import type { PartyMemberState } from '../src/engine/state';
 import { resolveAttack } from '../src/rules/attack';
-import { type CombatState, featureOptions, step, takeAction, type Unit, useFeature } from '../src/rules/combat';
+import { type CombatState, featureOptions, step, swapWeapon, takeAction, type Unit, useFeature, weaponChoices } from '../src/rules/combat';
 import { combatFeatures, featureNames, restFeatures } from '../src/rules/features';
 import { makeUnit, scripted } from './helpers';
 
@@ -34,7 +34,7 @@ describe('class features in combat (SRD 5.2)', () => {
     expect(f5).toMatchObject({ attacks: 2, critOn: 19, secondWindBonus: 5, uses: { 'second-wind': 3, 'action-surge': 1 } });
     expect(combatFeatures('fighter', 1, names('fighter', 1), false)).toEqual({ secondWindBonus: 1, uses: { 'second-wind': 2 } });
     expect(combatFeatures('rogue', 1, names('rogue', 1), true).sneakAttack).toBe('1d6');
-    expect(combatFeatures('rogue', 1, names('rogue', 1), false).sneakAttack).toBeUndefined(); // needs a Finesse weapon
+
     expect(combatFeatures('rogue', 5, names('rogue', 5), true)).toMatchObject({ sneakAttack: '3d6', cunningAction: true, uncannyDodge: true });
     expect(combatFeatures('paladin', 3, names('paladin', 3), false).uses).toEqual({ 'lay-on-hands': 15 });
     expect(combatFeatures('ranger', 5, names('ranger', 5), false)).toMatchObject({ attacks: 2, colossusSlayer: true });
@@ -65,7 +65,7 @@ describe('class features in combat (SRD 5.2)', () => {
   });
 
   it('Sneak Attack: with an ally next to the target, once per turn', () => {
-    const rogue = makeUnit({ id: 'r', side: 'party', x: 1, y: 1, attackBonus: 50, damage: ['1'], attacks: 2, features: { sneakAttack: '3d6' } });
+    const rogue = makeUnit({ id: 'r', side: 'party', x: 1, y: 1, attackBonus: 50, damage: ['1'], attacks: 2, finesse: true, features: { sneakAttack: '3d6' } });
     const ally = makeUnit({ id: 'a', side: 'party', x: 3, y: 1 });
     const e = makeUnit({ id: 'e', side: 'enemy', x: 2, y: 1, hp: 100, ac: 1 });
     const s = fight([rogue, ally, e]);
@@ -75,6 +75,29 @@ describe('class features in combat (SRD 5.2)', () => {
     expect(afterFirst).toBeLessThan(100 - 3); // 1 + 3d6
     step(s, createRng(2), 'e');
     expect(afterFirst - e.hp).toBe(1); // no second Sneak Attack this turn
+  });
+
+  it('no Sneak Attack without a Finesse weapon in hand', () => {
+    const rogue = makeUnit({ id: 'r', side: 'party', x: 1, y: 1, attackBonus: 50, damage: ['1'], finesse: false, features: { sneakAttack: '3d6' } });
+    const s = fight([rogue, makeUnit({ id: 'a', side: 'party', x: 3, y: 1 }), makeUnit({ id: 'e', side: 'enemy', x: 2, y: 1, hp: 100, ac: 1 })]);
+    step(s, createRng(1), 'e');
+    expect(s.log.join('\n')).not.toMatch(/sneak attack/);
+  });
+
+  it('weapons: draw a spare from the pack once a turn; only one person can hold it', () => {
+    const [m1, m2] = membersForFight(pregens.slice(0, 2), { 'weapon:dagger': 1 });
+    expect(m1.weapons?.map((w) => w.ref)).toContain('weapon:dagger');
+    const u1 = makeUnit({ id: 'a', side: 'party', x: 1, y: 1, weapons: m1.weapons, weaponRef: m1.weaponRef });
+    const u2 = makeUnit({ id: 'b', side: 'party', x: 1, y: 2, weapons: m2.weapons, weaponRef: m2.weaponRef });
+    const s = fight([u1, u2, makeUnit({ id: 'e', side: 'enemy', x: 8, y: 8 })]);
+    s.packWeapons = { 'weapon:dagger': 1 };
+    expect(swapWeapon(s, 'weapon:dagger')).toBe(true);
+    expect(u1.attackName).toBe('Dagger');
+    expect(u1.finesse).toBe(true);
+    expect(swapWeapon(s, m1.weaponRef)).toBe(false); // one object interaction a turn
+    s.turnIndex = 1;
+    s.objectUsed = false;
+    expect(weaponChoices(s).find((w) => w.ref === 'weapon:dagger')?.available).toBe(false);
   });
 
   it('Uncanny Dodge halves a hit, using the Reaction', () => {
