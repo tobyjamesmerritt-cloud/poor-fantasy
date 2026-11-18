@@ -1151,29 +1151,169 @@ button.danger {
   color: var(--gold);
 }
 
-/* Pack dialog */
+/* Pack dialog: tabs + item cards + who-wears-what */
 #pack-dialog {
-  width: min(48rem, 94vw);
+  width: min(46rem, 94vw);
   max-width: none;
   max-height: 88vh;
   overflow-y: auto;
 }
-.pk-table td {
+.pk-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.pk-head h2 {
+  margin: 0;
+}
+.pk-purse {
+  color: var(--gold);
+  white-space: nowrap;
+}
+.pk-coin {
+  margin-right: 0.35rem;
+}
+.pk-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.8rem 0 0.6rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.5rem;
+}
+.pk-tab {
+  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+.pk-tab.on {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.pk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  align-items: start;
+  gap: 0.4rem;
+}
+.pk-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #141414;
+}
+.pk-card.open {
+  border-color: var(--gold);
+}
+.pk-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: #0b0b0b;
+  border-radius: 4px;
+}
+.pk-icon .portrait {
+  image-rendering: pixelated;
+}
+.pk-body {
+  min-width: 0;
+}
+.pk-name {
+  font-weight: bold;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pk-count {
+  margin-left: 0.4rem;
+  font-weight: normal;
+  color: var(--gold);
+}
+.pk-detail {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pk-act {
+  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;
+}
+.pk-note {
+  opacity: 0.5;
+  font-size: 0.75rem;
+}
+.pk-who {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--line);
+}
+.pk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.2rem;
+  border-radius: 999px;
+}
+.pk-chip:disabled {
+  opacity: 0.35;
+}
+.pk-chip .portrait,
+.pk-wear .portrait {
+  display: inline-block;
+  image-rendering: pixelated;
+}
+.pk-hp {
+  opacity: 0.7;
+}
+.pk-hp.bad {
+  color: var(--enemy);
+  opacity: 1;
+}
+.pk-empty {
+  margin: 1rem 0;
+}
+.pk-sub {
+  margin: 1rem 0 0.3rem;
+  font-size: 1rem;
+}
+.pk-wear {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.pk-wear td {
+  padding: 0.15rem 0.4rem;
+  border-top: 1px solid var(--line);
   vertical-align: middle;
 }
-.pk-actions {
+.pk-wear td:first-child {
+  width: 1px;
+}
+.pk-wear tr.focus td {
+  background: #1d1a0c;
+}
+.pk-wear .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.pk-foot {
   display: flex;
-  gap: 0.3rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-.pk-member {
-  border-top: 1px solid #333;
-  padding: 0.35rem 0;
-}
-#pack-dialog select {
-  font: inherit;
-  font-size: 0.85rem;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.8rem;
 }
 .name-link {
   all: unset;
@@ -1183,12 +1323,6 @@ button.danger {
 .name-link:hover,
 .name-link:focus-visible {
   text-decoration: underline;
-}
-.pk-member.focus {
-  border: 1px solid var(--gold);
-  border-radius: 6px;
-  padding: 0.4rem 0.6rem;
-  margin-bottom: 0.4rem;
 }
 
 /* Party dialog (group + character sheet) */
@@ -1341,4 +1475,9 @@ button.danger {
 .debug-console input {
   flex: 1;
   font-family: monospace;
+}
+@media (max-width: 30rem) {
+  .pk-wear td:nth-child(4) {
+    display: none; /* armour: AC still shows */
+  }
 }

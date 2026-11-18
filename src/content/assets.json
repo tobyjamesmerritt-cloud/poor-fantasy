@@ -105,6 +105,74 @@
     "broken-bridge": {
       "sheet": "battle",
       "frame": 37
+    },
+    "item-potion": {
+      "sheet": "dungeon",
+      "frame": 115
+    },
+    "item-drink": {
+      "sheet": "dungeon",
+      "frame": 113
+    },
+    "item-scroll": {
+      "sheet": "dungeon",
+      "frame": 66
+    },
+    "item-chest": {
+      "sheet": "dungeon",
+      "frame": 90
+    },
+    "item-shield": {
+      "sheet": "dungeon",
+      "frame": 102
+    },
+    "item-armor": {
+      "sheet": "dungeon",
+      "frame": 101
+    },
+    "item-dagger": {
+      "sheet": "dungeon",
+      "frame": 103
+    },
+    "item-sword": {
+      "sheet": "dungeon",
+      "frame": 104
+    },
+    "item-scimitar": {
+      "sheet": "dungeon",
+      "frame": 105
+    },
+    "item-greatsword": {
+      "sheet": "dungeon",
+      "frame": 106
+    },
+    "item-club": {
+      "sheet": "dungeon",
+      "frame": 107
+    },
+    "item-hammer": {
+      "sheet": "dungeon",
+      "frame": 117
+    },
+    "item-axe": {
+      "sheet": "dungeon",
+      "frame": 118
+    },
+    "item-greataxe": {
+      "sheet": "dungeon",
+      "frame": 119
+    },
+    "item-mace": {
+      "sheet": "dungeon",
+      "frame": 125
+    },
+    "item-spear": {
+      "sheet": "dungeon",
+      "frame": 131
+    },
+    "item-staff": {
+      "sheet": "dungeon",
+      "frame": 129
     }
   },
   "floors": {

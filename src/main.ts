@@ -192,7 +192,7 @@ document.getElementById('menu-new-game')!.addEventListener('click', () => {
 
 const shopScreen = new ShopScreen(bus);
 const spellsDialog = new SpellsDialog(bus);
-const packDialog = new PackDialog(bus);
+const packDialog = new PackDialog({ bus, spriteCss: (key) => spriteCssFromSizes(sheetSizes, key) });
 const partyDialog = new PartyDialog({ bus, spriteCss: (key) => spriteCssFromSizes(sheetSizes, key) });
 
 // ---------------------------------------------------------------------------
