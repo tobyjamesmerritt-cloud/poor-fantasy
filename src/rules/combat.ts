@@ -22,6 +22,7 @@ import { parseDice, resolveRollMode, roll, rollD20 } from '../engine/dice';
 import type { Rng } from '../engine/rng';
 import type { Ability } from '../engine/state';
 import { resolveAttack } from './attack';
+import { areaSquares, type SpellDef } from './spells';
 import type { CombatFeatures, FeatureId } from './features';
 
 export type Side = 'party' | 'enemy';
@@ -58,11 +59,15 @@ export type EffectKind =
   | 'outlined' // Shining Smite: attack rolls against it have Advantage
   | 'restrained' // Ensnaring Strike: Speed 0, attacks against it have Advantage, its attacks Disadvantage; piercing each turn
   | 'heroism' // temporary HP at the start of each of its turns
-  | 'magic-weapon'; // +amount to weapon attack and damage rolls
+  | 'magic-weapon' // +amount to weapon attack and damage rolls
+  // conditions from monster abilities (SRD 5.2 Rules Glossary; DND-75)
+  | 'paralyzed' // Incapacitated, Speed 0, fails Str/Dex saves, attacks against have Advantage, hits from 5 ft are critical
+  | 'prone' // its attacks have Disadvantage; attacks against: Advantage within 5 ft (else Disadvantage); standing costs half its Speed
+  | 'grappled'; // Speed 0; Disadvantage attacking anyone but the grappler (owner); escape with an action (dc)
 export interface Effect {
   kind: EffectKind;
   owner: string;
-  ends: 'start' | 'end' | 'concentration';
+  ends: 'start' | 'end' | 'concentration' | 'never'; // never = until something removes it (standing up, escaping, the grappler falling)
   skip?: number;
   dice?: string; // damage at the start of the bearer's turn (searing, restrained)
   dc?: number; // save to end it (searing: Con; restrained: Str (Athletics) to break free)
@@ -75,6 +80,50 @@ export interface Effect {
  * here you ready one and it goes off on your next weapon hit this turn. Its slot
  * and Bonus Action are spent only then, so readying costs nothing on a miss.
  */
+export type Size = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
+const SIZES: Size[] = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
+export const sizeIndex = (s: Size | undefined): number => SIZES.indexOf(s ?? 'medium');
+
+/** What a monster's hit does besides damage (SRD 5.2 stat block riders). */
+export interface OnHit {
+  condition: 'paralyzed' | 'prone' | 'grappled' | 'poisoned' | 'guided';
+  save?: Ability; // a saving throw avoids it (missing = no save)
+  dc?: number;
+  escapeDc?: number; // grappled: DC to break free with an action
+  maxSize?: Size; // only creatures this size or smaller
+  notTypes?: string[]; // creature types / species it doesn't work on (Ghoul: undead, elf)
+}
+/** One attack a monster can make. */
+export interface MonsterAction {
+  name: string;
+  bonus: number;
+  damage: string[]; // parts, e.g. ["1d6+2", "1d6"]
+  types: string[]; // a damage type per part
+  multi?: number; // Multiattack: this many of these per Attack action
+  onHit?: OnHit;
+  advantageVsGrappled?: boolean; // Ankheg, Bugbear: Advantage against a creature it is grappling
+  bonusIfAdvantage?: string; // Goblin: extra dice when the attack roll had Advantage
+}
+/** Monster abilities the engine runs (DND-75); any other kind is kept as data and doesn't fire. */
+export type MonsterAbility =
+  | {
+      kind: 'recharge-area'; // breath weapons and sprays: an action, then Recharge N–6 at the start of its turns
+      name: string;
+      recharge: number;
+      save: Ability;
+      dc: number;
+      damage: string;
+      type: string;
+      half: boolean;
+      area: { shape: 'line' | 'cone' | 'sphere'; size: number };
+    }
+  | { kind: 'aura'; name: string; range: number; save: Ability; dc: number; condition: 'poisoned' | 'prone'; immuneOnSave?: boolean } // start of a foe's turn nearby
+  | { kind: 'parry'; name: string; ac: number } // Reaction: +AC against a melee hit
+  | { kind: 'undead-fortitude'; name: string } // Con save DC 5 + damage to stay at 1 HP
+  | { kind: string; name: string; planned: true }; // listed for later (e.g. petrifying gaze) — doesn't fire
+
+export const ABILITY_KINDS = ['recharge-area', 'aura', 'parry', 'undead-fortitude'] as const;
+
 /** A weapon a character can switch to mid-fight (built from the sheet and the pack). */
 export interface WeaponOption {
   ref: string; // gear ref, e.g. "weapon:dagger"
@@ -82,6 +131,7 @@ export interface WeaponOption {
   attackBonus: number;
   damage: string[];
   finesse: boolean;
+  damageType: string;
   fromPack: boolean; // false = the one they came in with
 }
 
@@ -158,6 +208,16 @@ export interface Unit {
   onceTurn?: Partial<Record<'sneak' | 'slayer', string>>; // "round.turnIndex" when a once-per-turn rider was last used
   creatureType?: string; // monsters: beast, giant, undead, fiend… (Divine Smite)
   morale?: number; // monsters: HP fraction at which it may break and run (house rule; missing = fights to the death)
+  damageType?: string; // the weapon's damage type (characters); monster actions carry their own
+  species?: string; // characters: species id (some riders skip elves, etc.)
+  actions?: MonsterAction[]; // monsters: their attack options (DND-75)
+  abilities?: MonsterAbility[]; // monsters: recharge areas, auras, parry, undead fortitude… (unknown kinds don't fire)
+  resist?: string[]; // damage types halved
+  immune?: string[]; // damage types ignored
+  vulnerable?: string[]; // damage types doubled
+  conditionImmune?: string[]; // conditions it can't be given
+  recharged?: Record<string, boolean>; // recharge abilities ready to use, by name
+  auraImmune?: string[]; // ids of creatures whose aura it has shrugged off (Ghast Stench: 24 hours)
   routed?: boolean; // its nerve broke: it runs for the nearest edge
   size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan'; // monsters (missing = medium)
 }
@@ -316,6 +376,7 @@ function provoke(state: CombatState, rng: Rng, mover: Unit, nx: number, ny: numb
       onField(o) &&
       !o.reactionUsed &&
       !hasEffect(o, 'blinded') &&
+      !incapacitated(o) &&
       chebyshev(o, mover) === 1 &&
       Math.max(Math.abs(o.x - nx), Math.abs(o.y - ny)) > 1,
   );
@@ -334,12 +395,26 @@ function provoke(state: CombatState, rng: Rng, mover: Unit, nx: number, ny: numb
 }
 
 /** The Dash, Dodge and Disengage actions (SRD 5.2). Returns false if not allowed now. */
-export type CombatAction = 'dash' | 'dodge' | 'disengage';
+export type CombatAction = 'dash' | 'dodge' | 'disengage' | 'escape';
 /** `bonus`: as a Bonus Action (Rogue's Cunning Action: Dash or Disengage). */
-export function takeAction(state: CombatState, action: CombatAction, bonus = false): boolean {
+export function takeAction(state: CombatState, action: CombatAction, bonus = false, rng?: Rng): boolean {
   if (state.outcome !== 'ongoing') return false;
   const u = activeUnit(state);
   if (!isUp(u)) return false;
+  if (action === 'escape') {
+    // Escape a grapple (SRD 5.2): an action — Strength (Athletics) or Dexterity (Acrobatics) against the escape DC
+    // (the better of the Str/Dex save bonuses stands in for the skill)
+    const hold = u.effects?.find((e) => e.kind === 'grappled');
+    if (!hold || state.actionUsed || state.attacksMade) return false;
+    state.actionUsed = true;
+    const d20 = rng?.int(1, 20) ?? 10;
+    const total = d20 + Math.max(u.saves?.str ?? 0, u.saves?.dex ?? 0);
+    if (total >= (hold.dc ?? 10)) {
+      u.effects = u.effects!.filter((e) => e !== hold);
+      state.log.push(`${u.name} breaks free (${total} vs DC ${hold.dc}).`);
+    } else state.log.push(`${u.name} struggles but can't break free (${total} vs DC ${hold.dc}).`);
+    return true;
+  }
   if (bonus) {
     if (!u.features?.cunningAction || action === 'dodge' || state.bonusUsed) return false;
     state.bonusUsed = true;
@@ -378,7 +453,7 @@ export function swapWeapon(state: CombatState, ref: string): boolean {
   if (next.fromPack && !(pack[ref] > 0)) return false;
   if (cur?.fromPack) pack[cur.ref] = (pack[cur.ref] ?? 0) + 1;
   if (next.fromPack) pack[ref] -= 1;
-  Object.assign(u, { weaponRef: ref, attackName: next.name, attackBonus: next.attackBonus, damage: [...next.damage], finesse: next.finesse });
+  Object.assign(u, { weaponRef: ref, attackName: next.name, attackBonus: next.attackBonus, damage: [...next.damage], finesse: next.finesse, damageType: next.damageType });
   state.objectUsed = true;
   state.log.push(`${u.name} draws ${/^[aeiou]/i.test(next.name) ? 'an' : 'a'} ${next.name}.`);
   return true;
@@ -574,6 +649,12 @@ function advance(state: CombatState, rng: Rng): void {
       if (u.carriedBy) drop(state, unitById(state, u.carriedBy)); // woke up: back on their feet
     }
     beginTurn(state, rng);
+    if (state.outcome !== 'ongoing') return;
+    if (incapacitated(u) || !isUp(u)) {
+      if (isUp(u)) state.log.push(`${u.name} is paralyzed and can't act.`);
+      expireEffects(state, u.id, 'end');
+      continue;
+    }
     return;
   }
 }
@@ -595,8 +676,18 @@ function beginTurn(state: CombatState, rng: Rng): void {
     u.regenBlocked = false;
   }
   startOfTurnEffects(state, rng, u);
-  // Ray of Frost: Speed −10 ft (2 squares); Restrained: Speed 0
-  state.movesLeft = hasEffect(u, 'restrained') ? 0 : hasEffect(u, 'slowed') ? Math.max(0, u.speed - 2) : u.speed;
+  letGo(state);
+  auras(state, rng, u);
+  rechargeAbilities(state, rng, u);
+  // Ray of Frost: Speed −10 ft (2 squares); Restrained, Grappled, Paralyzed: Speed 0
+  const held = hasEffect(u, 'restrained') || hasEffect(u, 'grappled') || hasEffect(u, 'paralyzed');
+  state.movesLeft = held ? 0 : hasEffect(u, 'slowed') ? Math.max(0, u.speed - 2) : u.speed;
+  // Prone (SRD 5.2): standing up costs half its Speed
+  if (hasEffect(u, 'prone') && state.movesLeft > 0 && isUp(u)) {
+    u.effects = u.effects!.filter((e) => e.kind !== 'prone');
+    state.movesLeft -= Math.floor(u.speed / 2);
+    state.log.push(`${u.name} gets back up (half their movement).`);
+  }
   state.actionUsed = false;
   state.bonusUsed = false;
   state.slotUsed = false;
@@ -638,8 +729,58 @@ function startOfTurnEffects(state: CombatState, rng: Rng, u: Unit): void {
   checkOutcome(state);
 }
 
+/** Grapples end when the grappler is down, incapacitated or no longer next to its victim. */
+function letGo(state: CombatState): void {
+  for (const u of state.units) {
+    if (!u.effects?.some((e) => e.kind === 'grappled')) continue;
+    u.effects = u.effects.filter((e) => {
+      if (e.kind !== 'grappled') return true;
+      const g = state.units.find((o) => o.id === e.owner);
+      const holds = !!g && isUp(g) && onField(g) && !incapacitated(g) && chebyshev(g, u) <= 1 && isUp(u);
+      if (!holds) state.log.push(`${u.name} is no longer grappled.`);
+      return holds;
+    });
+  }
+}
+
+/** Auras (Ghast Stench): a creature starting its turn near one makes a save or gains the condition until its next turn starts. */
+function auras(state: CombatState, rng: Rng, u: Unit): void {
+  if (!isUp(u)) return;
+  for (const m of state.units) {
+    if (m.side === u.side || !isUp(m) || !onField(m) || !m.abilities) continue;
+    for (const a of m.abilities) {
+      if (a.kind !== 'aura') continue;
+      const aura = a as Extract<MonsterAbility, { kind: 'aura' }>;
+      if (chebyshev(m, u) > Math.max(1, Math.round(aura.range / 5)) || u.auraImmune?.includes(m.id) || u.conditionImmune?.includes(aura.condition)) continue;
+      const total = saveTotal(rng, u, aura.save);
+      if (total >= aura.dc) {
+        if (aura.immuneOnSave) u.auraImmune = [...(u.auraImmune ?? []), m.id];
+        state.log.push(`${u.name} shrugs off ${m.name}'s ${aura.name} (${aura.save.toUpperCase()} ${total} vs DC ${aura.dc}).`);
+      } else {
+        addEffect(u, { kind: aura.condition, owner: u.id, ends: 'start' });
+        state.log.push(`${m.name}'s ${aura.name}: ${u.name} is ${aura.condition === 'poisoned' ? 'Poisoned' : 'knocked Prone'} (${aura.save.toUpperCase()} ${total} vs DC ${aura.dc}).`);
+      }
+    }
+  }
+}
+
+/** Recharge N–6 (SRD 5.2): at the start of its turn, roll a d6 for each spent ability. */
+function rechargeAbilities(state: CombatState, rng: Rng, u: Unit): void {
+  for (const a of u.abilities ?? []) {
+    if (a.kind !== 'recharge-area') continue;
+    const ab = a as Extract<MonsterAbility, { kind: 'recharge-area' }>;
+    if ((u.recharged ??= {})[ab.name] !== false) continue;
+    const d6 = rng.int(1, 6);
+    if (d6 >= ab.recharge) {
+      u.recharged[ab.name] = true;
+      state.log.push(`${u.name}'s ${ab.name} is ready again (${d6}).`);
+    }
+  }
+}
+
 /** A saving throw total: d20 + bonus + Bless; Advantage on Dex saves while Dodging. */
 export function saveTotal(rng: Rng, u: Unit, ability: Ability, advantage = false): number {
+  if (hasEffect(u, 'paralyzed') && (ability === 'str' || ability === 'dex')) return -99; // SRD 5.2 Paralyzed: automatic failure
   const d20 = advantage || (ability === 'dex' && hasEffect(u, 'dodging')) ? Math.max(rng.int(1, 20), rng.int(1, 20)) : rng.int(1, 20);
   return d20 + (u.saves?.[ability] ?? 0) + blessBonus(rng, u);
 }
@@ -702,10 +843,37 @@ export function hostileAdjacent(state: CombatState, u: Unit): boolean {
  * Guiding Bolt mark (used up by this attack), Blinded or Poisoned attackers,
  * Blinded targets, ranged attacks with an enemy within 5 ft.
  */
-export function attackMode(state: CombatState, attacker: Unit, target: Unit, ranged: boolean) {
+export function attackMode(state: CombatState, attacker: Unit, target: Unit, ranged: boolean, extraAdvantage?: string) {
   let adv = 0;
   let dis = 0;
   const notes: string[] = [];
+  if (extraAdvantage) {
+    adv++;
+    notes.push(extraAdvantage);
+  }
+  // Conditions (SRD 5.2 Rules Glossary): Paralyzed, Prone, Grappled
+  if (hasEffect(target, 'paralyzed')) {
+    adv++;
+    notes.push('target paralyzed');
+  }
+  if (hasEffect(target, 'prone')) {
+    if (chebyshev(attacker, target) <= 1 && !ranged) {
+      adv++;
+      notes.push('target prone');
+    } else {
+      dis++;
+      notes.push('target prone, at range');
+    }
+  }
+  if (hasEffect(attacker, 'prone')) {
+    dis++;
+    notes.push('prone');
+  }
+  const held = attacker.effects?.find((e) => e.kind === 'grappled');
+  if (held && held.owner !== target.id) {
+    dis++;
+    notes.push('grappled');
+  }
   if (
     attacker.traits.includes('pack-tactics') &&
     state.units.some((o) => o !== attacker && o.side === attacker.side && isUp(o) && onField(o) && chebyshev(o, target) === 1)
@@ -760,8 +928,39 @@ export function attackMode(state: CombatState, attacker: Unit, target: Unit, ran
  * (DC 10 or half the damage, max 30) or loses Concentration; dropping to
  * 0 HP ends it. Someone carrying an ally drops them.
  */
-export function hurt(state: CombatState, rng: Rng, target: Unit, amount: number, line: string, type?: string): void {
-  if (target.regeneration && amount > 0 && (type === 'fire' || type === 'acid')) target.regenBlocked = true;
+export function hurt(
+  state: CombatState,
+  rng: Rng,
+  target: Unit,
+  amount: number,
+  line: string,
+  type?: string,
+  opts: { adjusted?: boolean; critical?: boolean; types?: string[] } = {},
+): void {
+  const types = opts.types ?? (type ? [type] : []);
+  if (!opts.adjusted && type) {
+    const before = amount;
+    amount = typedDamage(target, amount, type);
+    if (amount !== before) line += amount ? ` → ${amount} (${target.immune?.includes(type) ? 'immune' : amount < before ? 'resisted' : 'vulnerable'})` : ` → 0 (immune)`;
+  }
+  if (target.regeneration && amount > 0 && types.some((t) => t === 'fire' || t === 'acid')) target.regenBlocked = true;
+  // Undead Fortitude (SRD 5.2 Zombie): dropped to 0 by anything but Radiant damage or a critical hit → Con save DC 5 + damage to stay at 1 HP
+  if (
+    amount >= target.hp + (target.tempHp ?? 0) &&
+    isUp(target) &&
+    target.abilities?.some((a) => a.kind === 'undead-fortitude') &&
+    !opts.critical &&
+    !types.includes('radiant')
+  ) {
+    const dc = 5 + amount;
+    const total = saveTotal(rng, target, 'con');
+    if (total >= dc) {
+      state.log.push(`${line} — ${target.name} refuses to fall! (Undead Fortitude, CON ${total} vs DC ${dc}; 1 HP)`);
+      target.hp = 1;
+      target.tempHp = 0;
+      return;
+    }
+  }
   let soaked = 0;
   if (target.tempHp && amount > 0) {
     soaked = Math.min(target.tempHp, amount);
@@ -855,7 +1054,8 @@ export function applyDamage(target: Unit, amount: number): string {
   return ` — ${target.name} falls unconscious!`;
 }
 
-function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reaction = false): void {
+function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reaction = false, action?: MonsterAction): void {
+  action ??= attacker.actions?.[0];
   if (!reaction) {
     // Extra Attack / Multiattack: the Attack action lasts until all its attacks are made (move between them freely)
     state.attacksMade = (state.attacksMade ?? 0) + 1;
@@ -866,7 +1066,8 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
     state.log.push(`${lead}${attacker.name} lurches, swings wide and misses ${target.name}.`);
     return;
   }
-  const { mode, notes } = attackMode(state, attacker, target, false);
+  const grappledByMe = target.effects?.some((e) => e.kind === 'grappled' && e.owner === attacker.id);
+  const { mode, notes } = attackMode(state, attacker, target, false, action?.advantageVsGrappled && grappledByMe ? 'grappled by it' : undefined);
   const bless = blessBonus(rng, attacker);
   if (bless) notes.push(`bless +${bless}`);
   const ac = acOf(target);
@@ -879,14 +1080,32 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
   const ally = state.units.some((o) => o !== attacker && o.side === attacker.side && isUp(o) && onField(o) && chebyshev(o, target) === 1);
   const sneak = !!f?.sneakAttack && !!attacker.finesse && attacker.onceTurn?.sneak !== turn && (mode === 'advantage' || (ally && mode !== 'disadvantage'));
   const slayer = !!f?.colossusSlayer && attacker.onceTurn?.slayer !== turn && target.hp < target.maxHp;
-  const extras = [
-    ...attacker.damage,
-    ...(magic ? [`${magic}`] : []),
-    ...hitRiders(attacker, target, true),
-    ...(sneak ? [f!.sneakAttack!] : []),
-    ...(slayer ? ['1d8'] : []),
+  // Damage parts with their types (resistances, immunities and vulnerabilities apply per type)
+  const wtype = attacker.damageType ?? 'bludgeoning';
+  const parts: { dice: string; type: string }[] = [
+    ...(action ? action.damage.map((d, i) => ({ dice: d, type: action.types[i] ?? action.types[0] })) : attacker.damage.map((d) => ({ dice: d, type: wtype }))),
+    ...(magic ? [{ dice: `${magic}`, type: wtype }] : []),
+    ...hitRiderParts(attacker, target, true),
+    ...(sneak ? [{ dice: f!.sneakAttack!, type: wtype }] : []),
+    ...(slayer ? [{ dice: '1d8', type: wtype }] : []),
+    ...(action?.bonusIfAdvantage && mode === 'advantage' ? [{ dice: action.bonusIfAdvantage, type: action.types[0] }] : []),
   ];
-  const r = resolveAttack(rng, { attackBonus: attacker.attackBonus + bless + magic, targetAc: ac, damage: extras, mode, critOn: f?.critOn });
+  const r = resolveAttack(rng, {
+    attackBonus: (action ? action.bonus : attacker.attackBonus) + bless + magic,
+    targetAc: ac,
+    damage: parts.map((p) => p.dice),
+    mode,
+    critOn: f?.critOn,
+    autoCrit: hasEffect(target, 'paralyzed') && chebyshev(attacker, target) <= 1, // SRD 5.2 Paralyzed
+  });
+  const weaponName = action?.name ?? attacker.attackName;
+  // Parry (SRD 5.2 Reaction): +AC against a melee hit — a natural 20 still hits
+  const parry = target.abilities?.find((a): a is Extract<MonsterAbility, { kind: 'parry' }> => a.kind === 'parry');
+  if (r.hit && parry && r.d20 !== 20 && !target.reactionUsed && isUp(target) && !incapacitated(target) && r.attackTotal < ac + parry.ac) {
+    target.reactionUsed = true;
+    state.log.push(`${lead}${attacker.name}'s ${weaponName} is parried by ${target.name} (${r.attackTotal} vs AC ${ac + parry.ac}).`);
+    return;
+  }
   if (r.hit && (sneak || slayer)) {
     attacker.onceTurn = { ...attacker.onceTurn, ...(sneak ? { sneak: turn } : {}), ...(slayer ? { slayer: turn } : {}) };
     if (sneak) notes.push('sneak attack');
@@ -899,27 +1118,81 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
   }
   const verb = r.critical ? 'CRITS' : 'hits';
   const smite = !reaction ? fireSmite(state, rng, attacker, target, r.critical) : null;
-  let dmg = r.damage + (smite?.damage ?? 0);
+  let dmg = r.parts.reduce((sum, n, i) => sum + typedDamage(target, n, parts[i].type), 0) + (smite ? typedDamage(target, smite.damage, smite.type) : 0);
+  const resisted = parts.some((p) => target.resist?.includes(p.type) || target.immune?.includes(p.type) || target.vulnerable?.includes(p.type));
   // Uncanny Dodge (SRD 5.2 Rogue): Reaction to halve the damage of an attack from an attacker you can see
   let dodge = '';
-  if (target.features?.uncannyDodge && !target.reactionUsed && isUp(target) && !hasEffect(target, 'blinded') && dmg > 1) {
+  if (target.features?.uncannyDodge && !target.reactionUsed && isUp(target) && !incapacitated(target) && !hasEffect(target, 'blinded') && dmg > 1) {
     target.reactionUsed = true;
     dmg = Math.floor(dmg / 2);
     dodge = ` — Uncanny Dodge halves it`;
   }
   const tags = r.hit && (sneak || slayer) ? ` [${notes.join(', ')}]` : adv;
-  hurt(state, rng, target, dmg, `${lead}${attacker.name} ${verb} ${target.name} for ${dmg}${tags}${smite?.text ?? ''}${dodge}`);
+  const wpn = action ? ` with ${action.name}` : '';
+  hurt(state, rng, target, dmg, `${lead}${attacker.name} ${verb} ${target.name}${wpn} for ${dmg}${resisted ? ' (resisted / vulnerable)' : ''}${tags}${smite?.text ?? ''}${dodge}`, undefined, {
+    adjusted: true,
+    critical: r.critical,
+    types: [...parts.map((p) => p.type), ...(smite ? [smite.type] : [])],
+  });
   if (smite) smite.after();
+  if (action?.onHit) applyOnHit(state, rng, attacker, target, action.onHit);
   checkOutcome(state);
+}
+
+/** Damage after the target's resistances (half), immunities (none) and vulnerabilities (double), SRD 5.2. */
+export function typedDamage(target: Unit, amount: number, type?: string): number {
+  if (!type || amount <= 0) return amount;
+  if (target.immune?.includes(type)) return 0;
+  let n = amount;
+  if (target.resist?.includes(type)) n = Math.floor(n / 2);
+  if (target.vulnerable?.includes(type)) n *= 2;
+  return n;
+}
+
+/** Incapacitated (SRD 5.2): no actions, Bonus Actions or Reactions. */
+export const incapacitated = (u: Unit): boolean => hasEffect(u, 'paralyzed');
+
+/** A monster's hit rider: a condition, maybe with a saving throw (SRD 5.2 stat blocks). */
+function applyOnHit(state: CombatState, rng: Rng, attacker: Unit, target: Unit, h: OnHit): void {
+  if (!isUp(target) || target.dead) return;
+  if (h.notTypes?.some((t) => t === target.creatureType || t === target.species)) return;
+  if (h.maxSize && sizeIndex(target.size) > sizeIndex(h.maxSize)) return;
+  if (target.conditionImmune?.includes(h.condition)) return;
+  if (h.save && h.dc) {
+    const total = saveTotal(rng, target, h.save);
+    if (total >= h.dc) {
+      state.log.push(`${target.name} resists (${h.save.toUpperCase()} ${total} vs DC ${h.dc}).`);
+      return;
+    }
+  }
+  const label: Record<OnHit['condition'], string> = {
+    paralyzed: 'is Paralyzed',
+    prone: 'is knocked Prone',
+    grappled: 'is Grappled',
+    poisoned: 'is Poisoned',
+    guided: 'is exposed — the next attack against it has Advantage',
+  };
+  if (h.condition === 'paralyzed') addEffect(target, { kind: 'paralyzed', owner: target.id, ends: 'end' }); // until the end of its next turn
+  else if (h.condition === 'prone') addEffect(target, { kind: 'prone', owner: target.id, ends: 'never' });
+  else if (h.condition === 'grappled') {
+    // one creature at a time per grappler
+    for (const o of state.units) if (o !== target) o.effects = o.effects?.filter((e) => !(e.kind === 'grappled' && e.owner === attacker.id));
+    addEffect(target, { kind: 'grappled', owner: attacker.id, ends: 'never', dc: h.escapeDc ?? 10 });
+  } else if (h.condition === 'guided') addEffect(target, { kind: 'guided', owner: attacker.id, ends: 'start' });
+  else addEffect(target, { kind: 'poisoned', owner: target.id, ends: 'end' });
+  state.log.push(`${target.name} ${label[h.condition]}${h.condition === 'grappled' ? ` (escape DC ${h.escapeDc ?? 10})` : ''}.`);
 }
 
 const effectOf = (u: Unit, kind: EffectKind): Effect | undefined => u.effects?.find((e) => e.kind === kind);
 
 /** Extra damage dice on a hit: Hunter's Mark (any attack roll by its owner); Divine Favor (weapons only). */
 export function hitRiders(attacker: Unit, target: Unit, weapon: boolean): string[] {
-  const out: string[] = [];
-  if (target.effects?.some((e) => e.kind === 'marked' && e.owner === attacker.id)) out.push('1d6');
-  if (weapon && hasEffect(attacker, 'divine-favor')) out.push('1d4');
+  return hitRiderParts(attacker, target, weapon).map((p) => p.dice);
+}
+function hitRiderParts(attacker: Unit, target: Unit, weapon: boolean): { dice: string; type: string }[] {
+  const out: { dice: string; type: string }[] = [];
+  if (target.effects?.some((e) => e.kind === 'marked' && e.owner === attacker.id)) out.push({ dice: '1d6', type: 'force' });
+  if (weapon && hasEffect(attacker, 'divine-favor')) out.push({ dice: '1d4', type: 'radiant' });
   return out;
 }
 
@@ -929,7 +1202,7 @@ export function hitRiders(attacker: Unit, target: Unit, weapon: boolean): string
  * the extra damage (dice doubled on a critical). `after` applies its lasting
  * effect once the damage has landed.
  */
-function fireSmite(state: CombatState, rng: Rng, u: Unit, target: Unit, critical: boolean): { damage: number; text: string; after: () => void } | null {
+function fireSmite(state: CombatState, rng: Rng, u: Unit, target: Unit, critical: boolean): { damage: number; type: string; text: string; after: () => void } | null {
   const s = state.smite;
   const c = u.caster;
   if (!s || !c || activeUnit(state) !== u) return null;
@@ -974,7 +1247,7 @@ function fireSmite(state: CombatState, rng: Rng, u: Unit, target: Unit, critical
       }
     }
   };
-  return { damage, text: dice.length ? ` (+${damage} ${s.type}, ${s.name}${free ? ', free' : ''})` : ` (${s.name})`, after };
+  return { damage, type: s.type, text: dice.length ? ` (+${damage} ${s.type}, ${s.name}${free ? ', free' : ''})` : ` (${s.name})`, after };
 }
 
 /** Help action to stabilise: DC 10 Wisdom (Medicine) check. */
@@ -1013,18 +1286,21 @@ export function runEnemyTurn(state: CombatState, rng: Rng): void {
     breakFree(state, rng, u);
     checkMorale(state, rng, u);
     if (u.routed) runAway(state, rng, u);
+    if (!u.routed) useAreaAbility(state, rng, u);
     let target = u.routed ? undefined : pickTarget(state, u);
     for (let guard = 0; guard < 30 && state.outcome === 'ongoing' && target; guard++) {
       if (!isUp(target) || !onField(target)) target = pickTarget(state, u);
       if (!target) break;
       if (chebyshev(u, target) === 1) {
         if (!state.actionUsed) {
-          attack(state, rng, u, target);
-          // Multiattack: the rest of the attacks, at whoever is still standing next to it
+          const act = chooseAction(u, target);
+          if (act) u.attacks = act.multi ?? 1;
+          attack(state, rng, u, target, false, act);
+          // Multiattack: the rest of the attacks, at the same target if it still stands, else whoever is next to it
           for (let k = 1; k < (u.attacks ?? 1) && state.outcome === 'ongoing'; k++) {
-            const next = state.units.find((o) => o.side === 'party' && isUp(o) && onField(o) && chebyshev(o, u) === 1);
+            const next = isUp(target) ? target : state.units.find((o) => o.side === 'party' && isUp(o) && onField(o) && chebyshev(o, u) === 1);
             if (!next) break;
-            attack(state, rng, u, next);
+            attack(state, rng, u, next, false, act);
           }
         }
         break;
@@ -1043,6 +1319,71 @@ export function runEnemyTurn(state: CombatState, rng: Rng): void {
     }
     if (state.outcome !== 'ongoing') return;
     advance(state, rng);
+  }
+}
+
+/** Average damage of an action against this target (resistances, Advantage bonus dice). */
+function actionValue(u: Unit, a: MonsterAction, target: Unit): number {
+  const dmg = a.damage.reduce((sum, d, i) => sum + typedDamage(target, avgDamage([d]), a.types[i] ?? a.types[0]), 0);
+  return dmg * (a.multi ?? 1) + (a.advantageVsGrappled && target.effects?.some((e) => e.kind === 'grappled' && e.owner === u.id) ? 3 : 0);
+}
+
+/**
+ * Which attack to use (DND-75): one whose rider would land on this target (paralysis,
+ * a grapple, knocking it down) comes first; otherwise the most damage.
+ */
+export function chooseAction(u: Unit, target: Unit): MonsterAction | undefined {
+  const acts = u.actions ?? [];
+  if (acts.length <= 1) return acts[0];
+  const riderWorks = (a: MonsterAction) => {
+    const h = a.onHit;
+    if (!h || h.condition === 'guided') return false;
+    if (h.notTypes?.some((t) => t === target.creatureType || t === target.species)) return false;
+    if (h.maxSize && sizeIndex(target.size) > sizeIndex(h.maxSize)) return false;
+    if (target.conditionImmune?.includes(h.condition)) return false;
+    return !target.effects?.some((e) => e.kind === h.condition);
+  };
+  return [...acts].sort((a, b) => Number(riderWorks(b)) - Number(riderWorks(a)) || actionValue(u, b, target) - actionValue(u, a, target))[0];
+}
+
+/**
+ * A recharged area attack (Ankheg Acid Spray): aimed to catch the most foes and no
+ * friends; used when it catches two or more, or one when nobody is in reach to bite.
+ */
+function useAreaAbility(state: CombatState, rng: Rng, u: Unit): void {
+  if (state.actionUsed || !isUp(u)) return;
+  for (const a of u.abilities ?? []) {
+    if (a.kind !== 'recharge-area') continue;
+    const ab = a as Extract<MonsterAbility, { kind: 'recharge-area' }>;
+    if (u.recharged?.[ab.name] === false) continue;
+    const shape = { name: ab.name, range: ab.area.size, effect: { kind: 'save', area: ab.area } } as unknown as SpellDef;
+    const foes = state.units.filter((o) => o.side !== u.side && isUp(o) && onField(o));
+    let best: { at: { x: number; y: number }; hit: Unit[]; score: number } | null = null;
+    for (const f of foes) {
+      const sq = areaSquares(state, u, shape, f);
+      const inside = (o: Unit) => sq.some((p) => p.x === o.x && p.y === o.y);
+      const hitFoes = foes.filter(inside);
+      const friends = state.units.filter((o) => o !== u && o.side === u.side && isUp(o) && onField(o) && inside(o)).length;
+      const score = hitFoes.length - 2 * friends;
+      if (!best || score > best.score) best = { at: { x: f.x, y: f.y }, hit: hitFoes, score };
+    }
+    const reach = foes.some((f) => chebyshev(u, f) === 1);
+    if (!best || best.score < (reach ? 2 : 1)) continue;
+    state.actionUsed = true;
+    (u.recharged ??= {})[ab.name] = false;
+    const dmg = Math.max(0, roll(rng, ab.damage).total);
+    state.log.push(`${u.name} uses ${ab.name}! (${dmg} ${ab.type})`);
+    const caught = state.units.filter((o) => onField(o) && !o.dead && areaSquares(state, u, shape, best!.at).some((p) => p.x === o.x && p.y === o.y) && o !== u);
+    for (const v of caught) {
+      const total = saveTotal(rng, v, ab.save);
+      const ok = total >= ab.dc;
+      const taken = ok ? (ab.half ? Math.floor(dmg / 2) : 0) : dmg;
+      const what = `${v.name} ${ok ? 'saves' : 'fails'} (${ab.save.toUpperCase()} ${total} vs DC ${ab.dc})`;
+      if (taken > 0) hurt(state, rng, v, taken, `${what}: ${taken} ${ab.type}`, ab.type);
+      else state.log.push(`${what}.`);
+    }
+    checkOutcome(state);
+    return;
   }
 }
 
@@ -1090,6 +1431,7 @@ export function pickTarget(state: CombatState, u: Unit): Unit | undefined {
   const score = (f: Unit) =>
     (f.hp + (f.tempHp ?? 0) <= hit ? 0 : 100) +
     (f.concentration ? 0 : 40) +
+    (hasEffect(f, 'paralyzed') ? -60 : hasEffect(f, 'prone') ? -15 : 0) +
     acOf(f) * 3 +
     f.hp / 2 +
     chebyshev(u, f) +

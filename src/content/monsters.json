@@ -1,5 +1,5 @@
 {
-  "_note": "Stat blocks from SRD 5.2 (CC-BY-4.0). Speeds in 5-ft squares; flying treated as walking until flight rules exist. hp = the stat block's fixed average. saves = saving throw bonuses (the stat block's Save column). troll: SRD 5.2 Troll (CR 5). Implemented: Multiattack (3 Rends), Regeneration (fire/acid stops it for a turn). Not yet: Large size, 10-ft reach, Loathsome Limbs, Charge; at 0 HP it simply dies.",
+  "_note": "Stat blocks from SRD 5.2.1 (CC-BY-4.0), numbers as printed; names and summaries ours. Speeds in 5-ft squares (flying treated as walking). hp = fixed average; saves = the stat block's Save column. actions = melee attacks with a damage type per part (multi = Multiattack count; onHit = rider: condition, optional save/dc, escapeDc for grapples, maxSize, notTypes). abilities: kinds the engine runs = recharge-area, aura, parry, undead-fortitude; anything else is listed with planned: true and doesn't fire yet. Ranged attacks (bows, crossbows, javelins) are left out until ranged monsters exist. tags = where it turns up (wilds, dark, urban, undead…), used to pick monsters by tag + CR. Sprites are placeholders until monster art (DND-59).",
   "giant-rat": {
     "name": "Giant Rat",
     "type": "beast",
@@ -21,15 +21,25 @@
       "wis": 0,
       "cha": -3
     },
-    "attack": {
-      "name": "Bite",
-      "bonus": 5,
-      "damage": [
-        "1d4+3"
-      ]
-    },
     "traits": [
       "pack-tactics"
+    ],
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 5,
+        "damage": [
+          "1d4+3"
+        ],
+        "types": [
+          "piercing"
+        ]
+      }
+    ],
+    "tags": [
+      "dark",
+      "urban",
+      "beast"
     ]
   },
   "giant-wolf-spider": {
@@ -53,15 +63,26 @@
       "wis": 1,
       "cha": -3
     },
-    "attack": {
-      "name": "Bite",
-      "bonus": 5,
-      "damage": [
-        "1d4+3",
-        "2d4"
-      ]
-    },
-    "traits": []
+    "traits": [],
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 5,
+        "damage": [
+          "1d4+3",
+          "2d4"
+        ],
+        "types": [
+          "piercing",
+          "poison"
+        ]
+      }
+    ],
+    "tags": [
+      "dark",
+      "wilds",
+      "beast"
+    ]
   },
   "giant-bat": {
     "name": "Giant Bat",
@@ -84,14 +105,23 @@
       "wis": 1,
       "cha": -2
     },
-    "attack": {
-      "name": "Bite",
-      "bonus": 5,
-      "damage": [
-        "1d6+3"
-      ]
-    },
-    "traits": []
+    "traits": [],
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 5,
+        "damage": [
+          "1d6+3"
+        ],
+        "types": [
+          "piercing"
+        ]
+      }
+    ],
+    "tags": [
+      "dark",
+      "beast"
+    ]
   },
   "giant-spider": {
     "name": "Giant Spider",
@@ -114,15 +144,33 @@
       "wis": 0,
       "cha": -3
     },
-    "attack": {
-      "name": "Bite",
-      "bonus": 5,
-      "damage": [
-        "1d8+3",
-        "2d6"
-      ]
-    },
-    "traits": []
+    "traits": [],
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 5,
+        "damage": [
+          "1d8+3",
+          "2d6"
+        ],
+        "types": [
+          "piercing",
+          "poison"
+        ]
+      }
+    ],
+    "abilities": [
+      {
+        "kind": "web",
+        "name": "Web",
+        "planned": true
+      }
+    ],
+    "tags": [
+      "dark",
+      "wilds",
+      "beast"
+    ]
   },
   "troll": {
     "name": "Troll",
@@ -144,15 +192,876 @@
       "wis": -1,
       "cha": -2
     },
-    "attack": {
-      "name": "Rend",
-      "bonus": 7,
-      "damage": [
-        "2d6+4"
-      ]
-    },
-    "multiattack": 3,
     "regeneration": 15,
-    "traits": []
+    "traits": [],
+    "actions": [
+      {
+        "name": "Rend",
+        "bonus": 7,
+        "damage": [
+          "2d6+4"
+        ],
+        "types": [
+          "slashing"
+        ],
+        "multi": 3
+      }
+    ],
+    "abilities": [
+      {
+        "kind": "loathsome-limbs",
+        "name": "Loathsome Limbs",
+        "planned": true
+      }
+    ],
+    "tags": [
+      "wilds",
+      "giant"
+    ]
+  },
+  "bandit": {
+    "name": "Bandit",
+    "type": "humanoid",
+    "size": "medium",
+    "sprite": "brigand",
+    "cr": "1/8",
+    "xp": 25,
+    "ac": 12,
+    "hp": 11,
+    "hpDice": "2d8+2",
+    "speed": 6,
+    "initBonus": 1,
+    "saves": {
+      "str": 0,
+      "dex": 1,
+      "con": 1,
+      "int": 0,
+      "wis": 0,
+      "cha": 0
+    },
+    "actions": [
+      {
+        "name": "Scimitar",
+        "bonus": 3,
+        "damage": [
+          "1d6+1"
+        ],
+        "types": [
+          "slashing"
+        ]
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "urban",
+      "wilds",
+      "humanoid"
+    ],
+    "morale": 0.5
+  },
+  "bandit-captain": {
+    "name": "Bandit Captain",
+    "type": "humanoid",
+    "size": "medium",
+    "sprite": "brigand",
+    "cr": "2",
+    "xp": 450,
+    "ac": 15,
+    "hp": 52,
+    "hpDice": "8d8+16",
+    "speed": 6,
+    "initBonus": 3,
+    "saves": {
+      "str": 4,
+      "dex": 5,
+      "con": 2,
+      "int": 2,
+      "wis": 2,
+      "cha": 2
+    },
+    "actions": [
+      {
+        "name": "Scimitar",
+        "bonus": 5,
+        "damage": [
+          "1d6+3"
+        ],
+        "types": [
+          "slashing"
+        ],
+        "multi": 2
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "urban",
+      "wilds",
+      "humanoid"
+    ],
+    "abilities": [
+      {
+        "kind": "parry",
+        "name": "Parry",
+        "ac": 2
+      }
+    ]
+  },
+  "cultist": {
+    "name": "Cultist",
+    "type": "humanoid",
+    "size": "medium",
+    "sprite": "brigand",
+    "cr": "1/8",
+    "xp": 25,
+    "ac": 12,
+    "hp": 9,
+    "hpDice": "2d8",
+    "speed": 6,
+    "initBonus": 1,
+    "saves": {
+      "str": 0,
+      "dex": 1,
+      "con": 0,
+      "int": 0,
+      "wis": 2,
+      "cha": 0
+    },
+    "actions": [
+      {
+        "name": "Ritual Sickle",
+        "bonus": 3,
+        "damage": [
+          "1d4+1",
+          "1"
+        ],
+        "types": [
+          "slashing",
+          "necrotic"
+        ]
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "dark",
+      "urban",
+      "humanoid"
+    ]
+  },
+  "goblin-warrior": {
+    "name": "Goblin Warrior",
+    "type": "fey",
+    "size": "small",
+    "sprite": "goblinoid",
+    "cr": "1/4",
+    "xp": 50,
+    "ac": 15,
+    "hp": 10,
+    "hpDice": "3d6",
+    "speed": 6,
+    "initBonus": 2,
+    "saves": {
+      "str": -1,
+      "dex": 2,
+      "con": 0,
+      "int": 0,
+      "wis": -1,
+      "cha": -1
+    },
+    "actions": [
+      {
+        "name": "Scimitar",
+        "bonus": 4,
+        "damage": [
+          "1d6+2"
+        ],
+        "types": [
+          "slashing"
+        ],
+        "bonusIfAdvantage": "1d4"
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "wilds",
+      "dark",
+      "goblinoid"
+    ],
+    "abilities": [
+      {
+        "kind": "nimble-escape",
+        "name": "Nimble Escape",
+        "planned": true
+      }
+    ],
+    "morale": 0.5
+  },
+  "hobgoblin-warrior": {
+    "name": "Hobgoblin Warrior",
+    "type": "fey",
+    "size": "medium",
+    "sprite": "goblinoid",
+    "cr": "1/2",
+    "xp": 100,
+    "ac": 18,
+    "hp": 11,
+    "hpDice": "2d8+2",
+    "speed": 6,
+    "initBonus": 3,
+    "saves": {
+      "str": 1,
+      "dex": 1,
+      "con": 1,
+      "int": 0,
+      "wis": 0,
+      "cha": -1
+    },
+    "actions": [
+      {
+        "name": "Longsword",
+        "bonus": 3,
+        "damage": [
+          "2d10+1"
+        ],
+        "types": [
+          "slashing"
+        ]
+      }
+    ],
+    "traits": [
+      "pack-tactics"
+    ],
+    "tags": [
+      "wilds",
+      "goblinoid"
+    ]
+  },
+  "bugbear-warrior": {
+    "name": "Bugbear Warrior",
+    "type": "fey",
+    "size": "medium",
+    "sprite": "goblinoid",
+    "cr": "1",
+    "xp": 200,
+    "ac": 14,
+    "hp": 33,
+    "hpDice": "6d8+6",
+    "speed": 6,
+    "initBonus": 2,
+    "saves": {
+      "str": 2,
+      "dex": 2,
+      "con": 1,
+      "int": -1,
+      "wis": 0,
+      "cha": -1
+    },
+    "actions": [
+      {
+        "name": "Grab",
+        "bonus": 4,
+        "damage": [
+          "2d6+2"
+        ],
+        "types": [
+          "bludgeoning"
+        ],
+        "onHit": {
+          "condition": "grappled",
+          "escapeDc": 12,
+          "maxSize": "medium"
+        }
+      },
+      {
+        "name": "Light Hammer",
+        "bonus": 4,
+        "damage": [
+          "3d4+2"
+        ],
+        "types": [
+          "bludgeoning"
+        ],
+        "advantageVsGrappled": true
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "wilds",
+      "dark",
+      "goblinoid"
+    ],
+    "abilities": [
+      {
+        "kind": "abduct",
+        "name": "Abduct",
+        "planned": true
+      }
+    ]
+  },
+  "gnoll-warrior": {
+    "name": "Gnoll Warrior",
+    "type": "fiend",
+    "size": "medium",
+    "sprite": "goblinoid",
+    "cr": "1/2",
+    "xp": 100,
+    "ac": 15,
+    "hp": 27,
+    "hpDice": "6d8",
+    "speed": 6,
+    "initBonus": 1,
+    "saves": {
+      "str": 2,
+      "dex": 1,
+      "con": 0,
+      "int": -2,
+      "wis": 0,
+      "cha": -2
+    },
+    "actions": [
+      {
+        "name": "Rend",
+        "bonus": 4,
+        "damage": [
+          "1d6+2"
+        ],
+        "types": [
+          "piercing"
+        ]
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "wilds"
+    ],
+    "abilities": [
+      {
+        "kind": "rampage",
+        "name": "Rampage",
+        "planned": true
+      }
+    ]
+  },
+  "skeleton": {
+    "name": "Skeleton",
+    "type": "undead",
+    "size": "medium",
+    "sprite": "undead",
+    "cr": "1/4",
+    "xp": 50,
+    "ac": 14,
+    "hp": 13,
+    "hpDice": "2d8+4",
+    "speed": 6,
+    "initBonus": 3,
+    "saves": {
+      "str": 0,
+      "dex": 3,
+      "con": 2,
+      "int": -2,
+      "wis": -1,
+      "cha": -3
+    },
+    "actions": [
+      {
+        "name": "Shortsword",
+        "bonus": 5,
+        "damage": [
+          "1d6+3"
+        ],
+        "types": [
+          "piercing"
+        ]
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "dark",
+      "undead"
+    ],
+    "vulnerable": [
+      "bludgeoning"
+    ],
+    "immune": [
+      "poison"
+    ],
+    "conditionImmune": [
+      "poisoned"
+    ]
+  },
+  "zombie": {
+    "name": "Zombie",
+    "type": "undead",
+    "size": "medium",
+    "sprite": "undead",
+    "cr": "1/4",
+    "xp": 50,
+    "ac": 8,
+    "hp": 15,
+    "hpDice": "2d8+6",
+    "speed": 4,
+    "initBonus": -2,
+    "saves": {
+      "str": 1,
+      "dex": -2,
+      "con": 3,
+      "int": -4,
+      "wis": 0,
+      "cha": -3
+    },
+    "actions": [
+      {
+        "name": "Slam",
+        "bonus": 3,
+        "damage": [
+          "1d8+1"
+        ],
+        "types": [
+          "bludgeoning"
+        ]
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "dark",
+      "undead"
+    ],
+    "abilities": [
+      {
+        "kind": "undead-fortitude",
+        "name": "Undead Fortitude"
+      }
+    ],
+    "immune": [
+      "poison"
+    ],
+    "conditionImmune": [
+      "poisoned"
+    ]
+  },
+  "ghoul": {
+    "name": "Ghoul",
+    "type": "undead",
+    "size": "medium",
+    "sprite": "ghost",
+    "cr": "1",
+    "xp": 200,
+    "ac": 12,
+    "hp": 22,
+    "hpDice": "5d8",
+    "speed": 6,
+    "initBonus": 2,
+    "saves": {
+      "str": 1,
+      "dex": 2,
+      "con": 0,
+      "int": -2,
+      "wis": 0,
+      "cha": -2
+    },
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 4,
+        "damage": [
+          "1d6+2",
+          "1d6"
+        ],
+        "types": [
+          "piercing",
+          "necrotic"
+        ],
+        "multi": 2
+      },
+      {
+        "name": "Claw",
+        "bonus": 4,
+        "damage": [
+          "1d4+2"
+        ],
+        "types": [
+          "slashing"
+        ],
+        "onHit": {
+          "condition": "paralyzed",
+          "save": "con",
+          "dc": 10,
+          "notTypes": [
+            "undead",
+            "elf"
+          ]
+        }
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "dark",
+      "undead"
+    ],
+    "immune": [
+      "poison"
+    ],
+    "conditionImmune": [
+      "poisoned"
+    ]
+  },
+  "ghast": {
+    "name": "Ghast",
+    "type": "undead",
+    "size": "medium",
+    "sprite": "ghost",
+    "cr": "2",
+    "xp": 450,
+    "ac": 13,
+    "hp": 36,
+    "hpDice": "8d8",
+    "speed": 6,
+    "initBonus": 3,
+    "saves": {
+      "str": 3,
+      "dex": 3,
+      "con": 0,
+      "int": 0,
+      "wis": 2,
+      "cha": -1
+    },
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 5,
+        "damage": [
+          "1d8+3",
+          "2d8"
+        ],
+        "types": [
+          "piercing",
+          "necrotic"
+        ]
+      },
+      {
+        "name": "Claw",
+        "bonus": 5,
+        "damage": [
+          "2d6+3"
+        ],
+        "types": [
+          "slashing"
+        ],
+        "onHit": {
+          "condition": "paralyzed",
+          "save": "con",
+          "dc": 10,
+          "notTypes": [
+            "undead"
+          ]
+        }
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "dark",
+      "undead"
+    ],
+    "abilities": [
+      {
+        "kind": "aura",
+        "name": "Stench",
+        "range": 5,
+        "save": "con",
+        "dc": 10,
+        "condition": "poisoned",
+        "immuneOnSave": true
+      }
+    ],
+    "resist": [
+      "necrotic"
+    ],
+    "immune": [
+      "poison"
+    ],
+    "conditionImmune": [
+      "poisoned"
+    ]
+  },
+  "ogre": {
+    "name": "Ogre",
+    "type": "giant",
+    "size": "large",
+    "sprite": "cyclops",
+    "cr": "2",
+    "xp": 450,
+    "ac": 11,
+    "hp": 68,
+    "hpDice": "8d10+24",
+    "speed": 8,
+    "initBonus": -1,
+    "saves": {
+      "str": 4,
+      "dex": -1,
+      "con": 3,
+      "int": -3,
+      "wis": -2,
+      "cha": -2
+    },
+    "actions": [
+      {
+        "name": "Greatclub",
+        "bonus": 6,
+        "damage": [
+          "2d8+4"
+        ],
+        "types": [
+          "bludgeoning"
+        ]
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "wilds",
+      "giant"
+    ]
+  },
+  "ankheg": {
+    "name": "Ankheg",
+    "type": "monstrosity",
+    "size": "large",
+    "sprite": "slime",
+    "cr": "2",
+    "xp": 450,
+    "ac": 14,
+    "hp": 45,
+    "hpDice": "6d10+12",
+    "speed": 6,
+    "initBonus": 0,
+    "saves": {
+      "str": 3,
+      "dex": 0,
+      "con": 2,
+      "int": -5,
+      "wis": 1,
+      "cha": -2
+    },
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 5,
+        "damage": [
+          "2d6+3",
+          "1d6"
+        ],
+        "types": [
+          "slashing",
+          "acid"
+        ],
+        "onHit": {
+          "condition": "grappled",
+          "escapeDc": 13,
+          "maxSize": "large"
+        },
+        "advantageVsGrappled": true
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "wilds"
+    ],
+    "abilities": [
+      {
+        "kind": "recharge-area",
+        "name": "Acid Spray",
+        "recharge": 6,
+        "save": "dex",
+        "dc": 12,
+        "damage": "4d6",
+        "type": "acid",
+        "half": true,
+        "area": {
+          "shape": "line",
+          "size": 30
+        }
+      },
+      {
+        "kind": "tunneler",
+        "name": "Tunneler",
+        "planned": true
+      }
+    ]
+  },
+  "wolf": {
+    "name": "Wolf",
+    "type": "beast",
+    "size": "medium",
+    "sprite": "wolf",
+    "cr": "1/4",
+    "xp": 50,
+    "ac": 12,
+    "hp": 11,
+    "hpDice": "2d8+2",
+    "speed": 8,
+    "initBonus": 2,
+    "saves": {
+      "str": 2,
+      "dex": 2,
+      "con": 1,
+      "int": -4,
+      "wis": 1,
+      "cha": -2
+    },
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 4,
+        "damage": [
+          "1d6+2"
+        ],
+        "types": [
+          "piercing"
+        ],
+        "onHit": {
+          "condition": "prone",
+          "maxSize": "medium"
+        }
+      }
+    ],
+    "traits": [
+      "pack-tactics"
+    ],
+    "tags": [
+      "wilds",
+      "beast"
+    ],
+    "morale": 0.25
+  },
+  "dire-wolf": {
+    "name": "Dire Wolf",
+    "type": "beast",
+    "size": "large",
+    "sprite": "wolf",
+    "cr": "1",
+    "xp": 200,
+    "ac": 14,
+    "hp": 22,
+    "hpDice": "3d10+6",
+    "speed": 10,
+    "initBonus": 2,
+    "saves": {
+      "str": 3,
+      "dex": 2,
+      "con": 2,
+      "int": -4,
+      "wis": 1,
+      "cha": -2
+    },
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 5,
+        "damage": [
+          "1d10+3"
+        ],
+        "types": [
+          "piercing"
+        ],
+        "onHit": {
+          "condition": "prone",
+          "maxSize": "large"
+        }
+      }
+    ],
+    "traits": [
+      "pack-tactics"
+    ],
+    "tags": [
+      "wilds",
+      "beast"
+    ],
+    "morale": 0.25
+  },
+  "worg": {
+    "name": "Worg",
+    "type": "fey",
+    "size": "large",
+    "sprite": "wolf",
+    "cr": "1/2",
+    "xp": 100,
+    "ac": 13,
+    "hp": 26,
+    "hpDice": "4d10+4",
+    "speed": 10,
+    "initBonus": 1,
+    "saves": {
+      "str": 3,
+      "dex": 1,
+      "con": 1,
+      "int": -2,
+      "wis": 0,
+      "cha": -1
+    },
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 5,
+        "damage": [
+          "1d8+3"
+        ],
+        "types": [
+          "piercing"
+        ],
+        "onHit": {
+          "condition": "guided"
+        }
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "wilds"
+    ],
+    "morale": 0.25
+  },
+  "basilisk": {
+    "name": "Basilisk",
+    "type": "monstrosity",
+    "size": "medium",
+    "sprite": "slime",
+    "cr": "3",
+    "xp": 700,
+    "ac": 15,
+    "hp": 52,
+    "hpDice": "8d8+16",
+    "speed": 4,
+    "initBonus": -1,
+    "saves": {
+      "str": 3,
+      "dex": -1,
+      "con": 2,
+      "int": -4,
+      "wis": -1,
+      "cha": -2
+    },
+    "actions": [
+      {
+        "name": "Bite",
+        "bonus": 5,
+        "damage": [
+          "2d6+3",
+          "2d6"
+        ],
+        "types": [
+          "piercing",
+          "poison"
+        ]
+      }
+    ],
+    "traits": [],
+    "tags": [
+      "dark",
+      "wilds"
+    ],
+    "abilities": [
+      {
+        "kind": "petrifying-gaze",
+        "name": "Petrifying Gaze",
+        "planned": true
+      }
+    ]
   }
 }

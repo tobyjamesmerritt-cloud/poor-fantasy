@@ -173,6 +173,22 @@
     "item-staff": {
       "sheet": "dungeon",
       "frame": 129
+    },
+    "brigand": {
+      "sheet": "dungeon",
+      "frame": 111
+    },
+    "goblinoid": {
+      "sheet": "dungeon",
+      "frame": 110
+    },
+    "undead": {
+      "sheet": "dungeon",
+      "frame": 124
+    },
+    "wolf": {
+      "sheet": "dungeon",
+      "frame": 123
     }
   },
   "floors": {

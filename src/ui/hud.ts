@@ -44,6 +44,7 @@ export interface ActiveCard {
   cunning?: boolean; // Rogue: Dash/Disengage as a Bonus Action
   weapons?: { ref: string; name: string; detail: string; available: boolean }[]; // weapons to switch to (DND-24)
   objectUsed?: boolean; // free object interaction spent this turn
+  grappled?: { by: string; dc: number }; // held by a monster: Break free is an action
   features?: { id: 'second-wind' | 'action-surge' | 'lay-on-hands'; name: string; left: number; reason?: string; summary: string; targets?: { id: string; name: string; missing: number }[] }[];
 }
 
@@ -330,6 +331,17 @@ export class Hud {
       mk('Dash', 'dash', 'Action: move up to your Speed again this turn', 3),
       mk('Dodge', 'dodge', 'Action: attacks against you have disadvantage until your next turn (and advantage on Dexterity saves)', 1),
       mk('Disengage', 'disengage', 'Action: moving away from enemies won’t provoke opportunity attacks this turn', 6),
+      ...(card.grappled
+        ? [
+            (() => {
+              const b = el('button', 'break-free', `Break free (DC ${card.grappled.dc})`) as HTMLButtonElement;
+              b.title = `Action: Strength (Athletics) or Dexterity (Acrobatics) against DC ${card.grappled.dc} to escape ${card.grappled.by}'s grapple`;
+              b.disabled = card.actionUsed || (card.attacks?.made ?? 0) > 0;
+              b.addEventListener('click', () => this.bus.dispatch({ type: 'combatAction', action: 'escape' }));
+              return b;
+            })(),
+          ]
+        : []),
     );
   }
 

@@ -98,6 +98,9 @@ const EFFECT_NAMES: Record<EffectKind, string> = {
   restrained: 'Restrained',
   heroism: 'Heroism',
   'magic-weapon': 'Magic Weapon',
+  paralyzed: 'Paralyzed',
+  prone: 'Prone',
+  grappled: 'Grappled',
 };
 
 /** One side of a grid square on the edge of the movement range: from (x1,y1) to (x2,y2) in pixels. */
@@ -320,6 +323,10 @@ export class CombatScene extends Phaser.Scene {
               available: w.available,
             })),
             objectUsed: !!this.state.objectUsed,
+            ...(() => {
+              const g = u.effects?.find((e) => e.kind === 'grappled');
+              return g ? { grappled: { by: this.state.units.find((o) => o.id === g.owner)?.name ?? 'something', dc: g.dc ?? 10 } } : {};
+            })(),
           }
         : {}),
       ...(c
@@ -438,7 +445,7 @@ export class CombatScene extends Phaser.Scene {
         usePotion(this.state, this.rng, cmd.targetId);
         break;
       case 'combatAction':
-        if (activeUnit(this.state).side === 'party') takeAction(this.state, cmd.action, !!cmd.bonus);
+        if (activeUnit(this.state).side === 'party') takeAction(this.state, cmd.action, !!cmd.bonus, this.rng);
         break;
       case 'swapWeapon':
         swapWeapon(this.state, cmd.ref);

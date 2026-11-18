@@ -273,6 +273,10 @@ main {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0.4rem;
 }
+.other-actions .break-free {
+  grid-column: 1 / -1;
+  border-color: var(--enemy);
+}
 #card #turn-buttons {
   margin: 0.1rem 0 0.2rem;
 }

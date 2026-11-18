@@ -97,14 +97,14 @@
     "club": {
       "name": "Club",
       "category": "simple",
-      "damage": "1d4",
+      "damage": "1d4", "type": "bludgeoning",
       "cost": 10,
       "light": true
     },
     "dagger": {
       "name": "Dagger",
       "category": "simple",
-      "damage": "1d4",
+      "damage": "1d4", "type": "piercing",
       "finesse": true,
       "light": true,
       "cost": 200
@@ -112,82 +112,82 @@
     "handaxe": {
       "name": "Handaxe",
       "category": "simple",
-      "damage": "1d6",
+      "damage": "1d6", "type": "slashing",
       "light": true,
       "cost": 500
     },
     "mace": {
       "name": "Mace",
       "category": "simple",
-      "damage": "1d6",
+      "damage": "1d6", "type": "bludgeoning",
       "cost": 500
     },
     "quarterstaff": {
       "name": "Quarterstaff",
       "category": "simple",
-      "damage": "1d6",
+      "damage": "1d6", "type": "bludgeoning",
       "cost": 20
     },
     "sickle": {
       "name": "Sickle",
       "category": "simple",
-      "damage": "1d4",
+      "damage": "1d4", "type": "slashing",
       "light": true,
       "cost": 100
     },
     "spear": {
       "name": "Spear",
       "category": "simple",
-      "damage": "1d6",
+      "damage": "1d6", "type": "piercing",
       "cost": 100
     },
     "battleaxe": {
       "name": "Battleaxe",
       "category": "martial",
-      "damage": "1d8",
+      "damage": "1d8", "type": "slashing",
       "cost": 1000
     },
     "flail": {
       "name": "Flail",
       "category": "martial",
-      "damage": "1d8",
+      "damage": "1d8", "type": "bludgeoning",
       "cost": 1000
     },
     "greataxe": {
       "name": "Greataxe",
       "category": "martial",
-      "damage": "1d12",
+      "damage": "1d12", "type": "slashing",
       "cost": 3000
     },
     "greatsword": {
       "name": "Greatsword",
       "category": "martial",
-      "damage": "2d6",
+      "damage": "2d6", "type": "slashing",
       "cost": 5000
     },
     "longsword": {
       "name": "Longsword",
       "category": "martial",
-      "damage": "1d8",
+      "damage": "1d8", "type": "slashing",
       "cost": 1500
     },
     "morningstar": {
       "name": "Morningstar",
       "category": "martial",
-      "damage": "1d8",
+      "damage": "1d8", "type": "piercing",
       "cost": 1500
     },
     "rapier": {
       "name": "Rapier",
       "category": "martial",
-      "damage": "1d8",
+      "damage": "1d8", "type": "piercing",
       "finesse": true,
       "cost": 2500
     },
     "scimitar": {
       "name": "Scimitar",
       "category": "martial",
-      "damage": "1d6",
+      "damage": "1d6", "type": "slashing",
       "finesse": true,
       "light": true,
       "cost": 2500
@@ -195,7 +195,7 @@
     "shortsword": {
       "name": "Shortsword",
       "category": "martial",
-      "damage": "1d6",
+      "damage": "1d6", "type": "piercing",
       "finesse": true,
       "light": true,
       "cost": 1000
@@ -203,7 +203,7 @@
     "warhammer": {
       "name": "Warhammer",
       "category": "martial",
-      "damage": "1d8",
+      "damage": "1d8", "type": "bludgeoning",
       "cost": 1500
     }
   },

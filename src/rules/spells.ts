@@ -767,7 +767,8 @@ function savingThrow(state: CombatState, rng: Rng, caster: Unit, target: Unit, a
   const bless = blessBonus(rng, target);
   // Dodge (SRD 5.2): Advantage on Dexterity saving throws
   const d20 = ability === 'dex' && hasEffect(target, 'dodging') ? Math.max(rng.int(1, 20), rng.int(1, 20)) : rng.int(1, 20);
-  const total = d20 + (target.saves?.[ability] ?? 0) + bless;
+  // Paralyzed (SRD 5.2): automatically fails Strength and Dexterity saving throws
+  const total = hasEffect(target, 'paralyzed') && (ability === 'str' || ability === 'dex') ? -99 : d20 + (target.saves?.[ability] ?? 0) + bless;
   const dc = caster.caster!.dc;
   const success = total >= dc;
   const what = `${target.name} ${success ? 'saves' : 'fails'} (${ability.toUpperCase()} ${total} vs DC ${dc}${bless ? `, bless +${bless}` : ''})`;

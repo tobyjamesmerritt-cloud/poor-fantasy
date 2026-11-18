@@ -69,6 +69,7 @@ export interface WeaponDef {
   category: 'simple' | 'martial';
   cost: number; // copper
   damage: string; // e.g. "1d8"
+  type?: string; // damage type: slashing | piercing | bludgeoning
   finesse?: boolean;
   light?: boolean;
 }
@@ -230,6 +231,7 @@ export interface DerivedStats {
   attackBonus: number;
   damage: string[];
   finesse: boolean; // the weapon in hand has Finesse (Sneak Attack)
+  damageType: string; // the weapon's damage type
   features: string[]; // class feature names up to this level
   medicine: number;
   hitDie: number;
@@ -326,6 +328,7 @@ export function deriveStats(sheet: CharacterSheet, data: CharacterData): Derived
     attackBonus: atkMod + (proficient ? pb : 0) + weapon.bonus,
     damage,
     finesse: !!weapon.finesse,
+    damageType: weapon.type ?? 'bludgeoning',
     features,
     medicine: mod('wis'),
     hitDie: cls.hitDie,

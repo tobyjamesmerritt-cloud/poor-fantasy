@@ -56,7 +56,11 @@ describe('encounters', () => {
 
   it('validates monster definitions', () => {
     const rat = monsters['giant-rat'];
-    expect(() => validateMonsters({ x: { ...rat, attack: { ...rat.attack, damage: ['d'] } } })).toThrow(/bad dice/);
+    expect(() => validateMonsters({ x: { ...rat, actions: [{ ...rat.actions[0], damage: ['d'] }] } })).toThrow(/bad dice/);
+    expect(() => validateMonsters({ x: { ...rat, actions: [{ ...rat.actions[0], types: ['pointy'] }] } })).toThrow(/unknown damage type/);
+    expect(() => validateMonsters({ x: { ...rat, abilities: [{ kind: 'breath', name: 'Fire' } as never] } })).toThrow(/planned: true/);
+    expect(() => validateMonsters({ x: { ...rat, abilities: [{ kind: 'breath', name: 'Fire', planned: true }] } })).not.toThrow();
+    expect(() => validateMonsters({ x: { ...rat, tags: [] } })).toThrow(/needs tags/);
     expect(() => validateMonsters({ x: { ...rat, traits: ['flying'] } })).toThrow(/unknown trait/);
     expect(() => validateMonsters({ x: { ...rat, sprite: 'nope' } })).toThrow(/unknown sprite/);
   });

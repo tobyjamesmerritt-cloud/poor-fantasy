@@ -115,6 +115,8 @@ export interface PartyMemberDef {
   caster?: CasterInfo; // slots are full here; buildUnits applies what has been spent
   features?: CombatFeatures; // class features that work in combat (rules/features.ts)
   finesse: boolean; // weapon in hand has Finesse
+  damageType: string;
+  species: string;
   weaponRef: string; // gear ref of the weapon in hand
   weapons?: WeaponOption[]; // what they can switch to in a fight (membersForFight)
 }
@@ -159,6 +161,8 @@ export function memberOf(sheet: CharacterSheet): PartyMemberDef {
     attackBonus: d.attackBonus,
     damage: d.damage,
     finesse: d.finesse,
+    damageType: d.damageType,
+    species: sheet.speciesId,
     weaponRef: `weapon:${equipped(sheet, characterData).weapon}`,
     medicine: d.medicine,
     hitDie: d.hitDie,
@@ -185,7 +189,7 @@ export function membersForFight(roster: readonly CharacterSheet[], inventory: Re
     const m = memberOf(sheet);
     const option = (ref: string, fromPack: boolean): WeaponOption => {
       const d = derive({ ...sheet, gear: { ...equipped(sheet, characterData), weapon: ref.slice(7) } });
-      return { ref, name: d.attackName, attackBonus: d.attackBonus, damage: d.damage, finesse: d.finesse, fromPack };
+      return { ref, name: d.attackName, attackBonus: d.attackBonus, damage: d.damage, finesse: d.finesse, damageType: d.damageType, fromPack };
     };
     const weapons = [option(m.weaponRef, false), ...spare.filter((r) => r !== m.weaponRef).map((r) => option(r, true))];
     return weapons.length > 1 ? { ...m, weapons } : m;

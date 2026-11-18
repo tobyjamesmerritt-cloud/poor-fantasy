@@ -10,7 +10,7 @@ import { usesLeft } from '../rules/features';
 import type { Difficulty, FightTweaks } from '../rules/quests';
 import { fightBudget, fillerCount, fillerSquares, XP_BUDGET } from '../rules/scaling';
 import type { PartyMemberState } from '../engine/state';
-import type { Trait, Unit } from '../rules/combat';
+import { ABILITY_KINDS, type MonsterAbility, type MonsterAction, type Trait, type Unit } from '../rules/combat';
 import type { MemberStats } from '../rules/party';
 import { membersOf, type PartyMemberDef, pregens, statsOf } from './characters';
 
@@ -31,6 +31,11 @@ import wildSpiders from './encounters/wild-spiders.json';
 import locationsRaw from './locations.json';
 import monstersRaw from './monsters.json';
 
+const DAMAGE_TYPES = ['acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder'];
+const CONDITIONS = ['paralyzed', 'prone', 'grappled', 'poisoned', 'guided', 'restrained', 'blinded', 'charmed', 'frightened', 'exhaustion'];
+const SIZE_NAMES = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
+const ABILITIES6 = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+
 export interface MonsterDef {
   name: string;
   sprite: string;
@@ -42,8 +47,13 @@ export interface MonsterDef {
   speed: number;
   initBonus: number;
   saves: Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>>; // saving throw bonuses
-  attack: { name: string; bonus: number; damage: string[] };
-  multiattack?: number; // attacks per Attack action (default 1)
+  actions: MonsterAction[]; // melee attacks (multi = Multiattack count, onHit = rider) — DND-75
+  abilities?: MonsterAbility[]; // recharge-area, aura, parry, undead-fortitude; other kinds { planned: true } don't fire yet
+  resist?: string[];
+  immune?: string[];
+  vulnerable?: string[];
+  conditionImmune?: string[];
+  tags: string[]; // where it turns up (wilds, dark, urban, undead…) — picking monsters by tag + CR (DND-73)
   regeneration?: number; // HP regained at the start of each turn (stopped for a turn by acid or fire)
   traits: string[];
   type?: string; // SRD creature type: beast, giant, undead, fiend… (Divine Smite)
@@ -131,18 +141,66 @@ export function validateMonsters(defs: Record<string, MonsterDef>): Record<strin
     for (const k of ['xp', 'ac', 'hp', 'speed'] as const) {
       if (!Number.isFinite(m[k]) || m[k] <= 0) errors.push(`${where}: ${k} must be positive`);
     }
-    for (const d of [m.hpDice, ...m.attack.damage]) {
+    const dice = [m.hpDice, ...(m.actions ?? []).flatMap((a) => [...a.damage, ...(a.bonusIfAdvantage ? [a.bonusIfAdvantage] : [])])];
+    for (const a of m.abilities ?? []) if (a.kind === 'recharge-area') dice.push((a as { damage: string }).damage);
+    for (const d of dice) {
       try {
         parseDice(d);
       } catch {
         errors.push(`${where}: bad dice "${d}"`);
       }
     }
+    errors.push(...checkMonsterAbilities(where, m));
     for (const t of m.traits) if (!KNOWN_TRAITS.includes(t)) errors.push(`${where}: unknown trait "${t}"`);
     if (!m.saves || ['str', 'dex', 'con', 'int', 'wis', 'cha'].some((a) => !Number.isInteger(m.saves[a as 'str']))) errors.push(`${where}: saves needs all six abilities`);
   }
   if (errors.length) throw new Error('Invalid monsters.json:\n- ' + errors.join('\n- '));
   return defs;
+}
+
+
+/** Actions and abilities (DND-75): known kinds must be complete; anything else must say `planned: true`. */
+function checkMonsterAbilities(where: string, m: MonsterDef): string[] {
+  const e: string[] = [];
+  if (!Array.isArray(m.actions) || !m.actions.length) e.push(`${where}: needs at least one action`);
+  for (const a of m.actions ?? []) {
+    const w = `${where} action "${a.name}"`;
+    if (!Number.isInteger(a.bonus)) e.push(`${w}: bonus must be a whole number`);
+    if (!Array.isArray(a.types) || a.types.length !== a.damage.length) e.push(`${w}: one damage type per damage part`);
+    for (const t of a.types ?? []) if (!DAMAGE_TYPES.includes(t)) e.push(`${w}: unknown damage type "${t}"`);
+    if (a.multi !== undefined && !(Number.isInteger(a.multi) && a.multi >= 1)) e.push(`${w}: multi must be 1 or more`);
+    const h = a.onHit;
+    if (h) {
+      if (!['paralyzed', 'prone', 'grappled', 'poisoned', 'guided'].includes(h.condition)) e.push(`${w}: unknown onHit condition "${h.condition}"`);
+      if ((h.save && !h.dc) || (h.dc && !h.save)) e.push(`${w}: onHit save needs both save and dc`);
+      if (h.save && !ABILITIES6.includes(h.save)) e.push(`${w}: unknown save "${h.save}"`);
+      if (h.maxSize && !SIZE_NAMES.includes(h.maxSize)) e.push(`${w}: unknown size "${h.maxSize}"`);
+    }
+  }
+  for (const a of m.abilities ?? []) {
+    const w = `${where} ability "${a.name ?? a.kind}"`;
+    if (!a.name) e.push(`${w}: needs a name`);
+    if (!(ABILITY_KINDS as readonly string[]).includes(a.kind)) {
+      if (!(a as { planned?: boolean }).planned) e.push(`${w}: unknown kind "${a.kind}" (add planned: true to keep it as data until it is built)`);
+      continue;
+    }
+    const x = a as Record<string, unknown>;
+    if (a.kind === 'recharge-area') {
+      if (!(Number(x.recharge) >= 2 && Number(x.recharge) <= 6)) e.push(`${w}: recharge 2–6`);
+      if (!ABILITIES6.includes(String(x.save)) || !Number(x.dc) || !DAMAGE_TYPES.includes(String(x.type))) e.push(`${w}: needs save, dc and a damage type`);
+      const area = x.area as { shape?: string; size?: number } | undefined;
+      if (!area || !['line', 'cone', 'sphere'].includes(area.shape ?? '') || !(Number(area.size) > 0)) e.push(`${w}: area { shape: line|cone|sphere, size }`);
+    }
+    if (a.kind === 'aura' && (!ABILITIES6.includes(String(x.save)) || !Number(x.dc) || !['poisoned', 'prone'].includes(String(x.condition)) || !Number(x.range))) {
+      e.push(`${w}: aura needs range, save, dc and condition (poisoned|prone)`);
+    }
+    if (a.kind === 'parry' && !Number(x.ac)) e.push(`${w}: parry needs ac`);
+  }
+  for (const k of ['resist', 'immune', 'vulnerable'] as const) for (const t of m[k] ?? []) if (!DAMAGE_TYPES.includes(t)) e.push(`${where}: ${k} has unknown type "${t}"`);
+  for (const c of m.conditionImmune ?? []) if (!CONDITIONS.includes(c)) e.push(`${where}: unknown condition "${c}"`);
+  if (m.size && !SIZE_NAMES.includes(m.size)) e.push(`${where}: unknown size "${m.size}"`);
+  if (!Array.isArray(m.tags) || !m.tags.length) e.push(`${where}: needs tags (where it turns up)`);
+  return e;
 }
 
 export function encounterXp(e: EncounterDef): number {
@@ -250,12 +308,19 @@ export function buildUnits(
       ...(m.type ? { creatureType: m.type } : {}),
       ...(m.size ? { size: m.size } : {}),
       ...(m.morale ? { morale: m.morale } : {}),
-      attackName: m.attack.name,
-      attackBonus: m.attack.bonus,
-      damage: m.attack.damage,
+      attackName: m.actions[0].name,
+      attackBonus: m.actions[0].bonus,
+      damage: m.actions[0].damage,
+      damageType: m.actions[0].types[0],
+      actions: structuredClone(m.actions),
+      ...(m.abilities?.length ? { abilities: structuredClone(m.abilities) } : {}),
+      ...(m.resist?.length ? { resist: m.resist } : {}),
+      ...(m.immune?.length ? { immune: m.immune } : {}),
+      ...(m.vulnerable?.length ? { vulnerable: m.vulnerable } : {}),
+      ...(m.conditionImmune?.length ? { conditionImmune: m.conditionImmune } : {}),
       traits: m.traits as Trait[],
       monster: en.monster,
-      ...(m.multiattack ? { attacks: m.multiattack } : {}),
+      ...(m.actions[0].multi ? { attacks: m.actions[0].multi } : {}),
       ...(m.regeneration ? { regeneration: m.regeneration } : {}),
       ...(tweaks[en.monster]?.fumble ? { fumble: tweaks[en.monster].fumble } : {}),
       xp: m.xp,

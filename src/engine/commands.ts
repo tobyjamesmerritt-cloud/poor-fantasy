@@ -14,7 +14,7 @@ export type Command =
   | { type: 'step'; dir: 'forward' | 'back' | 'left' | 'right' } // inside a location, keeps facing
   | { type: 'attack'; targetId: string }
   | { type: 'endTurn' }
-  | { type: 'combatAction'; action: 'dash' | 'dodge' | 'disengage'; bonus?: boolean } // combat: SRD 5.2 actions besides Attack (bonus: Cunning Action)
+  | { type: 'combatAction'; action: 'dash' | 'dodge' | 'disengage' | 'escape'; bonus?: boolean } // combat: SRD 5.2 actions besides Attack (bonus: Cunning Action)
   | { type: 'openJournal' } // quest journal (J)
   | { type: 'openDebug' } // debug console (About dialog), backtick
   | { type: 'swapWeapon'; ref: string } // combat: draw another weapon (free object interaction)
