@@ -15,6 +15,7 @@ export type Command =
   | { type: 'attack'; targetId: string }
   | { type: 'endTurn' }
   | { type: 'combatAction'; action: 'dash' | 'dodge' | 'disengage'; bonus?: boolean } // combat: SRD 5.2 actions besides Attack (bonus: Cunning Action)
+  | { type: 'openJournal' } // quest journal (J)
   | { type: 'openDebug' } // debug console (About dialog), backtick
   | { type: 'swapWeapon'; ref: string } // combat: draw another weapon (free object interaction)
   | { type: 'useFeature'; feature: 'second-wind' | 'action-surge' | 'lay-on-hands'; targetId?: string } // combat: class features

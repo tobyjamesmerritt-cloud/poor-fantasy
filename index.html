@@ -13,10 +13,10 @@
           <button class="menu-btn">Game</button>
           <div class="menu-panel">
             <button id="menu-new-game">New game…</button>
-            <button data-command='{"type":"openParty"}'>Party…</button>
+            <button data-command='{"type":"openParty"}' title="P"><u>P</u>arty…</button>
             <button data-command='{"type":"partyScreen"}'>Party roster…</button>
-            <button data-command='{"type":"openPack"}'>Pack…</button>
-            <button id="menu-journal">Quest journal…</button>
+            <button data-command='{"type":"openPack"}' title="K">Pac<u>k</u>…</button>
+            <button id="menu-journal" title="J">Quest <u>j</u>ournal…</button>
             <hr />
             <button data-command='{"type":"worldMap"}'>World map</button>
             <button data-command='{"type":"newFight"}'>New test fight</button>
@@ -68,9 +68,9 @@
       <aside id="left">
         <section id="card" aria-live="polite"></section>
         <div id="turn-buttons">
-          <button data-command='{"type":"endTurn"}'>End turn</button>
-          <button data-command='{"type":"undo"}' title="Backspace or U">⟲ Rewind</button>
-          <button id="flee-btn" data-command='{"type":"flee"}' title="F, or step off the map edge">⇥ Flee</button>
+          <button data-command='{"type":"endTurn"}' title="Space">End turn <small>␣</small></button>
+          <button data-command='{"type":"undo"}' title="Backspace or U">⟲ Rewind <small>U</small></button>
+          <button id="flee-btn" data-command='{"type":"flee"}' title="F, or step off the map edge">⇥ <u>F</u>lee</button>
         </div>
         <ol id="turn-order" aria-label="Turn order" hidden></ol>
       </aside>
@@ -120,6 +120,7 @@
         <li>W / ↑ forward, S / ↓ back, A / ← turn left, D / → turn right, Q / E step sideways.</li>
         <li>Or click a square on the map to walk there. The buttons on the right do the same on touch screens.</li>
         <li>Walk onto a door to visit a building; walk onto the exit to leave.</li>
+        <li>Underlined letters are hotkeys: P party, K pack, J journal, N encamp, L leave. ` (backtick) opens the debug console.</li>
       </ul>
       <h3>Resting</h3>
       <ul>

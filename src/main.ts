@@ -841,6 +841,9 @@ bus.subscribe((cmd) => {
       partyDialog.refresh();
       break;
     }
+    case 'openJournal':
+      journal.show(gameState);
+      break;
     case 'openDebug': {
       // backtick: the About dialog with the debug console focused (DND-83)
       const about = document.getElementById('about') as HTMLDialogElement | null;

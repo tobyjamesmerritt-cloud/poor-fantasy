@@ -40,8 +40,25 @@ const KEY_MAP: Record<string, Command> = {
   Escape: { type: 'cancel' },
 };
 
+/**
+ * Keys that only mean something on some screens (body[data-mode]) — the
+ * underlined letter on that screen's buttons, Gold Box style (DND-82).
+ */
+const SCREEN_KEYS: Record<string, { modes: readonly string[]; command: Command }> = {
+  KeyN: { modes: ['location', 'world'], command: { type: 'encamp' } }, // e[N]camp
+  KeyL: { modes: ['location'], command: { type: 'leaveLocation' } }, // [L]eave
+  KeyP: { modes: ['location', 'world', 'camp'], command: { type: 'openParty' } }, // [P]arty
+  KeyK: { modes: ['location', 'world', 'camp'], command: { type: 'openPack' } }, // pac[K]
+  KeyJ: { modes: ['location', 'world', 'camp'], command: { type: 'openJournal' } }, // [J]ournal
+};
+
 export function commandForKey(code: string): Command | undefined {
   // A dialog (conversation, pack, journal, menu…) has the player's attention: the game behind it ignores keys.
   if (typeof document !== 'undefined' && document.querySelector('dialog[open]')) return undefined;
+  const screen = SCREEN_KEYS[code];
+  if (screen) {
+    const mode = typeof document !== 'undefined' ? document.body.dataset.mode ?? '' : '';
+    return screen.modes.includes(mode) ? screen.command : undefined;
+  }
   return KEY_MAP[code];
 }

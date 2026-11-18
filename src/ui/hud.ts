@@ -426,9 +426,9 @@ export class Hud {
    * position and clock, and on-screen movement buttons (touch).
    */
   setExplore(panel: ExplorePanel): void {
-    const btn = (label: string, title: string, command?: Command) => {
-      const b = el('button', '', label) as HTMLButtonElement;
-      b.title = title;
+    const btn = (label: string, title: string, command?: Command, key?: string) => {
+      const b = el('button', '', ...(key ? hotkeyLabel(label, key) : [label])) as HTMLButtonElement;
+      b.title = key ? `${title} (${key.toUpperCase()})` : title;
       if (command) b.addEventListener('click', () => this.bus.dispatch(command));
       else b.disabled = true;
       return b;
@@ -451,8 +451,8 @@ export class Hud {
         'div',
         'explore-actions',
         btn('Search', 'coming later'),
-        btn('Encamp', 'Make camp here (not in towns — use the inn)', { type: 'encamp' }),
-        btn('Leave', 'Back to the world map', { type: 'leaveLocation' }),
+        btn('Encamp', 'Make camp here (not in towns — use the inn)', { type: 'encamp' }, 'n'),
+        btn('Leave', 'Back to the world map', { type: 'leaveLocation' }, 'l'),
       ),
     );
   }
@@ -511,8 +511,8 @@ export class Hud {
   setRoster(entries: readonly RosterEntry[], footer?: { purse: string; clock: string; encamp: Command }, partyName?: string): void {
     const extra: HTMLElement[] = [];
     if (footer) {
-      const camp = el('button', '', 'Encamp') as HTMLButtonElement;
-      camp.title = 'Make camp here — off the road, not on bridges or at towns';
+      const camp = el('button', '', ...hotkeyLabel('Encamp', 'n')) as HTMLButtonElement;
+      camp.title = 'Make camp here — off the road, not on bridges or at towns (N)';
       camp.addEventListener('click', () => this.bus.dispatch(footer.encamp));
       extra.push(el('div', 'explore-where', el('span', '', footer.clock), el('span', 'purse', footer.purse)), el('div', 'explore-actions', camp));
     }
@@ -562,9 +562,15 @@ function nameButton(name: string, id: string, bus: CommandBus): HTMLElement {
 }
 
 /** The party as the world map shows it: portrait, name (class), HP and a bar — the same in every panel. */
+/** A button label with its hotkey letter underlined (first match, any case); unchanged if the letter isn't in it. */
+function hotkeyLabel(text: string, key: string): (Node | string)[] {
+  const i = text.toLowerCase().indexOf(key.toLowerCase());
+  return i < 0 ? [text] : [text.slice(0, i), el('u', '', text[i]), text.slice(i + 1)];
+}
+
 function rosterList(entries: readonly RosterEntry[], bus: CommandBus, partyName?: string): HTMLElement {
-  const head = el('button', 'roster-head', `${partyName || 'Party'} ▸`) as HTMLButtonElement;
-  head.title = 'The party: levels, spells, pack and each character’s sheet';
+  const head = el('button', 'roster-head', ...hotkeyLabel(`${partyName || 'Party'} ▸`, 'p')) as HTMLButtonElement;
+  head.title = 'The party: levels, spells, pack and each character’s sheet (P)';
   head.addEventListener('click', () => bus.dispatch({ type: 'openParty' }));
   return el(
     'div',
