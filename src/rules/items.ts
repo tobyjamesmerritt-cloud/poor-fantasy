@@ -2,8 +2,9 @@
  * Items, the party pack, buying, selling and equipping (SRD 5.2 Equipment).
  * An item reference is "armor:<id>", "weapon:<id>" (magic: "weapon:<id>+1"),
  * "shield", "consumable:<id>", "scroll:<spell id>" (Spell Scroll) or
- * "misc:<id>" (quest items). Equipment sells for half its cost (SRD 5.2
- * "Selling Equipment"); quest items can't be sold.
+ * "misc:<id>" (quest items) or "valuable:<id>" (gems, art objects). Equipment
+ * sells for half its cost, valuables for their full value (SRD 5.2 "Selling
+ * Equipment"); quest items can't be sold.
  */
 import { roll } from '../engine/dice';
 import type { Rng } from '../engine/rng';
@@ -16,7 +17,7 @@ const SCROLL_VALUE = [3000, 5000, 20000, 30000];
 export type ItemRef = string;
 export type Inventory = Record<ItemRef, number>;
 
-export type ItemKind = 'armor' | 'weapon' | 'shield' | 'consumable' | 'scroll' | 'misc';
+export type ItemKind = 'armor' | 'weapon' | 'shield' | 'consumable' | 'scroll' | 'misc' | 'valuable';
 
 export function itemInfo(ref: ItemRef, data: CharacterData): { name: string; cost: number; kind: ItemKind } | null {
   if (ref === 'shield') return { name: data.shield.name, cost: data.shield.cost, kind: 'shield' };
@@ -30,11 +31,16 @@ export function itemInfo(ref: ItemRef, data: CharacterData): { name: string; cos
     : kind === 'weapon' ? weaponDef(data, id)
     : kind === 'consumable' ? data.consumables[id]
     : kind === 'misc' ? data.misc[id]
+    : kind === 'valuable' ? data.valuables[id]
     : undefined;
   return def ? { name: def.name, cost: def.cost, kind } : null;
 }
 
-export const sellPrice = (ref: ItemRef, data: CharacterData): number => Math.floor((itemInfo(ref, data)?.cost ?? 0) / 2);
+/** Equipment sells for half its cost; gems and art objects keep their full value (SRD 5.2 "Selling Equipment"). */
+export const sellPrice = (ref: ItemRef, data: CharacterData): number => {
+  const cost = itemInfo(ref, data)?.cost ?? 0;
+  return ref.startsWith('valuable:') ? cost : Math.floor(cost / 2);
+};
 
 /** Quest items stay with the party. */
 export const canSell = (ref: ItemRef): boolean => !ref.startsWith('misc:');

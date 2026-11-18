@@ -1,5 +1,5 @@
 {
-  "_note": "Stat blocks from SRD 5.2.1 (CC-BY-4.0), numbers as printed; names and summaries ours. Speeds in 5-ft squares (flying treated as walking). hp = fixed average; saves = the stat block's Save column. actions = melee attacks with a damage type per part (multi = Multiattack count; onHit = rider: condition, optional save/dc, escapeDc for grapples, maxSize, notTypes). abilities: kinds the engine runs = recharge-area, aura, parry, undead-fortitude; anything else is listed with planned: true and doesn't fire yet. Ranged attacks (bows, crossbows, javelins) are left out until ranged monsters exist. tags = where it turns up (wilds, dark, urban, undead…), used to pick monsters by tag + CR. Sprites are placeholders until monster art (DND-59).",
+  "_note": "Stat blocks from SRD 5.2.1 (CC-BY-4.0), numbers as printed; names and summaries ours. Speeds in 5-ft squares (flying treated as walking). hp = fixed average; saves = the stat block's Save column. actions = melee attacks with a damage type per part (multi = Multiattack count; onHit = rider: condition, optional save/dc, escapeDc for grapples, maxSize, notTypes). abilities: kinds the engine runs = recharge-area, aura, parry, undead-fortitude; anything else is listed with planned: true and doesn't fire yet. Ranged attacks (bows, crossbows, javelins) are left out until ranged monsters exist. tags = where it turns up (wilds, dark, urban, undead…), used to pick monsters by tag + CR. treasure = loot table (loot.json) rolled when it is slain; beasts and the mindless dead carry none. Sprites are placeholders until monster art (DND-59).",
   "giant-rat": {
     "name": "Giant Rat",
     "type": "beast",
@@ -257,7 +257,8 @@
       "wilds",
       "humanoid"
     ],
-    "morale": 0.5
+    "morale": 0.5,
+    "treasure": "bandit-pouch"
   },
   "bandit-captain": {
     "name": "Bandit Captain",
@@ -304,7 +305,8 @@
         "name": "Parry",
         "ac": 2
       }
-    ]
+    ],
+    "treasure": "bandit-captain"
   },
   "cultist": {
     "name": "Cultist",
@@ -345,7 +347,8 @@
       "dark",
       "urban",
       "humanoid"
-    ]
+    ],
+    "treasure": "cultist-purse"
   },
   "goblin-warrior": {
     "name": "Goblin Warrior",
@@ -393,7 +396,8 @@
         "planned": true
       }
     ],
-    "morale": 0.5
+    "morale": 0.5,
+    "treasure": "goblin-pouch"
   },
   "hobgoblin-warrior": {
     "name": "Hobgoblin Warrior",
@@ -433,7 +437,8 @@
     "tags": [
       "wilds",
       "goblinoid"
-    ]
+    ],
+    "treasure": "goblin-pouch"
   },
   "bugbear-warrior": {
     "name": "Bugbear Warrior",
@@ -495,7 +500,8 @@
         "name": "Abduct",
         "planned": true
       }
-    ]
+    ],
+    "treasure": "goblin-pouch"
   },
   "gnoll-warrior": {
     "name": "Gnoll Warrior",
@@ -539,7 +545,8 @@
         "name": "Rampage",
         "planned": true
       }
-    ]
+    ],
+    "treasure": "pocket-change"
   },
   "skeleton": {
     "name": "Skeleton",
@@ -818,7 +825,8 @@
     "tags": [
       "wilds",
       "giant"
-    ]
+    ],
+    "treasure": "ogre-sack"
   },
   "ankheg": {
     "name": "Ankheg",

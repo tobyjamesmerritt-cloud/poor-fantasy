@@ -219,6 +219,7 @@ export interface Unit {
   recharged?: Record<string, boolean>; // recharge abilities ready to use, by name
   auraImmune?: string[]; // ids of creatures whose aura it has shrugged off (Ghast Stench: 24 hours)
   routed?: boolean; // its nerve broke: it runs for the nearest edge
+  treasure?: string; // monsters: loot table rolled if it is slain (DND-74)
   size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan'; // monsters (missing = medium)
 }
 

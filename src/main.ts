@@ -23,7 +23,8 @@ import { buy, equip, itemInfo, sell, unequip, useItem } from './rules/items';
 import { loadSheetSizes, spriteCssFromSizes } from './game/spriteCss';
 import type { CombatState } from './rules/combat';
 import { afterCombat, afterDefeat, combatMinutes, formatCoins, freshParty, isConscious } from './rules/party';
-import { awardXp, takeTreasure } from './rules/rewards';
+import { awardXp, slainTreasure, takeTreasure } from './rules/rewards';
+import { describeHaul, rollTreasure } from './content/loot';
 import { canLevelUp, levelUp } from './rules/levelling';
 import { describeTreasure, treasure } from './content/treasure';
 import { addCharacter, benchMember, deleteCharacter, joinParty, restoreAll, useReadyMade } from './rules/roster';
@@ -447,6 +448,23 @@ function onFightEnd(state: CombatState): void {
     gameState.flags[`looted:${origin}`] = true;
     takeTreasure(gameState, treasure[origin]);
     notices.push(`You search the area and find: ${describeTreasure(treasure[origin])}.`);
+    const table = treasure[origin].table;
+    if (table) {
+      const haul = rollTreasure(table, exploreRng);
+      takeTreasure(gameState, haul);
+      notices.push(`Hidden away as well: ${describeHaul(haul)}.`);
+    }
+  }
+  // the fallen's purses (DND-74): each slain monster with a treasure table
+  const purses = slainTreasure(state).map((t) => rollTreasure(t, exploreRng));
+  if (purses.length) {
+    const all = { coins: 0, items: {} as Record<string, number> };
+    for (const h of purses) {
+      all.coins += h.coins;
+      for (const [ref, n] of Object.entries(h.items)) all.items[ref] = (all.items[ref] ?? 0) + n;
+    }
+    takeTreasure(gameState, all);
+    notices.push(`Searching the fallen: ${describeHaul(all)}.`);
   }
   for (const r of gameState.roster) {
     if (canLevelUp(r) && !couldLevel.has(r.id)) {

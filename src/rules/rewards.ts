@@ -17,6 +17,7 @@ export const XP_FOR_LEVEL: Record<number, number> = { 2: 300, 3: 900, 4: 2700, 5
 export interface Treasure {
   coins: number; // copper
   items: Inventory;
+  table?: string; // also roll this loot table (loot.json, DND-74)
 }
 
 export function awardXp(
@@ -42,4 +43,10 @@ export function takeTreasure(purse: { coins: number; inventory: Inventory }, t: 
 }
 
 /** Next level's XP, or null at the top of the table. */
+/** Loot tables of the monsters slain in a won fight (routed ones run off with their purses). */
+export function slainTreasure(combat: CombatState): string[] {
+  if (combat.outcome !== 'victory') return [];
+  return combat.units.filter((u) => u.side === 'enemy' && u.dead && u.treasure).map((u) => u.treasure!);
+}
+
 export const nextLevelXp = (level: number): number | null => XP_FOR_LEVEL[level + 1] ?? null;

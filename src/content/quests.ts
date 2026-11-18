@@ -22,7 +22,8 @@ export const questData: QuestData = strip<QuestData>(raw);
 const errors = validateQuests(questData, {
   encounters: Object.keys(encounters),
   locations: Object.keys(locationContent),
-  isItem: (ref) => (ref.startsWith('random:') ? lootKindOk(ref.slice(7), characterData) : !!itemInfo(ref, characterData)),
+  isItem: (ref) =>
+    ref.startsWith('random:table:') ? !!lootTables[ref.slice(13)] : ref.startsWith('random:') ? lootKindOk(ref.slice(7), characterData) : !!itemInfo(ref, characterData),
 });
 for (const h of questData.hooks) {
   const [loc] = h.at.split('/');
@@ -36,6 +37,7 @@ export const questContext = (rng: Rng): ActionContext => ({
   rng,
   data: questData,
   loot: (kind, r) => rollLoot(kind, r, characterData),
+  lootTable: (id, r) => rollTreasure(id, r),
   itemName,
 });
 
@@ -49,6 +51,7 @@ export function checkRoller(sheet: CharacterSheet, ability: Ability, skill?: str
 // Random encounters on the world map (rules/wandering.ts)
 import wanderingRaw from './wandering.json';
 import type { WanderingConfig } from '../rules/wandering';
+import { lootTables, rollTreasure } from './loot';
 
 export const wandering: WanderingConfig = strip<WanderingConfig>(wanderingRaw);
 {

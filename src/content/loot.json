@@ -1,0 +1,90 @@
+{
+  "_note": "Loot tables (DND-74, rules/loot.ts). coins = [min, max] copper (100 = 1 gp); rolls = how many entries to draw ([min, max] or a number, default 1); entries = weighted picks: an item ref, \"table:<id>\" (another table) or \"random:weapon+1\" / \"random:scroll:<class>:<level>\"; count = how many of it. Used by monsters (monsters.json \"treasure\", rolled when slain — beasts carry none), fixed treasure spots (treasure.json \"table\") and quests (\"give\": \"random:table:<id>\"). Table choices and coin amounts are house picks; item values are SRD 5.2.",
+  "tables": {
+    "pocket-change": {
+      "coins": [20, 300],
+      "rolls": [0, 1],
+      "entries": [
+        { "item": "valuable:copper-trinket", "weight": 3 },
+        { "item": "consumable:ale", "weight": 2 }
+      ]
+    },
+    "bandit-pouch": {
+      "coins": [100, 1000],
+      "rolls": [0, 1],
+      "entries": [
+        { "item": "valuable:copper-trinket", "weight": 3 },
+        { "item": "valuable:silver-ring", "weight": 1 },
+        { "item": "consumable:potion-of-healing", "weight": 1 }
+      ]
+    },
+    "bandit-captain": {
+      "coins": [2000, 6000],
+      "rolls": [1, 2],
+      "entries": [
+        { "item": "consumable:potion-of-healing", "weight": 3 },
+        { "item": "valuable:small-garnet", "weight": 3 },
+        { "item": "valuable:gold-locket", "weight": 2 },
+        { "item": "random:weapon+1", "weight": 1 }
+      ]
+    },
+    "cultist-purse": {
+      "coins": [50, 500],
+      "rolls": [0, 1],
+      "entries": [
+        { "item": "valuable:carved-bone-idol", "weight": 3 },
+        { "item": "random:scroll:cleric:1", "weight": 1 },
+        { "item": "consumable:potion-of-healing", "weight": 1 }
+      ]
+    },
+    "goblin-pouch": {
+      "coins": [10, 300],
+      "rolls": [0, 1],
+      "entries": [
+        { "item": "valuable:copper-trinket", "weight": 4 },
+        { "item": "valuable:small-garnet", "weight": 1 }
+      ]
+    },
+    "ogre-sack": {
+      "coins": [1000, 4000],
+      "rolls": [1, 2],
+      "entries": [
+        { "item": "valuable:small-garnet", "weight": 2 },
+        { "item": "valuable:gold-locket", "weight": 1 },
+        { "item": "consumable:potion-of-healing", "weight": 1 },
+        { "item": "weapon:greataxe", "weight": 1 }
+      ]
+    },
+    "magic-low": {
+      "rolls": 1,
+      "entries": [
+        { "item": "random:weapon+1", "weight": 2 },
+        { "item": "random:scroll:wizard:1", "weight": 2 },
+        { "item": "random:scroll:cleric:1", "weight": 2 },
+        { "item": "consumable:potion-of-healing-greater", "weight": 1 }
+      ]
+    },
+    "lair-low": {
+      "coins": [1000, 5000],
+      "rolls": [1, 3],
+      "entries": [
+        { "item": "consumable:potion-of-healing", "weight": 3 },
+        { "item": "valuable:small-garnet", "weight": 3 },
+        { "item": "valuable:silver-ring", "weight": 2 },
+        { "item": "valuable:gold-locket", "weight": 1 },
+        { "item": "table:magic-low", "weight": 1 }
+      ]
+    },
+    "crypt-offerings": {
+      "coins": [500, 3000],
+      "rolls": [1, 3],
+      "entries": [
+        { "item": "valuable:silver-ring", "weight": 2 },
+        { "item": "valuable:moonstone", "weight": 1 },
+        { "item": "valuable:carved-bone-idol", "weight": 2 },
+        { "item": "random:scroll:cleric:1", "weight": 1 },
+        { "item": "consumable:potion-of-healing-greater", "weight": 1 }
+      ]
+    }
+  }
+}

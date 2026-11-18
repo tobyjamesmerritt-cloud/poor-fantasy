@@ -46,6 +46,7 @@ export interface MonsterDef {
   traits: string[];
   type?: string; // SRD creature type: beast, giant, undead, fiend… (Divine Smite)
   morale?: number; // house rule: HP fraction at which it may break and flee (missing = fights to the death)
+  treasure?: string; // loot table (loot.json) rolled when it is slain (DND-74)
   size?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
 }
 
@@ -319,6 +320,7 @@ export function buildUnits(
       ...(m.type ? { creatureType: m.type } : {}),
       ...(m.size ? { size: m.size } : {}),
       ...(m.morale ? { morale: m.morale } : {}),
+      ...(m.treasure ? { treasure: m.treasure } : {}),
       attackName: m.actions[0].name,
       attackBonus: m.actions[0].bonus,
       damage: m.actions[0].damage,

@@ -2,6 +2,7 @@
 import { itemInfo } from '../rules/items';
 import type { Treasure } from '../rules/rewards';
 import { characterData } from './characters';
+import { lootTables } from './loot';
 import raw from './treasure.json';
 
 export const treasure: Record<string, Treasure> = (() => {
@@ -10,6 +11,7 @@ export const treasure: Record<string, Treasure> = (() => {
     for (const ref of Object.keys(t.items)) {
       if (!itemInfo(ref, characterData)) throw new Error(`treasure.json "${key}": unknown item "${ref}"`);
     }
+    if (t.table && !lootTables[t.table]) throw new Error(`treasure.json "${key}": unknown loot table "${t.table}"`);
   }
   return all;
 })();

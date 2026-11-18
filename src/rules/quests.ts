@@ -179,6 +179,8 @@ export interface ActionContext {
   data: QuestData;
   /** Turns "random:<kind>" into a concrete item ref; display name for log lines. */
   loot: (kind: string, rng: Rng) => string;
+  /** "random:table:<id>" — a whole loot table (coins and items). */
+  lootTable?: (id: string, rng: Rng) => { coins: number; items: Record<string, number> };
   itemName: (ref: string) => string;
 }
 
@@ -217,6 +219,17 @@ export function run(g: GameState, actions: readonly Action[] | undefined, ctx: A
       }
     } else if ('give' in a) {
       for (let i = 0; i < (a.count ?? 1); i++) {
+        if (a.give.startsWith('random:table:') && ctx.lootTable) {
+          // a whole loot table (DND-74): coins and items
+          const haul = ctx.lootTable(a.give.slice(13), ctx.rng);
+          g.coins += haul.coins;
+          if (haul.coins) out.log.push(`You get ${formatCp(haul.coins)}.`);
+          for (const [ref, n] of Object.entries(haul.items)) {
+            addItem(g, ref, n);
+            out.log.push(`You get: ${n > 1 ? `${n} × ` : ''}${ctx.itemName(ref)}.`);
+          }
+          continue;
+        }
         const ref = a.give.startsWith('random:') ? ctx.loot(a.give.slice(7), ctx.rng) : a.give;
         addItem(g, ref, 1);
         out.log.push(`You get: ${ctx.itemName(ref)}.`);

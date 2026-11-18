@@ -110,6 +110,7 @@ export interface CharacterData {
   weapons: Record<string, WeaponDef>;
   consumables: Record<string, ConsumableDef>;
   misc: Record<string, MiscDef>;
+  valuables: Record<string, MiscDef>; // gems and art objects: sold at full value (DND-74)
   spells: Spells;
 }
 

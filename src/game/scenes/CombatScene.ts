@@ -455,7 +455,7 @@ export class CombatScene extends Phaser.Scene {
         break;
       case 'debug':
         if (cmd.text.trim().toLowerCase() !== 'kill') return;
-        for (const u of this.state.units) if (u.side === 'enemy' && isUp(u)) u.hp = 0;
+        for (const u of this.state.units) if (u.side === 'enemy' && isUp(u)) Object.assign(u, { hp: 0, dead: true }); // slain, as a blow would (XP, loot)
         this.state.log.push('Debug: every enemy drops.');
         checkOutcome(this.state);
         break;

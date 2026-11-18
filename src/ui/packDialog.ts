@@ -20,13 +20,14 @@ export interface PackDialogDeps {
   spriteCss: (key: string) => SpriteCss | null;
 }
 
-type Tab = 'all' | 'potions' | 'scrolls' | 'weapons' | 'armour' | 'quest';
+type Tab = 'all' | 'potions' | 'scrolls' | 'weapons' | 'armour' | 'valuables' | 'quest';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'potions', label: 'Potions' },
   { id: 'scrolls', label: 'Scrolls' },
   { id: 'weapons', label: 'Weapons' },
   { id: 'armour', label: 'Armour' },
+  { id: 'valuables', label: 'Valuables' },
   { id: 'quest', label: 'Quest' },
 ];
 
@@ -100,7 +101,7 @@ export class PackDialog {
   private items(): Item[] {
     const g = this.game;
     const d = characterData;
-    const order: Item['tab'][] = ['potions', 'scrolls', 'weapons', 'armour', 'quest'];
+    const order: Item['tab'][] = ['potions', 'scrolls', 'weapons', 'armour', 'valuables', 'quest'];
     return Object.keys(g.inventory)
       .filter((r) => g.inventory[r] > 0)
       .map((ref): Item => {
@@ -129,6 +130,11 @@ export class PackDialog {
           return { ref, tab: 'armour', icon: 'item-armor', name, count, detail: a ? `AC ${a.base}${dex} · ${a.category}` : '' };
         }
         if (ref === 'shield') return { ref, tab: 'armour', icon: 'item-shield', name, count, detail: '+2 AC' };
+        if (kind === 'valuable') {
+          // gems and art objects: sell at a shop for their full value (SRD 5.2)
+          const v = d.valuables[id];
+          return { ref, tab: 'valuables', icon: 'item-chest', name, count, detail: `Worth ${formatCoins(v?.cost ?? 0)} · ${v?.description ?? ''}` };
+        }
         const desc = kind === 'misc' ? (d.misc[id]?.description ?? '') : '';
         return { ref, tab: 'quest', icon: 'item-chest', name, count, detail: desc || 'Quest item' };
       })

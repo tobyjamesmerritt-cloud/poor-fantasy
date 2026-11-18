@@ -1,5 +1,5 @@
 {
-  "_note": "SRD 5.2 equipment (Equipment chapter). cost in copper (100 cp = 1 gp). Weapons: category simple|martial; melee only for now (ranged weapons come with DND-13). Armor: category light|medium|heavy; dexMax null = full Dex. Selling = half cost. Ale (mug) 4 CP (SRD 5.2 Food, Drink, and Lodging); shop:false = not sold in ordinary shops. misc = quest items (no value, can't be sold). Magic weapons are 'weapon:<id>+1' (SRD Weapon +1: Uncommon, 400 GP + the weapon); spell scrolls 'scroll:<spell id>' (SRD value: twice the scribing cost — cantrip 30 GP, level 1 50 GP, level 2 200 GP, level 3 300 GP).",
+  "_note": "SRD 5.2 equipment (Equipment chapter). cost in copper (100 cp = 1 gp). Weapons: category simple|martial; melee only for now (ranged weapons come with DND-13). Armor: category light|medium|heavy; dexMax null = full Dex. Selling = half cost. Ale (mug) 4 CP (SRD 5.2 Food, Drink, and Lodging); shop:false = not sold in ordinary shops. misc = quest items (no value, can't be sold). valuables = gems and art objects (house picks and values): they sell for their full value (SRD 5.2 \"Selling Equipment\"). Potion of Greater Healing: SRD 5.2 Potions of Healing, Uncommon (400 GP, halved for a consumable = 200 GP), not sold in ordinary shops. Magic weapons are 'weapon:<id>+1' (SRD Weapon +1: Uncommon, 400 GP + the weapon); spell scrolls 'scroll:<spell id>' (SRD value: twice the scribing cost — cantrip 30 GP, level 1 50 GP, level 2 200 GP, level 3 300 GP).",
   "armor": {
     "padded": {
       "name": "Padded Armor",
@@ -213,12 +213,26 @@
       "heal": "2d4+2",
       "cost": 5000
     },
+    "potion-of-healing-greater": {
+      "name": "Potion of Greater Healing",
+      "heal": "4d4+4",
+      "cost": 20000,
+      "shop": false
+    },
     "ale": {
       "name": "Ale (mug)",
       "cost": 4,
       "drink": "Cool, bitter and very welcome.",
       "shop": false
     }
+  },
+  "valuables": {
+    "copper-trinket": { "name": "Copper trinket", "description": "A dented brass-and-copper charm.", "cost": 200 },
+    "carved-bone-idol": { "name": "Carved bone idol", "description": "A small, grim figure carved from bone.", "cost": 500 },
+    "silver-ring": { "name": "Silver ring", "description": "A plain silver band.", "cost": 1000 },
+    "small-garnet": { "name": "Small garnet", "description": "A dark red gemstone the size of a pea.", "cost": 1000 },
+    "gold-locket": { "name": "Gold locket", "description": "A gold locket on a fine chain; the portrait inside has faded.", "cost": 2500 },
+    "moonstone": { "name": "Polished moonstone", "description": "A milky gemstone with a blue sheen.", "cost": 5000 }
   },
   "misc": {
     "spigot-parts": {

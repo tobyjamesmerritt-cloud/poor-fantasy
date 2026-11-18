@@ -35,7 +35,7 @@ const strip = <T>(raw: unknown): T => {
 export { MAX_PARTY } from '../rules/roster';
 
 export const characterData: CharacterData = (() => {
-  const gear = strip<Pick<CharacterData, 'armor' | 'shield' | 'weapons' | 'consumables' | 'misc'>>(gearRaw);
+  const gear = strip<Pick<CharacterData, 'armor' | 'shield' | 'weapons' | 'consumables' | 'misc' | 'valuables'>>(gearRaw);
   const data: CharacterData = {
     classes: strip(classesRaw),
     species: strip(speciesRaw),
@@ -45,6 +45,7 @@ export const characterData: CharacterData = (() => {
     weapons: gear.weapons,
     consumables: gear.consumables,
     misc: gear.misc,
+    valuables: gear.valuables,
     spells: strip<Spells>(spellsRaw),
   };
   const errors: string[] = [];
