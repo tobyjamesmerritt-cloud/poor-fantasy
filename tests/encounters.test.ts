@@ -1,15 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import {
-  buildUnits,
-  encounters,
-  encounterXp,
-  type EncounterDef,
-  resolveEncounter,
-  locationContent,
-  monsters,
-  validateMonsters,
-} from '../src/content/encounters';
+import { buildUnits, encounters, encounterXp, type EncounterDef, resolveEncounter, locationContent, monsters, validateMonsters, crValue, fillerPool } from '../src/content/encounters';
 import { loadLocationMap } from '../src/content/locationMap';
 import { loadTravelMap, type TiledMap } from '../src/content/world';
 
@@ -83,5 +74,17 @@ describe('encounters', () => {
   it('rejects a location map with a fight for an unknown encounter', () => {
     const tiled = JSON.parse(readFileSync('public/assets/maps/hollow-cave.json', 'utf8')) as TiledMap;
     expect(() => loadLocationMap('hollow-cave', tiled, ['ruins-crawlers'])).toThrow(/unknown encounter "cave-rats"/);
+  });
+});
+
+describe('bestiary and picking monsters (DND-73)', () => {
+  it('every encounter file registers itself; picking by tags + CR finds the right monsters', () => {
+    expect(Object.keys(encounters)).toEqual(expect.arrayContaining(['ogre', 'bandit-ambush', 'crypt-dead']));
+    expect(fillerPool({ tags: ['undead'], cr: [0.25, 1], min: 1, max: 3 })).toEqual(['ghoul', 'skeleton', 'zombie']);
+    expect(crValue('1/8')).toBe(0.125);
+    expect(() => fillerPool({ tags: ['dragon'], min: 1, max: 2 })).toThrow(/no monster has tags/);
+    const dead = resolveEncounter(encounters['crypt-dead'], { partySize: 6, level: 1 });
+    expect(dead.enemies.every((e) => monsters[e.monster].tags.includes('undead'))).toBe(true);
+    expect(resolveEncounter(encounters.ogre).enemies[0].monster).toBe('ogre');
   });
 });

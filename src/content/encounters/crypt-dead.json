@@ -1,0 +1,49 @@
+{
+  "_note": "Restless dead: skeletons, zombies and ghouls (picked by the undead tag).",
+  "id": "crypt-dead",
+  "width": 12,
+  "height": 9,
+  "floor": "dungeon-sand",
+  "partyLevel": 1,
+  "partyStart": [
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 4
+    },
+    {
+      "x": 1,
+      "y": 6
+    },
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 0,
+      "y": 4
+    }
+  ],
+  "enemies": [],
+  "scaling": {
+    "difficulty": "moderate",
+    "filler": {
+      "tags": [
+        "undead"
+      ],
+      "cr": [
+        0.25,
+        1
+      ],
+      "min": 2,
+      "max": 6
+    }
+  }
+}

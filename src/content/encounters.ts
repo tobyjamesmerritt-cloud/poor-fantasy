@@ -16,18 +16,6 @@ import { membersOf, type PartyMemberDef, pregens, statsOf } from './characters';
 
 export type { PartyMemberDef };
 import { assets } from './assets';
-import ambushDark from './encounters/ambush-dark.json';
-import ambushWilds from './encounters/ambush-wilds.json';
-import caveRats from './encounters/cave-rats.json';
-import ruinsCrawlers from './encounters/ruins-crawlers.json';
-import shrineNave from './encounters/shrine-nave.json';
-import shrineCrypt from './encounters/shrine-crypt.json';
-import oldShack from './encounters/old-shack.json';
-import trollBridge from './encounters/troll-bridge.json';
-import trollRats from './encounters/troll-rats.json';
-import wildRats from './encounters/wild-rats.json';
-import wildBats from './encounters/wild-bats.json';
-import wildSpiders from './encounters/wild-spiders.json';
 import locationsRaw from './locations.json';
 import monstersRaw from './monsters.json';
 
@@ -81,7 +69,29 @@ export interface EncounterDef {
 export interface ScalingDef {
   difficulty: Difficulty;
   fixed?: { monster: string; x: number; y: number }[];
-  filler: { monsters: string[]; min: number; max: number };
+  /** Who fills the budget: named `monsters`, or every monster with all of `tags` and a CR within `cr` [min, max]. */
+  filler: { monsters?: string[]; tags?: string[]; cr?: [number, number]; min: number; max: number };
+}
+
+/** A CR as a number ("1/4" → 0.25). */
+export const crValue = (cr: string): number => (cr.includes('/') ? Number(cr.split('/')[0]) / Number(cr.split('/')[1]) : Number(cr));
+
+/**
+ * The filler monsters for an encounter (DND-73): the named list, or the bestiary
+ * picked by tags + CR range — strongest first, so mixed groups lead with the big one.
+ */
+export function fillerPool(f: ScalingDef['filler'], where = 'encounter'): string[] {
+  if (f.monsters?.length) {
+    for (const id of f.monsters) if (!monsters[id]) throw new Error(`${where}: unknown monster "${id}"`);
+    return f.monsters;
+  }
+  const [lo, hi] = f.cr ?? [0, 30];
+  const pool = Object.entries(monsters)
+    .filter(([, m]) => (f.tags ?? []).every((t) => m.tags.includes(t)) && crValue(m.cr) >= lo && crValue(m.cr) <= hi)
+    .sort(([a, x], [b, y]) => y.xp - x.xp || a.localeCompare(b))
+    .map(([id]) => id);
+  if (!pool.length) throw new Error(`${where}: no monster has tags [${(f.tags ?? []).join(', ')}] and CR ${lo}–${hi}`);
+  return pool;
 }
 
 /** Who is fighting: party size (able to fight) and their average level; quests may override the difficulty. */
@@ -99,13 +109,14 @@ export function resolveEncounter(e: EncounterDef, ctx: FightContext = { partySiz
   const fixed = s.fixed ?? [];
   const xpOf = (id: string) => monsters[id]?.xp ?? 0;
   const fixedXp = fixed.reduce((sum, f) => sum + xpOf(f.monster), 0);
-  const avg = s.filler.monsters.reduce((sum, id) => sum + xpOf(id), 0) / Math.max(1, s.filler.monsters.length);
+  const pool = fillerPool(s.filler, e.id);
+  const avg = pool.reduce((sum, id) => sum + xpOf(id), 0) / Math.max(1, pool.length);
   const budget = fightBudget(ctx.partySize, ctx.level, ctx.difficulty ?? s.difficulty);
   // House rule: never more monsters than the party has characters (action economy hurts most at low levels).
   const cap = Math.max(1, Math.round(ctx.partySize * Math.min(1, ctx.share ?? 1)));
   const n = Math.min(fillerCount(budget, fixedXp, avg, s.filler.min, s.filler.max), Math.max(0, cap - fixed.length));
   const spots = fillerSquares(e.width, e.height, [...fixed, ...e.partyStart], n);
-  return { ...e, enemies: [...fixed, ...spots.map((p, i) => ({ monster: s.filler.monsters[i % s.filler.monsters.length], ...p }))] };
+  return { ...e, enemies: [...fixed, ...spots.map((p, i) => ({ monster: pool[i % pool.length], ...p }))] };
 }
 
 export interface LocationContent {
@@ -336,9 +347,15 @@ export function buildUnits(
 }
 
 /** All encounters by id; each is built once at load so mistakes fail at startup. */
+/** Every JSON in content/encounters/ (no registration needed); the file name must be its id. */
+const encounterFiles = import.meta.glob('./encounters/*.json', { eager: true, import: 'default' }) as Record<string, unknown>;
+
 export const encounters: Record<string, EncounterDef> = Object.fromEntries(
-  [caveRats, ruinsCrawlers, ambushWilds, ambushDark, shrineNave, shrineCrypt, oldShack, trollBridge, trollRats, wildRats, wildBats, wildSpiders].map((raw) => {
-    const e = strip<EncounterDef>(raw);
+  Object.entries(encounterFiles).map(([path, raw]) => {
+    const e = strip<EncounterDef>(raw as EncounterDef);
+    const file = path.replace(/^.*\//, '').replace(/\.json$/, '');
+    if (e.id !== file) throw new Error(`encounters/${file}.json: id "${e.id}" must match the file name`);
+    if (e.scaling) fillerPool(e.scaling.filler, e.id); // throws if no monster fits
     buildUnits(resolveEncounter(e)); // the default party…
     if (e.scaling) buildUnits(resolveEncounter(e, { partySize: 6, level: 7, difficulty: 'high' })); // …and the most monsters it can get
     return [e.id, e];

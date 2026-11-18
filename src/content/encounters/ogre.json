@@ -1,0 +1,56 @@
+{
+  "_note": "An ogre and whatever wild things follow it (DND-73's example: one file, no code).",
+  "id": "ogre",
+  "width": 12,
+  "height": 9,
+  "floor": "meadow-grass",
+  "partyLevel": 2,
+  "partyStart": [
+    {
+      "x": 1,
+      "y": 2
+    },
+    {
+      "x": 1,
+      "y": 4
+    },
+    {
+      "x": 1,
+      "y": 6
+    },
+    {
+      "x": 0,
+      "y": 3
+    },
+    {
+      "x": 0,
+      "y": 5
+    },
+    {
+      "x": 0,
+      "y": 4
+    }
+  ],
+  "enemies": [],
+  "scaling": {
+    "difficulty": "moderate",
+    "fixed": [
+      {
+        "monster": "ogre",
+        "x": 10,
+        "y": 4
+      }
+    ],
+    "filler": {
+      "tags": [
+        "wilds"
+      ],
+      "cr": [
+        0.25,
+        0.5
+      ],
+      "min": 0,
+      "max": 3
+    }
+  }
+}
