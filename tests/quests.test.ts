@@ -18,6 +18,7 @@ import {
   runTriggers,
   siteBlocks,
   siteIcon,
+  validateQuests,
   startTalk,
   type Talk,
   visibleChoices,
@@ -243,5 +244,17 @@ describe('walking away from a conversation (Esc)', () => {
     g.flags['quest:troll'] = 'met';
     const troll = startTalk(g, questData, 'troll')!;
     expect(canWalkAway(g, questData, troll)).toBe(true);
+  });
+});
+
+describe('dialog pictures (DND-63/69)', () => {
+  const known = { encounters: [], locations: [], isItem: () => true };
+  it('town NPCs and the bandit ambush name a local picture', () => {
+    expect(questData.dialogs.reeve.picture).toBe('reeve');
+    expect(questData.dialogs['wander-bandits'].picture).toBe('bandit-captain');
+  });
+  it('rejects malformed picture ids', () => {
+    const data = { ...questData, dialogs: { x: { picture: 'Bad Id.png', entry: [{ node: 'a' }], nodes: { a: { text: 'hi' } } } } };
+    expect(validateQuests(data, known).some((e) => e.includes('picture id'))).toBe(true);
   });
 });

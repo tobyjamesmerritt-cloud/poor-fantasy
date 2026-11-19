@@ -43,7 +43,7 @@ Read `CLAUDE.md` first: it documents the architecture and every system built so 
 
 ## Useful commands
 - `npm run dev` (http://localhost:5173), `npm test`, `npm run build`, `npm run sim`.
-- Debug console (backtick): `fight <encounter>` (try `ogre`, `bandit-ambush`, `crypt-dead`), `gold`, `xp`, `heal`, `kill`, `time`, `seed <n>`, `fog`.
+- Debug console (backtick): `fight <encounter>` (try `ogre`, `bandit-ambush`, `crypt-dead`), `talk <dialog>` (e.g. `reeve`), `gold`, `xp`, `heal`, `kill`, `time`, `seed <n>`, `fog`.
 - New monster/encounter: follow "How to add a monster / an encounter" in `CLAUDE.md` (JSON only).
 
 ## Working tips

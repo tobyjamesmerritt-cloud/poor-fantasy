@@ -59,3 +59,8 @@ Pixel-Deck licences forbid redistributing the packs, so commit **only the frames
 - Scale by whole numbers only (crisp pixels).
 - PNG with transparency; no JPEG.
 - No assets from the original SSI games. Avoid "personal use only" licences.
+
+## Local-only art (DND-63)
+- Some placeholder art may be used for testing on Toby's PC but not published (licence forbids redistribution). It lives in the git-ignored `local/` folder at the repo root and is never committed or deployed.
+- NPC / encounter pictures: `local/pictures/<id>.<png|jpg|webp>` (256 px square works well). A quests.json dialog names its picture with `"picture": "<id>"` (a node may override, or set `null`). Missing files just show no picture, so the public site is unaffected.
+- Current ids: `reeve`, `ilse`, `bertram`, `odo`, `bandit-captain` (Corax Digital Art realistic heroes; picks recorded in `local/pictures/README.txt`). Restart `npm run dev` after adding files.

@@ -257,8 +257,10 @@ function talkView(results: string[]): TalkView {
     const p = gameState.party.find((x) => x.id === r.id);
     return p && !p.dead && p.hp > 0;
   });
+  const picture = node.picture === null ? undefined : (node.picture ?? questData.dialogs[talk!.dialog]?.picture);
   return {
     speaker: node.speaker,
+    picture,
     text: node.text,
     results,
     choices: visibleChoices(gameState, questData, talk!).map((c) => ({
@@ -877,7 +879,7 @@ bus.subscribe((cmd) => {
       const n = arg !== undefined && Number.isFinite(Number(arg)) ? Number(arg) : undefined;
       if (verb === 'help' || verb === '') {
         debugNote(
-          'Commands: gold [gp] · xp [n] · heal (everyone full, raises the dead) · fight <encounter> · time <hours> · seed <n> (next fight’s dice) · fog · kill (in a fight: all enemies drop).',
+          'Commands: gold [gp] · xp [n] · heal (everyone full, raises the dead) · fight <encounter> · talk <dialog> · time <hours> · seed <n> (next fight’s dice) · fog · kill (in a fight: all enemies drop).',
         );
         break;
       }
@@ -906,6 +908,16 @@ bus.subscribe((cmd) => {
         }
         (document.getElementById('about') as HTMLDialogElement | null)?.close();
         bus.dispatch({ type: 'fight', encounter: arg, confirmed: true });
+        break;
+      }
+      if (verb === 'talk') {
+        // open any quests.json dialog (runs its actions as normal — may move quests on)
+        if (!arg || !questData.dialogs[arg]) {
+          debugNote(`Unknown dialog. Try one of: ${Object.keys(questData.dialogs).sort().join(', ')}.`);
+          break;
+        }
+        (document.getElementById('about') as HTMLDialogElement | null)?.close();
+        startDialog(arg);
         break;
       }
       if (verb === 'gold') {

@@ -1121,6 +1121,19 @@ button.danger {
   width: min(40rem, 94vw);
   max-width: none;
 }
+.talk-picture {
+  /* local-only NPC / encounter pictures (localPictures.ts) */
+  float: left;
+  width: 128px;
+  height: 128px;
+  object-fit: cover;
+  margin: 0 12px 8px 0;
+  border: 2px solid #555;
+  border-radius: 4px;
+}
+.talk-choices {
+  clear: both;
+}
 .talk-text {
   line-height: 1.5;
   white-space: pre-wrap;

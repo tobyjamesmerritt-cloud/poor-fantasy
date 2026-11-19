@@ -69,12 +69,15 @@ export interface Choice {
 
 export interface DialogNode {
   speaker?: string;
+  picture?: string | null; // overrides the dialog's picture; null = none on this node
   text: string;
   do?: Action[]; // run on arriving at this node
   choices?: Choice[]; // none = a single "Farewell"
 }
 
 export interface DialogDef {
+  /** NPC / encounter picture id (DND-63/69): an image in the git-ignored local/pictures/ folder; hidden when absent. */
+  picture?: string;
   entry: { when?: Condition; node: string }[]; // first match starts the conversation
   nodes: Record<string, DialogNode>;
 }
@@ -450,6 +453,8 @@ export function validateQuests(data: QuestData, known: { encounters: string[]; l
     for (const e of d.entry) {
       checkCond(e.when, `dialog "${id}" entry`);
       if (!d.nodes[e.node]) errors.push(`dialog "${id}": entry goes to unknown node "${e.node}"`);
+    for (const pic of [d.picture, ...Object.values(d.nodes).map((n) => n.picture)])
+      if (typeof pic === 'string' && !/^[a-z0-9-]+$/.test(pic)) errors.push(`dialog "${id}": picture id "${pic}" must be lower-case letters, digits and dashes`);
     }
     for (const [nid, n] of Object.entries(d.nodes)) {
       const where = `dialog "${id}" node "${nid}"`;

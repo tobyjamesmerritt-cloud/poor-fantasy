@@ -68,6 +68,7 @@
       }
     },
     "wander-bandits": {
+      "picture": "bandit-captain",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
@@ -170,6 +171,7 @@
       }
     },
     "reeve": {
+      "picture": "reeve",
       "entry": [
         { "when": { "quest": "rats", "stage": "none" }, "node": "hello" },
         { "when": { "quest": "rats", "stage": "accepted" }, "node": "waiting" },
@@ -212,6 +214,7 @@
     },
 
     "shrine-door": {
+      "picture": "ilse",
       "entry": [
         { "when": { "quest": "rats", "stage": "none" }, "node": "closed" },
         { "when": { "quest": "rats", "stage": "accepted" }, "node": "open" },
@@ -247,6 +250,7 @@
     },
 
     "innkeeper": {
+      "picture": "bertram",
       "entry": [
         { "when": { "quest": "ale", "stage": "none" }, "node": "dry" },
         { "when": { "quest": "ale", "stage": "done" }, "node": "flowing" },
@@ -268,6 +272,7 @@
     },
 
     "brewery": {
+      "picture": "odo",
       "entry": [
         { "when": { "quest": "ale", "stage": "find-brewery" }, "node": "found" },
         { "when": { "quest": "ale", "stage": "find-parts" }, "node": "waiting" },

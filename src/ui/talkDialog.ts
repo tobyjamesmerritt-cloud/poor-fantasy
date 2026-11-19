@@ -4,9 +4,11 @@
  * which character tries, showing each one's bonus. Sends Commands only.
  */
 import type { CommandBus } from '../engine/commands';
+import { pictureUrl } from './localPictures';
 
 export interface TalkView {
   speaker?: string;
+  picture?: string; // local-only image id (localPictures.ts)
   text: string;
   results: string[]; // what the last choice did
   choices: { index: number; text: string; check?: { label: string; rollers: { id: string; name: string; bonus: number; note: string }[] } }[];
@@ -68,6 +70,14 @@ export class TalkDialog {
     const v = this.view!;
     const parts: HTMLElement[] = [];
     if (v.results.length) parts.push(el('div', 'talk-results', ...v.results.map((r) => el('p', '', r))));
+    const url = pictureUrl(v.picture);
+    if (url) {
+      const img = document.createElement('img');
+      img.className = 'talk-picture';
+      img.src = url;
+      img.alt = v.speaker ?? '';
+      parts.push(img);
+    }
     if (v.speaker) parts.push(el('h2', '', v.speaker));
     parts.push(el('p', 'talk-text', v.text));
     const list = el('div', 'talk-choices');
