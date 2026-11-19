@@ -56,6 +56,12 @@ import { lootTables, rollTreasure } from './loot';
 export const wandering: WanderingConfig = strip<WanderingConfig>(wanderingRaw);
 {
   const bad = wandering.zones.flatMap((z) => z.dialogs.filter((d) => !questData.dialogs[d]).map((d) => `zone "${z.name}": unknown dialog "${d}"`));
-  if (!wandering.zones.length || wandering.zones[wandering.zones.length - 1].within !== undefined) bad.push('the last zone must have no "within" (it covers the rest of the map)');
+  const last = wandering.zones[wandering.zones.length - 1];
+  if (!last || last.within !== undefined || last.area || last.onlyRoads) bad.push('the last zone must have no "within", "area" or "onlyRoads" (it covers the rest of the map)');
+  for (const [id, loc] of Object.entries(locationContent)) {
+    if (!loc.wander) continue;
+    for (const d of loc.wander.dialogs) if (!questData.dialogs[d]) bad.push(`locations.json "${id}" wander: unknown dialog "${d}"`);
+    if (!(loc.wander.chance > 0 && loc.wander.chance < 1)) bad.push(`locations.json "${id}" wander: chance must be between 0 and 1`);
+  }
   if (bad.length) throw new Error('Invalid wandering.json:\n- ' + bad.join('\n- '));
 }

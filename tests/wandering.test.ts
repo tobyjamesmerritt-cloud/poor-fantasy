@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { wandering } from '../src/content/quests';
 import { loadTravelMap, type TiledMap } from '../src/content/world';
 import { newGameState } from '../src/engine/state';
-import { distanceToSettlement, wanderingCheck, zoneAt } from '../src/rules/wandering';
+import { checkZones, distanceToSettlement, locationWanderCheck, wanderingCheck, zoneAt } from '../src/rules/wandering';
+import { locationContent } from '../src/content/encounters';
 import { findPath, squaresAround, worldSight } from '../src/rules/world';
 import { scripted } from './helpers';
 
@@ -42,19 +43,58 @@ describe('random encounters on the world map', () => {
     expect(wanderingCheck(g, world, 7, 16, wandering, scripted([1, 0]))).toBeNull();
   });
 
-  it('roads are safe; near a settlement encounters are rarer than in the wilds', () => {
+  it('roads west of the bridge are safe; near a settlement encounters are rarer than in the wilds', () => {
     expect(wandering.roadChance).toBe(0);
     const near = wandering.zones.find((z) => z.difficulty === 'low')!;
     expect(near.chance!).toBeLessThan(wandering.chance);
     // a road square: never, whatever the roll
     let road: { x: number; y: number } | undefined;
-    for (let i = 0; i < world.width * world.height && !road; i++) if (world.terrain?.[i] === 'road') road = { x: i % world.width, y: Math.floor(i / world.width) };
+    for (let i = 0; i < world.width * world.height && !road; i++) if (world.terrain?.[i] === 'road' && i % world.width < 20) road = { x: i % world.width, y: Math.floor(i / world.width) };
     const onTown = [...world.locations, ...world.sites].some((p) => p.x === road!.x && p.y === road!.y);
     if (road && !onTown) {
       const g = newGameState(1);
       g.flags['wander:steps'] = 99;
       expect(wanderingCheck(g, world, road.x, road.y, wandering, scripted([1, 0]))).toBeNull();
     }
+  });
+});
+
+describe('lair zones and the east road', () => {
+  it('every "near" names a real place', () => {
+    expect(checkZones(world, wandering)).toEqual([]);
+    expect(checkZones(world, { ...wandering, zones: [{ name: 'x', near: 'nowhere', within: 2, difficulty: 'low', dialogs: [] }] })).toHaveLength(1);
+  });
+
+  it('ogres around Hollow Cave, the dead around the Old Keep', () => {
+    expect(zoneAt(world, 30, 7, wandering).dialogs).toEqual(['wander-ogre']); // grass below the cave
+    expect(zoneAt(world, 30, 25, wandering).dialogs).toEqual(['wander-dead']); // beside the keep
+  });
+
+  it('bandits only on roads east of the bridge, and rarely', () => {
+    const east = { x: 26, y: 15 }; // the road south from the bridge
+    expect(world.terrain?.[east.y * world.width + east.x]).toBe('road');
+    const z = zoneAt(world, east.x, east.y, wandering);
+    expect(z.dialogs).toEqual(['wander-bandits']);
+    expect(z.roadChance!).toBeLessThan(0.05);
+    const g = newGameState(1);
+    g.flags['wander:steps'] = 99;
+    expect(wanderingCheck(g, world, east.x, east.y, wandering, scripted([20, 0]))).toMatchObject({ dialog: 'wander-bandits' });
+    g.flags['wander:steps'] = 99;
+    expect(wanderingCheck(g, world, east.x, east.y, wandering, scripted([21]))).toBeNull(); // 2% = rolls 1–20
+    expect(zoneAt(world, 27, 15, wandering).dialogs).not.toContain('wander-bandits'); // off the road
+    expect(zoneAt(world, 15, 17, wandering).dialogs).not.toContain('wander-bandits'); // west road
+  });
+
+  it('the dead also walk inside the Old Keep, but not on spots or exits', () => {
+    const w = locationContent['old-keep'].wander!;
+    expect(w.dialogs).toEqual(['wander-dead-inside']);
+    const g = newGameState(1);
+    g.flags['wander:steps'] = 99;
+    expect(locationWanderCheck(g, 'Old Keep', w, wandering.grace, true, scripted([1, 0]))).toBeNull();
+    g.flags['wander:steps'] = 99;
+    expect(locationWanderCheck(g, 'Old Keep', w, wandering.grace, false, scripted([1, 0]))).toMatchObject({ dialog: 'wander-dead-inside', zone: 'Old Keep' });
+    expect(g.flags['wander:steps']).toBe(0);
+    expect(locationWanderCheck(g, 'Old Keep', w, wandering.grace, false, scripted([1, 0]))).toBeNull(); // grace
   });
 });
 

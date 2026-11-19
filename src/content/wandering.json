@@ -1,9 +1,45 @@
 {
-  "_note": "Random encounters on the world map (rules/wandering.ts, house rules). chance = per step off the road (a zone may set its own), roadChance = on roads and bridges (0 = roads are safe), grace = quiet steps after an encounter. Zones by distance (squares) to the nearest town, cave, ruin or quest site, hidden ones included; the first zone that fits wins. Each zone picks one of its dialogs (quests.json) and sets the fight's difficulty. share = most monsters as a share of the party size (1 = one per character).",
+  "_note": "Random encounters on the world map (rules/wandering.ts, house rules). chance = per step off the road (a zone may set its own), roadChance = on roads and bridges (0 = roads are safe), grace = quiet steps after an encounter. Zones by distance (squares) to the nearest town, cave, ruin or quest site, hidden ones included; the first zone that fits wins, so specific zones go first: near = measure within from one location/site id, area = {x:[min,max], y:[min,max]}, onlyRoads = road and bridge squares only (with roadChance). Each zone picks one of its dialogs (quests.json) and sets the fight's difficulty. share = most monsters as a share of the party size (1 = one per character).",
   "chance": 0.08,
   "roadChance": 0,
   "grace": 6,
   "zones": [
+    {
+      "name": "the east road",
+      "onlyRoads": true,
+      "area": {
+        "x": [
+          23,
+          39
+        ]
+      },
+      "roadChance": 0.02,
+      "difficulty": "moderate",
+      "dialogs": [
+        "wander-bandits"
+      ],
+      "share": 1
+    },
+    {
+      "name": "the hills by Hollow Cave",
+      "near": "hollow-cave",
+      "within": 5,
+      "difficulty": "moderate",
+      "dialogs": [
+        "wander-ogre"
+      ],
+      "share": 0.75
+    },
+    {
+      "name": "the barrows by the Old Keep",
+      "near": "old-keep",
+      "within": 5,
+      "difficulty": "moderate",
+      "dialogs": [
+        "wander-dead"
+      ],
+      "share": 1
+    },
     {
       "name": "near a settlement",
       "within": 4,

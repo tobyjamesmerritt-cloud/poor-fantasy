@@ -7,11 +7,13 @@
  * All movement and view geometry comes from rules/location.ts; this scene
  * only renders and forwards commands.
  */
-import { questData } from '../../content/quests';
+import { questData, wandering } from '../../content/quests';
 import { hooksAt } from '../../rules/quests';
 import * as Phaser from 'phaser';
 import type { Command, CommandBus } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
+import type { Rng } from '../../engine/rng';
+import { locationWanderCheck } from '../../rules/wandering';
 import { encounters, locationContent } from '../../content/encounters';
 import { statsOf } from '../../content/characters';
 import { assets } from '../../content/assets';
@@ -87,6 +89,7 @@ export interface LocationSceneDeps {
   game: GameState;
   locationId: string; // key in content/locations.json
   notices: string[]; // messages to show on arrival (fight results, rescues)
+  rng: Rng; // exploration dice (random encounters inside)
 }
 
 export class LocationScene extends Phaser.Scene {
@@ -266,7 +269,21 @@ export class LocationScene extends Phaser.Scene {
       return;
     }
     this.moveTo(next);
+    if (this.wanderCheck()) return;
     this.arrive();
+  }
+
+  /** Something wandering the halls (locations.json `wander`) may find the party on a quiet square. */
+  private wanderCheck(): boolean {
+    const w = locationContent[this.deps.locationId]?.wander;
+    if (!w) return false;
+    const { x, y } = this.pose;
+    const busySquare = isExit(this.map, x, y) || !!spotAt(this.map, x, y);
+    const met = locationWanderCheck(this.deps.game, this.name, w, wandering.grace, busySquare, this.deps.rng);
+    if (!met) return false;
+    this.busy = false;
+    this.deps.bus.dispatch({ type: 'wander', dialog: met.dialog, difficulty: met.difficulty, share: met.share });
+    return true;
   }
 
   private walk(path: readonly Pose['facing'][]): void {
@@ -275,6 +292,7 @@ export class LocationScene extends Phaser.Scene {
       const dir = path[i];
       const [dx, dy] = FACING_VECTORS[dir];
       this.moveTo({ x: this.pose.x + dx, y: this.pose.y + dy, facing: dir });
+      if (this.wanderCheck()) return;
       // Stop early for anything that needs the player: exits, buildings, uncleared fights.
       // Messages (text spots) are shown in passing.
       const spot = spotAt(this.map, this.pose.x, this.pose.y);

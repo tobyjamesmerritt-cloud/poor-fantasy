@@ -17,6 +17,7 @@ import { membersOf, type PartyMemberDef, pregens, statsOf } from './characters';
 export type { PartyMemberDef };
 import { assets } from './assets';
 import locationsRaw from './locations.json';
+import type { LocationWander } from '../rules/wandering';
 import monstersRaw from './monsters.json';
 
 const DAMAGE_TYPES = ['acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder'];
@@ -124,6 +125,7 @@ export interface LocationContent {
   map?: string; // public/assets/maps/<map>.json; fights live in the map's spots layer
   intro?: string;
   sight?: number; // squares seen on the overhead map (fog of war); default towns 5, dungeons 1
+  wander?: LocationWander; // random encounters per step inside (rules/wandering.ts)
   // places inside another location (not on the world map):
   name?: string;
   style?: 'town' | 'cave' | 'ruins';

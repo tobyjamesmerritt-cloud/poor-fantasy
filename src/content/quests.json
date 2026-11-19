@@ -50,6 +50,74 @@
   },
 
   "dialogs": {
+    "wander-ogre": {
+      "entry": [{ "node": "meet" }],
+      "nodes": {
+        "meet": {
+          "text": "The ground shudders. An ogre lumbers out of the rocks, dragging a club the size of a tree trunk, and sniffs the air in your direction.",
+          "choices": [
+            { "text": "Fight!", "do": [{ "fight": "ogre" }] },
+            { "text": "Try to slip away.", "check": { "ability": "dex", "skill": "Stealth", "dc": 11, "pass": "slipped", "fail": "caught" } }
+          ]
+        },
+        "slipped": { "text": "You flatten yourselves among the boulders. The ogre grumbles, scratches, and stomps off up the hill." },
+        "caught": {
+          "text": "It bellows and swings round to face you. Too late to hide.",
+          "choices": [{ "text": "Fight!", "do": [{ "fight": "ogre" }] }]
+        }
+      }
+    },
+    "wander-bandits": {
+      "entry": [{ "node": "meet" }],
+      "nodes": {
+        "meet": {
+          "text": "\"That's far enough.\" Figures step out from behind the trees on both sides of the road, blades drawn. Their captain smiles. \"Purses on the ground, and nobody bleeds.\"",
+          "choices": [
+            { "text": "Fight!", "do": [{ "fight": "bandit-ambush" }] },
+            { "text": "Try to slip away.", "check": { "ability": "dex", "skill": "Stealth", "dc": 13, "pass": "slipped", "fail": "caught" } }
+          ]
+        },
+        "slipped": { "text": "You back into the brush and circle wide. By the time they've searched the ditch you're long gone." },
+        "caught": {
+          "text": "An arrow thuds into the road at your feet. \"Wrong answer.\"",
+          "choices": [{ "text": "Fight!", "do": [{ "fight": "bandit-ambush" }] }]
+        }
+      }
+    },
+    "wander-dead": {
+      "entry": [{ "node": "meet" }],
+      "nodes": {
+        "meet": {
+          "text": "Mist curls across the barrow-mounds. Grey shapes rise out of it \u2014 bones that should have stayed buried, and things that still hunger.",
+          "choices": [
+            { "text": "Fight!", "do": [{ "fight": "crypt-dead" }] },
+            { "text": "Try to slip away.", "check": { "ability": "dex", "skill": "Stealth", "dc": 12, "pass": "slipped", "fail": "caught" } }
+          ]
+        },
+        "slipped": { "text": "You hold your breath and keep low. The dead shamble past, blind to all but the warmth they can't find." },
+        "caught": {
+          "text": "A skull turns toward you with a dry click. They've found you.",
+          "choices": [{ "text": "Fight!", "do": [{ "fight": "crypt-dead" }] }]
+        }
+      }
+    },
+    "wander-dead-inside": {
+      "entry": [{ "node": "meet" }],
+      "nodes": {
+        "meet": {
+          "text": "Bones scrape on stone somewhere ahead. Out of the dark they come \u2014 the keep's old dead, roused by your footsteps.",
+          "choices": [
+            { "text": "Fight!", "do": [{ "fight": "crypt-dead" }] },
+            { "text": "Try to slip away.", "check": { "ability": "dex", "skill": "Stealth", "dc": 13, "pass": "slipped", "fail": "caught" } }
+          ]
+        },
+        "slipped": { "text": "You press into a niche and let them shuffle by into the dark." },
+        "caught": {
+          "text": "A cold hand closes on your sleeve. No hiding now.",
+          "choices": [{ "text": "Fight!", "do": [{ "fight": "crypt-dead" }] }]
+        }
+      }
+    },
     "wander-rats": {
       "entry": [{ "node": "meet" }],
       "nodes": {

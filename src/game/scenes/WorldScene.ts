@@ -17,7 +17,7 @@ import { loadTravelMap, type TiledMap } from '../../content/world';
 import { canStep, findPath, isBlocked, locationAt, type MapLocation, siteAt, squaresAround, type TravelMap, worldCampSite, worldSight } from '../../rules/world';
 import { isSeen, markSeen } from '../../rules/location';
 import { questData, wandering } from '../../content/quests';
-import { wanderingCheck, zoneAt } from '../../rules/wandering';
+import { checkZones, wanderingCheck, zoneAt } from '../../rules/wandering';
 import type { Rng } from '../../engine/rng';
 import { hooksAt, siteBlocks, siteIcon, siteVisible } from '../../rules/quests';
 import { darkness, formatClock, MINUTES } from '../../rules/time';
@@ -74,6 +74,8 @@ export class WorldScene extends Phaser.Scene {
   create(): void {
     const tiled = this.cache.tilemap.get(MAP_KEY).data as TiledMap;
     this.map = loadTravelMap(tiled);
+    const zoneErrors = checkZones(this.map, wandering);
+    if (zoneErrors.length) throw new Error('Invalid wandering.json:\n- ' + zoneErrors.join('\n- '));
 
     const tm = this.make.tilemap({ key: MAP_KEY });
     const tilesets = [tm.addTilesetImage('tiny-battle', 'battle')!, tm.addTilesetImage('tiny-dungeon', 'dungeon')!];
