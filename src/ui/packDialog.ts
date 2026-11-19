@@ -14,6 +14,7 @@ import { characterData, derive, statsOf } from '../content/characters';
 import { equipped, weaponDef } from '../rules/character';
 import { canSell, equipProblem, itemInfo } from '../rules/items';
 import { formatCoins } from '../rules/party';
+import { MISC_ICON, VALUABLE_ICON, WEAPON_ICON } from '../content/itemIcons';
 
 export interface PackDialogDeps {
   bus: CommandBus;
@@ -31,23 +32,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'quest', label: 'Quest' },
 ];
 
-/** Icon sprite (assets.json `item-*`) per weapon; anything unlisted shows a sword. */
-const WEAPON_ICON: Record<string, string> = {
-  dagger: 'item-dagger',
-  sickle: 'item-scimitar',
-  scimitar: 'item-scimitar',
-  greatsword: 'item-greatsword',
-  club: 'item-club',
-  quarterstaff: 'item-staff',
-  mace: 'item-mace',
-  morningstar: 'item-mace',
-  flail: 'item-mace',
-  handaxe: 'item-axe',
-  battleaxe: 'item-axe',
-  greataxe: 'item-greataxe',
-  spear: 'item-spear',
-  warhammer: 'item-hammer',
-};
+
 
 interface Item {
   ref: string;
@@ -110,7 +95,7 @@ export class PackDialog {
         const count = g.inventory[ref];
         if (kind === 'consumable') {
           const c = d.consumables[id];
-          return { ref, tab: 'potions', icon: c?.heal ? 'item-potion' : 'item-drink', name, count, detail: c?.heal ? `Heals ${c.heal}` : 'A drink' };
+          return { ref, tab: 'potions', icon: id === 'potion-of-healing-greater' ? 'item-potion-greater' : c?.heal ? 'item-potion' : 'item-drink', name, count, detail: c?.heal ? `Heals ${c.heal}` : 'A drink' };
         }
         if (kind === 'scroll') {
           const s = d.spells[id];
@@ -133,12 +118,12 @@ export class PackDialog {
         if (kind === 'valuable') {
           // gems and art objects: sell at a shop for their full value (SRD 5.2)
           const v = d.valuables[id];
-          return { ref, tab: 'valuables', icon: 'item-chest', name, count, detail: `Worth ${formatCoins(v?.cost ?? 0)} · ${v?.description ?? ''}` };
+          return { ref, tab: 'valuables', icon: VALUABLE_ICON[id] ?? 'item-gem', name, count, detail: `Worth ${formatCoins(v?.cost ?? 0)} · ${v?.description ?? ''}` };
         }
         const desc = kind === 'misc' ? (d.misc[id]?.description ?? '') : '';
-        return { ref, tab: 'quest', icon: 'item-chest', name, count, detail: desc || 'Quest item' };
+        return { ref, tab: 'quest', icon: MISC_ICON[id] ?? 'item-key', name, count, detail: desc || 'Quest item' };
       })
-      .sort((a, b) => order.indexOf(a.tab) - order.indexOf(b.tab) || +(a.icon !== 'item-potion') - +(b.icon !== 'item-potion') || a.name.localeCompare(b.name));
+      .sort((a, b) => order.indexOf(a.tab) - order.indexOf(b.tab) || +!a.icon.startsWith('item-potion') - +!b.icon.startsWith('item-potion') || a.name.localeCompare(b.name));
   }
 
   /** Characters first-in-line for a choice: the one the pack was opened from, then roster order. */

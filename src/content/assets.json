@@ -16,6 +16,11 @@
       "url": "assets/sprites/monsters-32.png",
       "frameWidth": 32,
       "frameHeight": 32
+    },
+    "items16": {
+      "url": "assets/sprites/items-16.png",
+      "frameWidth": 16,
+      "frameHeight": 16
     }
   },
   "sprites": {
@@ -230,6 +235,46 @@
     "m-worg": {
       "sheet": "monsters32",
       "frame": 8
+    },
+    "item-gem": {
+      "sheet": "items16",
+      "frame": 0
+    },
+    "item-garnet": {
+      "sheet": "items16",
+      "frame": 1
+    },
+    "item-moonstone": {
+      "sheet": "items16",
+      "frame": 2
+    },
+    "item-gold": {
+      "sheet": "items16",
+      "frame": 3
+    },
+    "item-silver": {
+      "sheet": "items16",
+      "frame": 4
+    },
+    "item-copper": {
+      "sheet": "items16",
+      "frame": 5
+    },
+    "item-idol": {
+      "sheet": "items16",
+      "frame": 6
+    },
+    "item-crate": {
+      "sheet": "items16",
+      "frame": 7
+    },
+    "item-potion-greater": {
+      "sheet": "items16",
+      "frame": 8
+    },
+    "item-key": {
+      "sheet": "items16",
+      "frame": 9
     }
   },
   "floors": {

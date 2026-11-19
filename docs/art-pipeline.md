@@ -43,7 +43,7 @@ Content files refer to sprites by name (e.g. `"sprite": "giant-rat"` in `skirmis
 | Tiny Battle | grass, water, trees; heart, lock, flag, number icons | Later: wilderness terrain + UI icons; vehicles unusable |
 | Pixel-Deck 64x Tiny Monsters (32 px) | rat, spiders, bat, goblin, ankheg stand-in | **In use** (`monsters-32.png`, frames repacked; DND-59) |
 | Pixel-Deck Tiny Animals (32 px) | wolf (+ dire wolf, worg recolours) | **In use** (`monsters-32.png`) |
-| Pixel-Deck Tiny Dungeon Items (16 px) | item icons | See DND-64 |
+| Pixel-Deck Tiny Dungeon Items (16 px) | valuables, quest items, Greater Healing icons | **In use** (`items-16.png`; map in `src/content/itemIcons.ts`; DND-64) |
 | Pixel-Deck 32 Animated Magic Items (48 px, GIF) | magic items, spell/action icons (HTML only) | Later: DND-85 |
 | Corax Digital Art realistic heroes (512–1024 px, painted) | NPC / encounter pictures | **Local only** — never commit (licence forbids redistribution). See "Local-only art" |
 
