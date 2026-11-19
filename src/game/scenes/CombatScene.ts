@@ -38,7 +38,7 @@ import {
 } from '../../rules/combat';
 import { areaSquares, castOptions, castSpell, spellOf, targetingOf, validTargets } from '../../rules/spells';
 import { spells } from '../../content/characters';
-import { assets, cellSize, cursorCss } from '../../content/assets';
+import { assets, cellSize, cursorCss, spriteScale } from '../../content/assets';
 import { buildUnits, encounters, type EncounterDef, type PartyMemberDef, resolveEncounter } from '../../content/encounters';
 import type { FightTweaks } from '../../rules/quests';
 import type { ActiveCard, Hud } from '../../ui/hud';
@@ -227,7 +227,7 @@ export class CombatScene extends Phaser.Scene {
       for (let x = 0; x < this.state.width; x++) {
         // Visual-only variation: deterministic hash, deliberately not the game Rng.
         const frame = floor.frames[tileHash(x, y) % floor.frames.length];
-        this.add.image(x * TILE, y * TILE, floor.sheet, frame).setOrigin(0).setScale(assets.scale);
+        this.add.image(x * TILE, y * TILE, floor.sheet, frame).setOrigin(0).setScale(spriteScale(floor.sheet));
       }
     }
   }
@@ -245,7 +245,7 @@ export class CombatScene extends Phaser.Scene {
   private createUnitSprite(u: Unit): void {
     const ref = assets.sprites[u.sprite];
     if (!ref) throw new Error(`Unit ${u.id} has no sprite in assets.json`);
-    this.sprites.set(u.id, this.add.image(0, 0, ref.sheet, ref.frame).setScale(assets.scale).setDepth(2));
+    this.sprites.set(u.id, this.add.image(0, 0, ref.sheet, ref.frame).setScale(spriteScale(ref.sheet)).setDepth(2));
     // Enemies sharing a sprite get a letter tag so the log ("Giant Rat B") is readable.
     const suffix = u.name.split(' ').at(-1);
     if (u.side === 'enemy' && suffix?.length === 1) {
@@ -254,7 +254,7 @@ export class CombatScene extends Phaser.Scene {
         this.add
           .text(0, 0, suffix, {
             fontFamily: 'monospace',
-            fontSize: '12px',
+            fontSize: `${Math.round(TILE / 4)}px`,
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 3,
@@ -635,7 +635,7 @@ export class CombatScene extends Phaser.Scene {
     const t = this.add
       .text(u.x * TILE + TILE / 2, u.y * TILE + TILE / 3, delta < 0 ? `${delta}` : `+${delta}`, {
         fontFamily: 'monospace',
-        fontSize: '18px',
+        fontSize: `${Math.round(TILE * 0.375)}px`,
         fontStyle: 'bold',
         color: delta < 0 ? '#ff5a4a' : '#5dff8a',
         stroke: '#000000',
@@ -661,17 +661,17 @@ export class CombatScene extends Phaser.Scene {
     for (const u of state.units) {
       const up = isUp(u);
       const down = isDown(u);
-      const sprite = this.sprites
-        .get(u.id)!
+      const img = this.sprites.get(u.id)!;
+      const sprite = img
         .setVisible(!u.fled)
         .setPosition(u.x * TILE + TILE / 2, u.y * TILE + TILE / 2)
         .setAngle(up ? 0 : 90) // lying on the ground
         .setAlpha(up ? 1 : down ? 0.8 : 0.3)
         .setDepth(up ? 2 : 1.5)
-        .setScale(assets.scale);
+        .setScale(spriteScale(img.texture.key));
       if (u.carriedBy) {
         // shown small, slung over the carrier's shoulder
-        sprite.setScale(assets.scale * 0.5).setPosition(u.x * TILE + TILE - 10, u.y * TILE + 10).setDepth(2.5).setAlpha(1);
+        sprite.setScale(spriteScale(sprite.texture.key) * 0.5).setPosition(u.x * TILE + TILE - TILE / 5, u.y * TILE + TILE / 5).setDepth(2.5).setAlpha(1);
       }
       this.tags
         .get(u.id)

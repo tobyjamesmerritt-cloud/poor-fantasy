@@ -1,6 +1,6 @@
 {
-  "_note": "Art manifest. Swap art by changing sheets/frames here; game code never hard-codes frame numbers. All sheets in one set must share frameWidth/frameHeight.",
-  "scale": 3,
+  "_note": "Art manifest. Swap art by changing sheets/frames here; game code never hard-codes frame numbers. cell = combat square in canvas px; each sheet's (square) frame size must divide it, so 16 px art draws at 4x and 32 px art at 2x.",
+  "cell": 64,
   "sheets": {
     "dungeon": {
       "url": "assets/tiles/tiny-dungeon.png",

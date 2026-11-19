@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { assets, cellSize, validateManifest } from '../src/content/assets';
+import { assets, cellSize, spriteScale, validateManifest } from '../src/content/assets';
 import { encounters, party } from '../src/content/encounters';
 
 /** Width/height from a PNG's IHDR chunk. */
@@ -32,12 +32,16 @@ describe('art manifest', () => {
     for (const e of Object.values(encounters)) expect(assets.floors[e.floor], e.id).toBeDefined();
   });
 
-  it('grid cell is a whole-number multiple of the art size', () => {
-    expect(cellSize()).toBe(48);
+  it('combat cell is 64 px and every sheet scales to it by a whole number (DND-78)', () => {
+    expect(cellSize()).toBe(64);
+    for (const k of Object.keys(assets.sheets)) expect(Number.isInteger(spriteScale(k)), k).toBe(true);
+    // 16 px art draws at 4x, 32 px art at 2x
+    expect(spriteScale('dungeon')).toBe(4);
   });
 
   it('rejects broken manifests', () => {
-    expect(() => validateManifest({ ...assets, scale: 1.5 })).toThrow(/scale/);
+    expect(() => validateManifest({ ...assets, cell: 1.5 })).toThrow(/cell/);
+    expect(() => validateManifest({ ...assets, sheets: { ...assets.sheets, odd: { url: 'x.png', frameWidth: 24, frameHeight: 24 } } })).toThrow(/does not divide/);
     expect(() => validateManifest({ ...assets, sprites: { x: { sheet: 'nope', frame: 1 } } })).toThrow(/unknown sheet/);
   });
 });

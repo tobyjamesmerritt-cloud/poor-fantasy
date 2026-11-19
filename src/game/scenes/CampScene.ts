@@ -7,7 +7,7 @@ import * as Phaser from 'phaser';
 import type { Command, CommandBus } from '../../engine/commands';
 import type { Rng } from '../../engine/rng';
 import type { GameState } from '../../engine/state';
-import { assets } from '../../content/assets';
+import { assets, spriteScale } from '../../content/assets';
 import { characterData, membersOf, statsOf } from '../../content/characters';
 import { rosterEntries } from '../partyView';
 import { formatCoins } from '../../rules/party';
@@ -193,7 +193,7 @@ export class CampScene extends Phaser.Scene {
       this.sprites.push(
         this.add
           .image(x, y, ref.sheet, ref.frame)
-          .setScale(assets.scale)
+          .setScale(spriteScale(ref.sheet, 48))
           .setAngle(down ? 90 : 0)
           .setAlpha(down ? 0.7 : 1)
           .setDepth(3),
