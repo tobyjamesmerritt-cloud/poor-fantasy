@@ -4,3 +4,6 @@ dist/
 .DS_Store
 .env*
 *.tiled-session
+
+# Local-only placeholder art (licence forbids redistribution) — never commit
+local/

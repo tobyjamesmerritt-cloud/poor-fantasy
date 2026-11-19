@@ -11,6 +11,11 @@
       "url": "assets/tiles/tiny-battle.png",
       "frameWidth": 16,
       "frameHeight": 16
+    },
+    "monsters32": {
+      "url": "assets/sprites/monsters-32.png",
+      "frameWidth": 32,
+      "frameHeight": 32
     }
   },
   "sprites": {
@@ -189,6 +194,42 @@
     "wolf": {
       "sheet": "dungeon",
       "frame": 123
+    },
+    "m-giant-rat": {
+      "sheet": "monsters32",
+      "frame": 0
+    },
+    "m-wolf-spider": {
+      "sheet": "monsters32",
+      "frame": 1
+    },
+    "m-giant-spider": {
+      "sheet": "monsters32",
+      "frame": 2
+    },
+    "m-giant-bat": {
+      "sheet": "monsters32",
+      "frame": 3
+    },
+    "m-goblin": {
+      "sheet": "monsters32",
+      "frame": 4
+    },
+    "m-ankheg": {
+      "sheet": "monsters32",
+      "frame": 5
+    },
+    "m-wolf": {
+      "sheet": "monsters32",
+      "frame": 6
+    },
+    "m-dire-wolf": {
+      "sheet": "monsters32",
+      "frame": 7
+    },
+    "m-worg": {
+      "sheet": "monsters32",
+      "frame": 8
     }
   },
   "floors": {
