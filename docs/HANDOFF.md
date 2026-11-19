@@ -9,14 +9,15 @@ Read `CLAUDE.md` first: it documents the architecture and every system built so 
 - Owner: Toby. Style: formal, concise, bulleted, direct; flag risks and bad ideas; no sycophancy.
 
 ## State
-- All requested work is done, pushed and deployed. `npm run build && npm test` pass (200 tests).
-- Latest commits: DND-86 (regional random encounters), DND-74 (loot tables), DND-73 (bestiary, 22 SRD monsters), DND-75 (monster abilities).
+- All requested work is done, pushed and deployed. `npm run build && npm test` pass (204 tests).
+- Latest commits (art pass, 19 Nov): DND-78 per-sheet sprite sizes + 64 px combat square (done); DND-59 32 px sprites for 9 of 22 monsters (Pixel-Deck); DND-64 item icons (done); DND-63 NPC pictures from git-ignored `local/pictures/` (Corax, local-only); DND-68 sources in `NOTICE.md`. Before that: DND-86, DND-74, DND-73, DND-75.
+- Art packs Toby supplied are unzipped outside the repo; the originals stay in `D:\Claude\poor-fantasy` on his PC. Local-only pictures are written to `D:\Claude\poor-fantasy\local\pictures` — copy into `<repo>/local/pictures/`.
 - Random encounters now (DND-86): ogres within 5 squares of Hollow Cave, bandits on roads east of the bridge (2% per step), the dead within 5 squares of the Old Keep and inside it (6% per step). Config in `src/content/wandering.json` and `locations.json` `wander`; dialogs `wander-ogre|bandits|dead|dead-inside` in `quests.json`.
 
 ## Hard rules
 - **Secrets:** a PixelLab API key was pasted earlier in a past session. Never commit it (repo is public). Toby should rotate it.
 - **IP:** never use art, files, data or code from the original SSI games or reverse-engineered sources (e.g. talonius repos); stats from SRD 5.2 only; don't use the original game's name.
-- **Commits:** reference a DND key; `npm run build && npm test` first; end with the attribution lines from the session's system reminder (currently `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` and the `Claude-Session:` URL).
+- **Commits:** reference a DND key; `npm run build && npm test` first; end with the attribution lines from the session's system reminder (the `Co-Authored-By:` and `Claude-Session:` lines).
 - Stack decisions in `CLAUDE.md` are fixed — ask before changing.
 
 ## Jira (project DND)
@@ -33,10 +34,15 @@ Read `CLAUDE.md` first: it documents the architecture and every system built so 
    - Add the "no scrolling" design rule (DND-85) to `CLAUDE.md`.
 5. Level-1 ogre encounters can one-shot a wizard; the zone is east of the troll bridge, so this is usually level 3+. Watch in playtest.
 
+## Art packs — status
+- Pixel-Deck Tiny Monsters / Tiny Animals / Tiny Dungeon Items: in use (only used frames committed, repacked). 32 Animated Magic Items (48 px GIF): licence OK, unused — candidate for DND-85 spell/action icons (HTML).
+- Corax realistic heroes: local-only NPC/encounter pictures; never commit (licence forbids redistribution, modified or not).
+- On hold, no licence found: `larchrow-16x16-effects-projectiles.zip`, `rpgItems-preview.png` (likely Toronja "Soulbit" — need the real pack + licence).
+
 ## Backlog — suggested next (open Jira, by theme)
 - **Engine, no art needed:** DND-76 shape-changing bosses (unblocked, uses DND-75 abilities); DND-84 leftovers and retune; DND-85 no-scrolling pass plus icons for spells and actions; DND-81 scrolling battlefield; DND-77 multi-square creatures; DND-56 combat walls/obstacles/cover; DND-49 remaining SRD classes, species traits, feats.
 - **Presentation:** DND-42 death marker/active highlight; DND-58 first-person view detail; DND-60/61 missile and spell effects; DND-66 combat feedback (floating numbers done in DND-82/83 work; condition icons remain); DND-69 classic encounter screen; DND-80 minimap.
-- **Art-dependent:** DND-39, 55, 57, 59, 62, 63, 64, 65, 67, 68, 78, 79; audio DND-33, 34; dice DND-32.
+- **Art-dependent:** DND-39, 55, 57, 59 (13 monsters left), 62, 63 (character portraits), 65, 67, 68 (style guide, palette), 69 (picture-left layout started), 79; audio DND-33, 34; dice DND-32.
 - **Content:** DND-38 design the four locales (Millbrook, Fenwick, Hollow Cave, Old Keep); DND-27 patron god rewind mechanic.
 - Low priority: DND-21 iPhone install, DND-22 side initiative.
 - Epics DND-1…7 are still "To Do" containers.
