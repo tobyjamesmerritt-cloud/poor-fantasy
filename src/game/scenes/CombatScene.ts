@@ -630,20 +630,42 @@ export class CombatScene extends Phaser.Scene {
 
   private lastHp = new Map<string, number>(); // HP at the previous redraw → floating numbers (DND-66)
 
+  private seenMisses = 0;
+
   /** Damage (red) or healing (green) rising from a unit's square and fading out. */
   private floatNumber(u: { x: number; y: number }, delta: number): void {
+    this.floatText(u, delta < 0 ? `${delta}` : `+${delta}`, delta < 0 ? '#ff5a4a' : '#5dff8a', 0.62);
+  }
+
+  private floatText(u: { x: number; y: number }, text: string, color: string, size: number): void {
     const t = this.add
-      .text(u.x * TILE + TILE / 2, u.y * TILE + TILE / 3, delta < 0 ? `${delta}` : `+${delta}`, {
+      .text(u.x * TILE + TILE / 2, u.y * TILE + TILE / 3, text, {
         fontFamily: 'monospace',
-        fontSize: `${Math.round(TILE * 0.375)}px`,
+        fontSize: `${Math.round(TILE * size)}px`,
         fontStyle: 'bold',
-        color: delta < 0 ? '#ff5a4a' : '#5dff8a',
+        color,
         stroke: '#000000',
-        strokeThickness: 4,
+        strokeThickness: Math.max(4, Math.round(TILE * size * 0.18)),
       })
       .setOrigin(0.5)
       .setDepth(10);
-    this.tweens.add({ targets: t, y: t.y - 28, alpha: 0, duration: 1100, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+    this.tweens.add({ targets: t, y: t.y - TILE * 0.7, alpha: 0, duration: 1200, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+  }
+
+  /** A small skull on a dead unit (not on one who is merely unconscious: those show death saves). */
+  private drawSkull(u: Unit): void {
+    const g = this.overlay;
+    const cx = u.x * TILE + TILE / 2;
+    const cy = u.y * TILE + TILE / 2;
+    const r = TILE * 0.2;
+    g.fillStyle(0xf2efe6, 1);
+    g.fillCircle(cx, cy - r * 0.25, r);
+    g.fillRect(cx - r * 0.55, cy + r * 0.3, r * 1.1, r * 0.9);
+    g.fillStyle(0x111111, 1);
+    g.fillCircle(cx - r * 0.4, cy - r * 0.3, r * 0.28);
+    g.fillCircle(cx + r * 0.4, cy - r * 0.3, r * 0.28);
+    g.fillTriangle(cx, cy + r * 0.05, cx - r * 0.12, cy + r * 0.35, cx + r * 0.12, cy + r * 0.35);
+    for (const dx of [-0.25, 0, 0.25]) g.fillRect(cx + r * dx - 1, cy + r * 0.8, 2, r * 0.4);
   }
 
   private redraw(): void {
@@ -654,6 +676,13 @@ export class CombatScene extends Phaser.Scene {
       if (before !== undefined && before !== u.hp && !u.fled) this.floatNumber(u, u.hp - before);
       this.lastHp.set(u.id, u.hp);
     }
+    const misses = state.misses ?? [];
+    if (misses.length < this.seenMisses) this.seenMisses = misses.length; // rewound
+    for (const id of misses.slice(this.seenMisses)) {
+      const t = state.units.find((x) => x.id === id);
+      if (t && !t.fled) this.floatText(t, 'Miss', '#d8dde6', 0.5);
+    }
+    this.seenMisses = misses.length;
     this.grid.setVisible(this.deps.prefs.get().grid);
     const active = state.outcome === 'ongoing' ? activeUnit(state) : undefined;
     this.antEdges = active?.side === 'party' && !this.busy && !this.aim ? this.movementEdges() : [];
@@ -679,6 +708,7 @@ export class CombatScene extends Phaser.Scene {
         .setVisible(up && !u.fled);
       if (u.fled) continue;
       if (down && onField(u)) this.drawDeathSaves(u);
+      if (!up && !down && !u.carriedBy) this.drawSkull(u);
 
       if (u === active) {
         overlay.lineStyle(3, 0xf1c40f, 1);

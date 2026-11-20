@@ -245,6 +245,8 @@ export interface CombatState {
   packWeapons?: Record<string, number>; // spare weapons in the party pack, by gear ref
   surged?: boolean; // Action Surge used this turn
   log: string[];
+  /** Ids of units an attack missed (or was parried against), in order — the scene floats a "Miss" for each new one. Display only. */
+  misses?: string[];
 }
 
 /** Conscious and able to act. */
@@ -1065,6 +1067,7 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
   const lead = reaction ? `Opportunity attack! ` : '';
   if (attacker.fumble && rng.int(1, 100) <= Math.round(attacker.fumble * 100)) {
     state.log.push(`${lead}${attacker.name} lurches, swings wide and misses ${target.name}.`);
+    (state.misses ??= []).push(target.id);
     return;
   }
   const grappledByMe = target.effects?.some((e) => e.kind === 'grappled' && e.owner === attacker.id);
@@ -1105,6 +1108,7 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
   if (r.hit && parry && r.d20 !== 20 && !target.reactionUsed && isUp(target) && !incapacitated(target) && r.attackTotal < ac + parry.ac) {
     target.reactionUsed = true;
     state.log.push(`${lead}${attacker.name}'s ${weaponName} is parried by ${target.name} (${r.attackTotal} vs AC ${ac + parry.ac}).`);
+    (state.misses ??= []).push(target.id);
     return;
   }
   if (r.hit && (sneak || slayer)) {
@@ -1115,6 +1119,7 @@ function attack(state: CombatState, rng: Rng, attacker: Unit, target: Unit, reac
   const adv = notes.length ? ` [${notes.join(', ')}]` : '';
   if (!r.hit) {
     state.log.push(`${lead}${attacker.name} misses ${target.name} (${r.attackTotal} vs AC ${ac})${adv}.`);
+    (state.misses ??= []).push(target.id);
     return;
   }
   const verb = r.critical ? 'CRITS' : 'hits';

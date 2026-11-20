@@ -756,6 +756,7 @@ function spellAttack(
   const tag = notes.length ? ` [${notes.join(', ')}]` : '';
   if (!r.hit) {
     state.log.push(`It misses ${target.name} (${r.attackTotal} vs AC ${ac})${tag}.`);
+    (state.misses ??= []).push(target.id);
     return;
   }
   hurt(state, rng, target, r.damage, `${r.critical ? 'CRITICAL! It' : 'It'} hits ${target.name} for ${r.damage} ${type}${tag}`, type);
