@@ -199,7 +199,7 @@ const partyDialog = new PartyDialog({ bus, spriteCss: (key) => spriteCssFromSize
 // ---------------------------------------------------------------------------
 // Quests (rules/quests.ts + content/quests.json): conversations, hooks, quest fights
 // ---------------------------------------------------------------------------
-const talkDialog = new TalkDialog(bus);
+const talkDialog = new TalkDialog(bus, hud.frame);
 const journal = new JournalDialog(questData);
 document.getElementById('menu-journal')!.addEventListener('click', () => journal.show(gameState));
 let talk: Talk | null = null; // the conversation on screen

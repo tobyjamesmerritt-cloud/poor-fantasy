@@ -19,6 +19,12 @@ A personal, nostalgic party-based fantasy RPG in the style of the late-1980s "Go
 ## The seven modes (each becomes a Phaser scene)
 party (roster/creation) · explore (first-person dungeon + overhead wilderness) · encounter (fight/parley/flee/wait/advance) · combat (tactical grid) · postCombat (XP/loot) · camp (short/long rest, spells, save) · town (shop/temple/training/inn).
 
+## UI principles (Toby, 2026-11-20; epic DND-89)
+- **Economy of popups.** A popup exists only when the player must decide something or needs information they can't get otherwise. Cut clicks wherever possible: no confirm for reversible actions, no separate "Leave" step (Esc / Back does it), flavour text and the first choices share one frame, steps with a single option are skipped or merged. Record the click count of the common path in the ticket; it must not rise.
+- **No scrolling.** Content fits the frame. Long content is split into steps or in-frame sections ("Continue"), never a scrollbar. This pulls against the previous rule (fewer clicks = more per frame), so state both numbers when designing a screen.
+- **One popup frame, never stacked.** Every popup uses the shared frame (`src/ui/popupFrame.ts`): larger, centered, portrait left / text and numbered choices right; the 3D view, map and log stay visible and the log is never covered. Opening something from a popup swaps the content in the same frame (Back returns); never open a second popup on top. The frame's look is a swappable theme piece (CSS variables + `data-frame`), so a different border can be added later. Current colours stay; layout only, no mechanics changes (no THAC0).
+- **Platform layouts:** desktop first; a separate mobile layout with platform detection is DND-88.
+
 ## Rules source
 SRD 5.2 (2024 rules), CC-BY-4.0. Implement from the SRD, cite the section in code comments for non-obvious rules. Never copy code, text, maps, art or data from the original SSI games or from reverse-engineered sources (e.g. talonius/pool-of-radiance) — architecture reference only. Do not use the original game's name in the project.
 

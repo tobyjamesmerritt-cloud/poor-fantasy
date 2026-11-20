@@ -452,23 +452,6 @@ main {
   color: var(--gold);
   text-shadow: 0 0 1.2rem #8a6d00;
 }
-#place {
-  inset: auto 1rem 1rem 1rem;
-  padding: 1rem;
-  border: 1px solid #555;
-  border-radius: 8px;
-  background: rgba(10, 10, 10, 0.9);
-}
-#place h2 {
-  margin: 0;
-  color: var(--gold);
-}
-#place-kind {
-  text-transform: uppercase;
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  opacity: 0.7;
-}
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -1117,46 +1100,87 @@ button.danger {
 
 
 /* Conversations and the quest journal */
-#talk-dialog {
-  width: min(40rem, 94vw);
+/* Popup frame (popupFrame.ts, epic DND-89): the one frame every popup draws into.
+   The look is variables + [data-frame]; a different border = a new [data-frame="…"] rule. */
+.popup-frame {
+  --frame-bg: #161616;
+  --frame-border: 1px solid #555;
+  --frame-radius: 8px;
+  --frame-pad: 1.1rem;
+  --frame-picture: 160px;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(46rem, 94vw);
   max-width: none;
+  height: fit-content;
+  max-height: 62vh; /* the log below stays visible; content fits, no scrolling (CLAUDE.md UI principles) */
+  overflow: hidden;
+  padding: var(--frame-pad);
+  background: var(--frame-bg);
+  border: var(--frame-border);
+  border-radius: var(--frame-radius);
 }
-.talk-picture {
-  /* local-only NPC / encounter pictures (localPictures.ts) */
-  float: left;
-  width: 128px;
-  height: 128px;
+.popup-frame[open] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+.popup-frame.has-picture[open] {
+  grid-template-columns: var(--frame-picture) minmax(0, 1fr);
+}
+.popup-frame[data-modal='0']::backdrop {
+  display: none;
+}
+.pf-picture {
+  /* portrait: fills its box (cropped, never letterboxed); local-only pictures come from localPictures.ts */
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
   object-fit: cover;
-  margin: 0 12px 8px 0;
   border: 2px solid #555;
   border-radius: 4px;
 }
-.talk-choices {
-  clear: both;
+.pf-main h2 {
+  margin: 0;
 }
-.talk-text {
+.pf-kind {
+  margin: 0.15rem 0 0.5rem;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+.pf-text {
   line-height: 1.5;
   white-space: pre-wrap;
 }
-.talk-results {
+.pf-notes {
   border-left: 3px solid var(--gold);
   padding-left: 0.6rem;
   margin-bottom: 0.6rem;
   font-size: 0.9rem;
   color: #cfcfcf;
 }
-.talk-results p {
+.pf-notes p {
   margin: 0.2rem 0;
 }
-.talk-choices {
+.pf-choices {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   margin-top: 0.8rem;
 }
-.talk-choices button {
+.pf-choices button {
   text-align: left;
 }
+.pf-close {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  padding: 0.1rem 0.5rem;
+}
+
 #journal-dialog {
   width: min(40rem, 94vw);
   max-width: none;

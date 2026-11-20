@@ -54,7 +54,8 @@ const SCREEN_KEYS: Record<string, { modes: readonly string[]; command: Command }
 
 export function commandForKey(code: string): Command | undefined {
   // A dialog (conversation, pack, journal, menu…) has the player's attention: the game behind it ignores keys.
-  if (typeof document !== 'undefined' && document.querySelector('dialog[open]')) return undefined;
+  // The place panel (popup frame, data-modal="0") doesn't: walking away dismisses it.
+  if (typeof document !== 'undefined' && document.querySelector('dialog[open]:not([data-modal="0"])')) return undefined;
   const screen = SCREEN_KEYS[code];
   if (screen) {
     const mode = typeof document !== 'undefined' ? document.body.dataset.mode ?? '' : '';

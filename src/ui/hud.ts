@@ -4,6 +4,7 @@
  * accessibility and mobile scaling. Text is always set via textContent.
  */
 import type { Command, CommandBus } from '../engine/commands';
+import { PopupFrame } from './popupFrame';
 
 export type Side = 'party' | 'enemy';
 
@@ -124,6 +125,9 @@ export class Hud {
   /** End turn · Rewind · Flee: shown inside the combat card, under Dash/Dodge/Disengage (kept by reference — it moves). */
   private turnButtons = must('turn-buttons');
 
+  /** The one popup frame every popup draws into (popupFrame.ts). */
+  readonly frame = new PopupFrame();
+
   constructor(private bus: CommandBus) {
     document.querySelectorAll<HTMLButtonElement>('[data-command]').forEach((btn) => {
       btn.addEventListener('click', () => bus.dispatch(JSON.parse(btn.dataset.command!) as Command));
@@ -223,25 +227,27 @@ export class Hud {
     banner.hidden = false;
   }
 
-  /** Location panel on the world map; null hides it. */
+  /**
+   * Place panel (a building, a world site, a danger spot) in the shared popup
+   * frame; null hides it. "Leave" is not a choice: Esc / the ✕ button do it,
+   * and walking away dismisses the panel (economy of popups, CLAUDE.md).
+   */
   setPlace(place: { name: string; kind: string; description: string; actions: PlaceAction[] } | null): void {
-    const panel = must('place');
     if (!place) {
-      panel.hidden = true;
+      this.frame.setBase(null);
       return;
     }
-    must('place-name').textContent = place.name;
-    must('place-kind').textContent = place.kind;
-    must('place-desc').textContent = place.description;
-    must('place-actions').replaceChildren(
-      ...place.actions.map((a) => {
-        const btn = el('button', '', a.label) as HTMLButtonElement;
-        if (a.command) btn.addEventListener('click', () => this.bus.dispatch(a.command!));
-        else btn.disabled = true;
-        return btn;
-      }),
-    );
-    panel.hidden = false;
+    const leave = place.actions.find((a) => a.command?.type === 'leavePlace');
+    this.frame.setBase({
+      title: place.name,
+      subtitle: place.kind,
+      text: place.description,
+      choices: place.actions
+        .filter((a) => a !== leave)
+        .map((a) => ({ label: a.label, disabled: !a.command, onClick: () => a.command && this.bus.dispatch(a.command) })),
+      modal: false,
+      onCancel: leave?.command ? () => this.bus.dispatch(leave.command!) : undefined,
+    });
   }
 
   /** Compact active-character card: name over the portrait, stats beside it. */
