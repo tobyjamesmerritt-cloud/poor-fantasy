@@ -1,11 +1,12 @@
 /**
- * Top menu bar (Game / Preferences / About) and the About/Controls dialogs.
+ * Top menu bar (Game / Preferences / About); About and Controls open in the popup frame (helpDialogs.ts).
  * Menu items that trigger game actions use data-command like other buttons
  * (wired in Hud); this module only handles opening/closing and preferences.
  */
 import type { PrefsStore, Difficulty, TextSize, PanelSide } from './prefs';
+import type { HelpDialogs } from './helpDialogs';
 
-export function initMenu(prefs: PrefsStore): void {
+export function initMenu(prefs: PrefsStore, help: HelpDialogs): void {
   const menus = [...document.querySelectorAll<HTMLElement>('.menu')];
   const closeAll = () => menus.forEach((m) => m.classList.remove('open'));
 
@@ -46,13 +47,7 @@ export function initMenu(prefs: PrefsStore): void {
   difficulty.addEventListener('change', () => prefs.set('difficulty', difficulty.value as Difficulty));
   panel.addEventListener('change', () => prefs.set('panelSide', panel.value as PanelSide));
 
-  // Dialogs
-  for (const [btnId, dlgId] of [
-    ['open-about', 'about'],
-    ['open-controls', 'controls'],
-  ] as const) {
-    const dlg = document.getElementById(dlgId) as HTMLDialogElement;
-    document.getElementById(btnId)!.addEventListener('click', () => dlg.showModal());
-    dlg.querySelector('.close')!.addEventListener('click', () => dlg.close());
-  }
+  // About and Controls open in the shared popup frame
+  document.getElementById('open-about')!.addEventListener('click', () => help.about());
+  document.getElementById('open-controls')!.addEventListener('click', () => help.controls());
 }

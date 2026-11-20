@@ -3,7 +3,8 @@ import { type CampSiteRef, CommandBus } from './engine/commands';
 import { createRng, randomSeed } from './engine/rng';
 import { type CharacterSheet, type GameState, newGameState } from './engine/state';
 import { forget, makeSave, parseSave, remember, type SaveEnvelope } from './engine/save';
-import { confirmDialog } from './ui/confirmDialog';
+import { bindConfirm, confirmDialog } from './ui/confirmDialog';
+import { HelpDialogs } from './ui/helpDialogs';
 import { SaveDialog } from './ui/saveDialog';
 import { SaveStore, SLOTS, type SlotId } from './ui/saveStore';
 import { formatClock } from './rules/time';
@@ -85,7 +86,9 @@ let newGameMode = true; // party screen: building a new party (full editing) vs.
 let partyReturn: ReturnScene = 'world';
 let shopName = 'Shop';
 let exploreRng = createRng(gameState.seed ^ 0x5eed); // rests, ambushes, ability rolls (combat has its own seeded Rng); saved with the game
-initMenu(prefs);
+bindConfirm(hud.frame);
+const help = new HelpDialogs(hud.frame, bus);
+initMenu(prefs, help);
 
 const freshOf = (sheet: CharacterSheet) => freshParty(statsOf([sheet]))[0];
 
@@ -199,7 +202,7 @@ const partyDialog = new PartyDialog({ bus, frame: hud.frame, spriteCss: (key) =>
 // Quests (rules/quests.ts + content/quests.json): conversations, hooks, quest fights
 // ---------------------------------------------------------------------------
 const talkDialog = new TalkDialog(bus, hud.frame, (key) => spriteCssFromSizes(sheetSizes, key));
-const journal = new JournalDialog(questData);
+const journal = new JournalDialog(questData, hud.frame);
 document.getElementById('menu-journal')!.addEventListener('click', () => journal.show(gameState));
 let talk: Talk | null = null; // the conversation on screen
 let talkNotes: string[] = []; // what happened in it, for the log afterwards
@@ -398,7 +401,7 @@ const saveDialog = new SaveDialog({
     }
   },
   confirm: confirmDialog,
-});
+}, hud.frame);
 document.getElementById('menu-saves')!.addEventListener('click', () => saveDialog.open());
 
 const game = new Phaser.Game({
@@ -864,9 +867,7 @@ bus.subscribe((cmd) => {
       break;
     case 'openDebug': {
       // backtick: the About dialog with the debug console focused (DND-83)
-      const about = document.getElementById('about') as HTMLDialogElement | null;
-      if (about && !about.open) about.showModal();
-      (document.getElementById('debug-input') as HTMLInputElement | null)?.focus();
+      help.about(true);
       break;
     }
     case 'debug': {
@@ -904,7 +905,7 @@ bus.subscribe((cmd) => {
           debugNote(`Unknown encounter. Try one of: ${Object.keys(encounters).sort().join(', ')}.`);
           break;
         }
-        (document.getElementById('about') as HTMLDialogElement | null)?.close();
+        help.close();
         bus.dispatch({ type: 'fight', encounter: arg, confirmed: true });
         break;
       }
@@ -914,7 +915,7 @@ bus.subscribe((cmd) => {
           debugNote(`Unknown dialog. Try one of: ${Object.keys(questData.dialogs).sort().join(', ')}.`);
           break;
         }
-        (document.getElementById('about') as HTMLDialogElement | null)?.close();
+        help.close();
         startDialog(arg);
         break;
       }
@@ -1016,11 +1017,3 @@ function debugNote(text: string): void {
   if (el) el.textContent = text;
 }
 
-// Debug console in the About dialog (DND-20): type a command, Enter runs it.
-document.getElementById('debug-console')?.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const input = document.getElementById('debug-input') as HTMLInputElement;
-  const text = input.value.trim();
-  input.value = '';
-  bus.dispatch({ type: 'debug', text: text || 'help' });
-});

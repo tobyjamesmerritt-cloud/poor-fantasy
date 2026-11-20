@@ -27,6 +27,11 @@ export class ViewStack<T> {
     return this.over ?? this.base;
   }
 
+  /** The view over the base, if any (a confirm remembers it to put it back). */
+  get overView(): T | null {
+    return this.over;
+  }
+
   get depth(): number {
     return (this.base ? 1 : 0) + (this.over ? 1 : 0);
   }

@@ -4,6 +4,7 @@
  * through the callbacks.
  */
 import { SLOTS, type SlotId, type SlotSummary } from './saveStore';
+import type { PopupFrame, PopupView } from './popupFrame';
 
 export interface SaveDialogDeps {
   summaries: () => (SlotSummary | null)[]; // in SLOTS order
@@ -17,92 +18,108 @@ export interface SaveDialogDeps {
 }
 
 export class SaveDialog {
-  private dlg = document.getElementById('save-dialog') as HTMLDialogElement;
-  private slotsEl = document.getElementById('save-slots')!;
-  private note = document.getElementById('save-note')!;
+  private mine: PopupView | null = null;
+  private message = '';
+  private error = false;
 
-  constructor(private deps: SaveDialogDeps) {
-    this.dlg.querySelector('.close')!.addEventListener('click', () => this.dlg.close());
-    document.getElementById('save-export')!.addEventListener('click', () => this.exportFile());
-    const file = document.getElementById('save-file') as HTMLInputElement;
-    document.getElementById('save-import')!.addEventListener('click', () => file.click());
-    file.addEventListener('change', async () => {
-      const f = file.files?.[0];
-      file.value = '';
-      if (!f) return;
-      const err = this.deps.importJson(await f.text());
-      if (err) this.say(err, true);
-      else this.dlg.close();
-    });
+  constructor(
+    private deps: SaveDialogDeps,
+    private frame: PopupFrame,
+  ) {}
+
+  get showing(): boolean {
+    return this.frame.isTop(this.mine);
   }
 
   open(): void {
     this.say(this.deps.canSave() ?? 'Save into a slot, or load any saved game.');
     this.render();
-    this.dlg.showModal();
+  }
+
+  private close(): void {
+    if (!this.showing) return;
+    this.mine = null;
+    this.frame.pop();
   }
 
   private say(text: string, error = false): void {
-    this.note.textContent = text;
-    this.note.style.color = error ? '#ff8a7d' : '';
+    this.message = text;
+    this.error = error;
+    if (this.showing) this.render();
+  }
+
+  private importFile(): void {
+    const file = document.createElement('input');
+    file.type = 'file';
+    file.accept = '.json,application/json';
+    file.addEventListener('change', async () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      const err = this.deps.importJson(await f.text());
+      if (err) this.say(err, true);
+      else this.close();
+    });
+    file.click();
   }
 
   private render(): void {
     const sums = this.deps.summaries();
     const blocked = this.deps.canSave();
-    this.slotsEl.replaceChildren(
-      ...SLOTS.map((slot, i) => {
-        const s = sums[i];
-        const row = document.createElement('div');
-        row.className = 'slot';
-        const name = document.createElement('strong');
-        name.textContent = slot === 'auto' ? 'Autosave' : `Slot ${slot}`;
-        const info = document.createElement('div');
-        const label = document.createElement('div');
-        label.textContent = s ? s.label : 'Empty';
-        const when = document.createElement('div');
-        when.className = 'when';
-        when.textContent = s?.error ?? (s?.savedAt ? new Date(s.savedAt).toLocaleString() : '');
-        info.append(label, when);
-        const buttons = document.createElement('div');
-        buttons.className = 'buttons';
-        if (slot !== 'auto') {
-          buttons.append(
-            this.button('Save here', blocked ?? undefined, async () => {
-              if (s && !(await this.deps.confirm({ title: 'Overwrite?', text: `Replace “${s.label}” with the current game?`, ok: 'Overwrite', cancel: 'Cancel' }))) return;
-              const err = this.deps.save(slot);
-              this.say(err ?? `Saved to slot ${slot}.`, !!err);
-              this.render();
-            }),
-          );
-        }
+    const rows = SLOTS.map((slot, i) => {
+      const s = sums[i];
+      const row = el('div', 'slot');
+      const when = el('div', 'when', s?.error ?? (s?.savedAt ? new Date(s.savedAt).toLocaleString() : ''));
+      const buttons = el('div', 'buttons');
+      if (slot !== 'auto') {
         buttons.append(
-          this.button('Load', s && !s.error ? undefined : 'Nothing to load', async () => {
-            const ok = await this.deps.confirm({
-              title: 'Load this game?',
-              text: 'Anything since your last save of the current game will be lost.',
-              ok: 'Load',
-              cancel: 'Cancel',
-            });
-            if (!ok) return;
-            const err = this.deps.load(slot);
-            if (err) this.say(err, true);
-            else this.dlg.close();
+          this.button('Save here', blocked ?? undefined, async () => {
+            if (s && !(await this.deps.confirm({ title: 'Overwrite?', text: `Replace “${s.label}” with the current game?`, ok: 'Overwrite', cancel: 'Cancel' }))) return;
+            const err = this.deps.save(slot);
+            this.say(err ?? `Saved to slot ${slot}.`, !!err);
           }),
         );
-        if (slot !== 'auto') {
-          buttons.append(
-            this.button('Delete', s ? undefined : 'Empty', async () => {
-              if (!(await this.deps.confirm({ title: 'Delete save?', text: `Delete “${s!.label}”?`, ok: 'Delete', cancel: 'Keep', danger: true }))) return;
-              this.deps.remove(slot);
-              this.render();
-            }),
-          );
-        }
-        row.append(name, info, buttons);
-        return row;
-      }),
-    );
+      }
+      buttons.append(
+        this.button('Load', s && !s.error ? undefined : 'Nothing to load', async () => {
+          const ok = await this.deps.confirm({
+            title: 'Load this game?',
+            text: 'Anything since your last save of the current game will be lost.',
+            ok: 'Load',
+            cancel: 'Cancel',
+          });
+          if (!ok) return;
+          const err = this.deps.load(slot);
+          if (err) this.say(err, true);
+          else this.close();
+        }),
+      );
+      if (slot !== 'auto') {
+        buttons.append(
+          this.button('Delete', s ? undefined : 'Empty', async () => {
+            if (!(await this.deps.confirm({ title: 'Delete save?', text: `Delete “${s!.label}”?`, ok: 'Delete', cancel: 'Keep', danger: true }))) return;
+            this.deps.remove(slot);
+            this.render();
+          }),
+        );
+      }
+      row.append(el('strong', '', slot === 'auto' ? 'Autosave' : `Slot ${slot}`), el('div', '', el('div', '', s ? s.label : 'Empty'), when), buttons);
+      return row;
+    });
+    const note = el('div', this.error ? 'pd-msg bad' : 'pd-msg', this.message);
+    this.mine = {
+      title: 'Saved games',
+      hint: 'Saves live in this browser. Export a file to keep a backup or to play on another PC.',
+      content: [...rows, note],
+      row: true,
+      modal: true,
+      choices: [
+        { label: 'Export to file…', onClick: () => this.exportFile() },
+        { label: 'Import from file…', onClick: () => this.importFile() },
+        { label: 'Close', onClick: () => this.close() },
+      ],
+      onCancel: () => this.close(),
+    };
+    this.frame.push(this.mine);
   }
 
   private exportFile(): void {
@@ -126,4 +143,11 @@ export class SaveDialog {
     } else b.addEventListener('click', onClick);
     return b;
   }
+}
+
+function el(tag: string, cls: string, ...children: (Node | string)[]): HTMLElement {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  for (const c of children) e.append(typeof c === 'string' ? document.createTextNode(c) : c);
+  return e;
 }

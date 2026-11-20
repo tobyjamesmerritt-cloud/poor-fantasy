@@ -21,6 +21,7 @@ export interface PopupChoice {
   disabled?: boolean;
   /** Not numbered, not a hotkey target (a "Back" link). */
   muted?: boolean;
+  danger?: boolean;
 }
 
 export interface PopupView {
@@ -112,6 +113,33 @@ export class PopupFrame {
   }
 
   /**
+   * A yes/no question in the frame (replaces the browser's confirm()). It swaps
+   * in over whatever is showing and puts that back when answered; Esc = cancel.
+   * Cancel is first (key 1), so a stray key press is the safe answer.
+   */
+  confirm(o: { title: string; text: string; ok: string; cancel: string; danger?: boolean }): Promise<boolean> {
+    const prev = this.stack.overView;
+    return new Promise((resolve) => {
+      const done = (answer: boolean) => {
+        if (prev) this.stack.push(prev);
+        else this.stack.pop();
+        this.render();
+        resolve(answer);
+      };
+      this.push({
+        title: o.title,
+        text: o.text,
+        modal: true,
+        choices: [
+          { label: o.cancel, onClick: () => done(false) },
+          { label: o.ok, danger: o.danger, onClick: () => done(true) },
+        ],
+        onCancel: () => done(false),
+      });
+    });
+  }
+
+  /**
    * Size and place the frame (one size for every popup): wide, centred in the
    * window, from just under the menu bar down to just above the log, so the log
    * stays readable and the 3D view / map still show at the edges. Where there is
@@ -151,6 +179,7 @@ export class PopupFrame {
     for (const c of v.choices) {
       const b = document.createElement('button');
       if (c.muted) b.className = 'muted-btn';
+      else if (c.danger) b.className = 'danger';
       else if (!v.row) b.dataset.n = String(++n);
       b.textContent = c.muted || v.row ? c.label : `${n}. ${c.label}`;
       b.disabled = c.disabled === true;

@@ -809,11 +809,7 @@ button.active {
   }
 }
 
-/* ---------- Dialogs: confirm, saves ---------- */
-dialog.confirm p {
-  max-width: 28rem;
-  font-size: 1.05rem;
-}
+/* ---------- Saves, help (popup frame) ---------- */
 dialog .row {
   display: flex;
   gap: 0.5rem;
@@ -821,14 +817,10 @@ dialog .row {
   flex-wrap: wrap;
   margin: 0.6rem 0;
 }
+#popup-frame .pf-choices button.danger,
 button.danger {
   border-color: #e74c3c;
   color: #ff8a7d;
-}
-#save-dialog {
-  width: min(42rem, 94vw);
-  max-width: none;
-  overflow-x: hidden;
 }
 #save-slots {
   display: flex;
@@ -873,7 +865,6 @@ button.danger {
 }
 
 /* About dialog: debug (testing) buttons */
-#about .debug-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 #about-debug-note { min-height: 1.2em; font-size: 0.9em; opacity: 0.85; }
 
 /* Spells on the combat card */
@@ -1203,12 +1194,6 @@ button.danger {
   padding: 0.1rem 0.5rem;
 }
 
-#journal-dialog {
-  width: min(40rem, 94vw);
-  max-width: none;
-  max-height: 88vh;
-  overflow-y: auto;
-}
 .jr-list,
 .jr-steps {
   list-style: none;
@@ -1507,4 +1492,26 @@ button.danger {
 .debug-console input {
   flex: 1;
   font-family: monospace;
+}
+
+.help-list {
+  margin: 0.4rem 0;
+  padding-left: 1.2rem;
+  line-height: 1.45;
+}
+.help-list li + li {
+  margin-top: 0.4rem;
+}
+.debug-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.pf-body .slot {
+  margin-bottom: 0.3rem;
+}
+.pf-body .jr-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.2rem 0;
 }

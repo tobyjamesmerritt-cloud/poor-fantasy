@@ -1,26 +1,18 @@
-/** A styled yes/no dialog (instead of the browser's confirm()). Resolves true for OK. */
+/**
+ * A styled yes/no question (instead of the browser's confirm()). It is drawn in
+ * the shared popup frame (popupFrame.ts), swapped in over whatever popup is
+ * showing, so popups never stack. main.ts binds the frame once at startup.
+ */
+import type { PopupFrame } from './popupFrame';
+
+let frame: PopupFrame | null = null;
+
+export function bindConfirm(f: PopupFrame): void {
+  frame = f;
+}
+
+/** Resolves true for OK. */
 export function confirmDialog(opts: { title: string; text: string; ok: string; cancel: string; danger?: boolean }): Promise<boolean> {
-  const dlg = document.getElementById('confirm-dialog') as HTMLDialogElement;
-  const title = dlg.querySelector('h2')!;
-  const text = dlg.querySelector('p')!;
-  const ok = dlg.querySelector<HTMLButtonElement>('.ok')!;
-  const cancel = dlg.querySelector<HTMLButtonElement>('.cancel')!;
-  title.textContent = opts.title;
-  text.textContent = opts.text;
-  ok.textContent = opts.ok;
-  cancel.textContent = opts.cancel;
-  ok.classList.toggle('danger', !!opts.danger);
-  return new Promise((resolve) => {
-    const finish = (answer: boolean) => {
-      ok.onclick = cancel.onclick = null;
-      dlg.onclose = null;
-      if (dlg.open) dlg.close();
-      resolve(answer);
-    };
-    ok.onclick = () => finish(true);
-    cancel.onclick = () => finish(false);
-    dlg.onclose = () => finish(false); // Escape key
-    dlg.showModal();
-    cancel.focus(); // the safe choice is the default
-  });
+  if (!frame) throw new Error('confirmDialog used before bindConfirm');
+  return frame.confirm(opts);
 }
