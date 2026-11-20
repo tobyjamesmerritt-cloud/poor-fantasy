@@ -66,7 +66,7 @@ const nextSeed = (): number => {
 };
 let encounter = params.get('encounter') ?? DEFAULT_ENCOUNTER; // ?encounter=ruins-crawlers for testing
 let origin: string | undefined; // what the current fight belongs to (location:spot), for the cleared flag
-type SceneKey = 'world' | 'combat' | 'location' | 'camp' | 'party' | 'shop';
+type SceneKey = 'world' | 'combat' | 'location' | 'camp' | 'party';
 type ReturnScene = 'world' | 'location' | 'camp';
 let returnTo: ReturnScene = 'world'; // where "Continue" goes after a fight
 let campReturn: 'world' | 'location' = 'world'; // where "Break camp" goes
@@ -83,7 +83,6 @@ const prefs = new PrefsStore();
 const gameState = newGameState(seed);
 let newGameMode = true; // party screen: building a new party (full editing) vs. managing during play
 let partyReturn: ReturnScene = 'world';
-let shopReturn: ReturnScene = 'location';
 let shopName = 'Shop';
 let exploreRng = createRng(gameState.seed ^ 0x5eed); // rests, ambushes, ability rolls (combat has its own seeded Rng); saved with the game
 initMenu(prefs);
@@ -191,9 +190,9 @@ document.getElementById('menu-new-game')!.addEventListener('click', () => {
   }).then((yes) => yes && bus.dispatch({ type: 'newGame' }));
 });
 
-const shopScreen = new ShopScreen(bus);
-const spellsDialog = new SpellsDialog(bus);
-const packDialog = new PackDialog({ bus, spriteCss: (key) => spriteCssFromSizes(sheetSizes, key) });
+const shopScreen = new ShopScreen(bus, hud.frame, (key) => spriteCssFromSizes(sheetSizes, key));
+const spellsDialog = new SpellsDialog(bus, hud.frame, (key) => spriteCssFromSizes(sheetSizes, key));
+const packDialog = new PackDialog({ bus, frame: hud.frame, spriteCss: (key) => spriteCssFromSizes(sheetSizes, key) });
 const partyDialog = new PartyDialog({ bus, frame: hud.frame, spriteCss: (key) => spriteCssFromSizes(sheetSizes, key) });
 
 // ---------------------------------------------------------------------------
@@ -372,8 +371,7 @@ const PREPARE_FLAG = 'spells:prepare'; // set at camp after a Long Rest, cleared
 /** Redraw whatever is on screen after a change made from a dialog. */
 function refreshScreen(): void {
   const mode = document.body.dataset.mode;
-  if (mode === 'shop') shopScreen.refresh();
-  else if (mode === 'party') partyScreen.refresh();
+  if (mode === 'party') partyScreen.refresh();
   else if (mode !== 'combat') show(returnTo);
 }
 
@@ -420,9 +418,9 @@ game.scene.add('camp', CampScene, false);
 
 /** Canvas size + page layout for a scene (combat, world, camp 4:3; locations two square panes). */
 function layoutFor(key: SceneKey): void {
-  if (key === 'party' || key === 'shop') {
+  if (key === 'party') {
     document.body.dataset.mode = key;
-    hud.setStatus(key === 'shop' ? shopName : newGameMode ? 'New game · create your party' : 'Party roster');
+    hud.setStatus(newGameMode ? 'New game · create your party' : 'Party roster');
     return;
   }
   const { width, height } = key === 'location' ? LOCATION_VIEW : { width: BOARD.width * TILE, height: BOARD.height * TILE };
@@ -500,11 +498,10 @@ function show(key: SceneKey): void {
     notices = [];
     return n;
   };
-  if (key === 'party' || key === 'shop') {
+  if (key === 'party') {
     for (const sc of game.scene.getScenes(true)) sc.scene.stop();
     layoutFor(key);
-    if (key === 'party') partyScreen.show(gameState, newGameMode);
-    else shopScreen.show(gameState, shopName);
+    partyScreen.show(gameState, newGameMode);
     return;
   }
   let data: object;
@@ -799,13 +796,13 @@ bus.subscribe((cmd) => {
       break;
     }
     case 'openShop':
+      // the shop is a view in the popup frame over the town, not a screen of its own (DND-93)
       shopName = cmd.name;
-      shopReturn = returnTo;
-      show('shop');
+      shopScreen.show(gameState, shopName);
       break;
     case 'closeShop':
       persistLibrary(); // equipment lives on the character sheets
-      show(shopReturn);
+      shopScreen.close();
       break;
     case 'shopBuy':
       shopScreen.refresh(buy(gameState, cmd.ref, characterData) ?? '');
@@ -949,8 +946,7 @@ bus.subscribe((cmd) => {
         debugNote(`Unknown command “${verb}”. Type help.`);
         break;
       }
-      if (mode === 'shop') shopScreen.refresh(notices.pop());
-      else if (mode === 'party') partyScreen.refresh(undefined, notices.pop());
+      if (mode === 'party') partyScreen.refresh(undefined, notices.pop());
       else show(returnTo); // redraw the current place with the new purse
       break;
     }

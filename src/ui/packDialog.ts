@@ -10,14 +10,16 @@
 import type { CommandBus } from '../engine/commands';
 import type { GameState } from '../engine/state';
 import type { SpriteCss } from './hud';
-import { characterData, derive, statsOf } from '../content/characters';
-import { equipped, weaponDef } from '../rules/character';
+import type { PopupFrame, PopupView } from './popupFrame';
+import { characterData, statsOf } from '../content/characters';
+import { weaponDef } from '../rules/character';
 import { canSell, equipProblem, itemInfo } from '../rules/items';
 import { formatCoins } from '../rules/party';
 import { MISC_ICON, VALUABLE_ICON, WEAPON_ICON } from '../content/itemIcons';
 
 export interface PackDialogDeps {
   bus: CommandBus;
+  frame: PopupFrame;
   spriteCss: (key: string) => SpriteCss | null;
 }
 
@@ -43,22 +45,22 @@ interface Item {
   detail: string;
 }
 
+/** Cards per page: the pack never scrolls, it pages (DND-89 no-scroll rule). */
+const PAGE = 6;
+
 export class PackDialog {
-  private dlg: HTMLDialogElement;
+  private mine: PopupView | null = null;
   private game!: GameState;
   private message = '';
   private focus: string | undefined; // character opened from their name: listed first in the choices
   private tab: Tab = 'all';
+  private page = 0;
   private choosing: string | null = null; // item whose "who?" chips are open
 
-  constructor(private deps: PackDialogDeps) {
-    const d = document.getElementById('pack-dialog');
-    if (!(d instanceof HTMLDialogElement)) throw new Error('Missing #pack-dialog in index.html');
-    this.dlg = d;
-  }
+  constructor(private deps: PackDialogDeps) {}
 
   get open(): boolean {
-    return this.dlg.open;
+    return this.deps.frame.isTop(this.mine);
   }
 
   show(game: GameState, characterId?: string): void {
@@ -66,15 +68,21 @@ export class PackDialog {
     this.focus = characterId;
     this.message = '';
     this.choosing = null;
+    this.page = 0;
     this.render();
-    if (!this.dlg.open) this.dlg.showModal();
   }
 
   refresh(message = ''): void {
-    if (!this.dlg.open) return;
+    if (!this.open) return;
     this.message = message;
     this.choosing = null;
     this.render();
+  }
+
+  close(): void {
+    if (!this.open) return;
+    this.mine = null;
+    this.deps.frame.pop();
   }
 
   private get bus(): CommandBus {
@@ -141,12 +149,6 @@ export class PackDialog {
     for (const i of items) counts.set(i.tab, (counts.get(i.tab) ?? 0) + 1);
     if (this.tab !== 'all' && !counts.get(this.tab)) this.tab = 'all';
 
-    const head = el(
-      'div',
-      'pk-head',
-      el('h2', '', g.partyName ? `${g.partyName} — pack` : 'The party’s pack'),
-      el('div', 'pk-purse', el('span', 'pk-coin', '●'), formatCoins(g.coins)),
-    );
     const tabs = el('div', 'pk-tabs');
     tabs.setAttribute('role', 'tablist');
     for (const t of TABS) {
@@ -154,6 +156,7 @@ export class PackDialog {
       if (t.id !== 'all' && !n) continue;
       const b = btn(`${t.label} ${n}`, () => {
         this.tab = t.id;
+        this.page = 0;
         this.choosing = null;
         this.render();
       }, this.tab === t.id ? 'pk-tab on' : 'pk-tab');
@@ -162,25 +165,50 @@ export class PackDialog {
       tabs.append(b);
     }
 
-    const parts: HTMLElement[] = [head];
-    if (this.message) parts.push(el('div', 'ps-message', this.message));
-    if (items.length) parts.push(tabs);
-
     const shown = items.filter((i) => this.tab === 'all' || i.tab === this.tab);
+    const pages = Math.max(1, Math.ceil(shown.length / PAGE));
+    this.page = Math.min(this.page, pages - 1);
     const grid = el('div', 'pk-grid');
-    for (const i of shown) grid.append(this.card(i));
-    parts.push(items.length ? grid : el('p', 'pk-empty muted', 'The pack is empty. Shops sell weapons, armour and potions.'));
+    for (const i of shown.slice(this.page * PAGE, (this.page + 1) * PAGE)) grid.append(this.card(i));
 
-    parts.push(el('h3', 'pk-sub', 'Who wears what'), this.wearing());
-    parts.push(
-      el(
-        'div',
-        'pk-foot',
-        el('small', 'muted', 'Shared by the whole party. Click a name to change that character’s gear.'),
-        btn('Close', () => this.dlg.close(), 'close'),
-      ),
-    );
-    this.dlg.replaceChildren(...parts);
+    const content: HTMLElement[] = [el('div', 'pk-purse', el('span', 'pk-coin', '●'), formatCoins(g.coins))];
+    if (items.length) content.push(tabs);
+    content.push(items.length ? grid : el('p', 'pk-empty muted', 'The pack is empty. Shops sell weapons, armour and potions.'));
+    content.push(el('div', 'ps-message pd-msg', this.message));
+
+    const go = (to: number) => () => {
+      this.page = to;
+      this.choosing = null;
+      this.render();
+    };
+    const lead = shown[this.page * PAGE];
+    this.mine = {
+      sprite: lead ? (this.deps.spriteCss(lead.icon) ?? undefined) : undefined,
+      title: g.partyName ? `${g.partyName} — pack` : 'The party’s pack',
+      hint: 'Shared by the whole party. Equipped gear belongs to a character: open their sheet to change it.',
+      content,
+      row: true,
+      modal: true,
+      choices: [
+        ...(pages > 1
+          ? [
+              { label: '◀', disabled: this.page === 0, onClick: go(this.page - 1) },
+              { label: `Page ${this.page + 1} / ${pages}`, muted: true, disabled: true, onClick: () => undefined },
+              { label: '▶', disabled: this.page >= pages - 1, onClick: go(this.page + 1) },
+            ]
+          : []),
+        { label: 'Party', onClick: () => this.swapTo({ type: 'openParty' }) },
+        { label: 'Close', onClick: () => this.close() },
+      ],
+      onCancel: () => this.close(),
+    };
+    this.deps.frame.push(this.mine);
+  }
+
+  /** Hand the frame to another popup (it swaps the content; this one is no longer showing). */
+  private swapTo(cmd: Parameters<CommandBus['dispatch']>[0]): void {
+    this.mine = null;
+    this.bus.dispatch(cmd);
   }
 
   private card(i: Item): HTMLElement {
@@ -209,8 +237,7 @@ export class PackDialog {
     if (kind === 'consumable') return btn('Drink', () => this.bus.dispatch({ type: 'useItem', ref: i.ref }), 'pk-act');
     if (kind === 'scroll')
       return btn('Read…', () => {
-        this.dlg.close(); // scrolls are read from the spells dialog
-        this.bus.dispatch({ type: 'openSpells' });
+        this.swapTo({ type: 'openSpells' }); // scrolls are read from the spells dialog
       }, 'pk-act');
     if (i.tab === 'weapons' || i.tab === 'armour') return toggle('Equip…');
     return null;
@@ -249,35 +276,6 @@ export class PackDialog {
       }
     }
     return row;
-  }
-
-  /** Compact table: portrait, name (opens the sheet), weapon, armour, AC. */
-  private wearing(): HTMLElement {
-    const g = this.game;
-    const d = characterData;
-    const table = el('table', 'pk-wear');
-    for (const r of this.roster()) {
-      const gear = equipped(r, d);
-      const dv = derive(r);
-      const p = g.party.find((x) => x.id === r.id);
-      const name = btn(r.name, () => {
-        this.dlg.close();
-        this.bus.dispatch({ type: 'openCharacter', characterId: r.id });
-      }, 'name-link party');
-      const armour = `${gear.armor ? d.armor[gear.armor].name : 'No armour'}${gear.shield ? ' + shield' : ''}`;
-      table.append(
-        el(
-          'tr',
-          p?.dead ? 'muted' : r.id === this.focus ? 'focus' : '',
-          el('td', '', this.portrait(r.sprite)),
-          el('td', '', name),
-          el('td', '', dv.attackName),
-          el('td', 'muted', armour),
-          el('td', 'num', `AC ${dv.ac}`),
-        ),
-      );
-    }
-    return table;
   }
 
   private icon(key: string): HTMLElement {

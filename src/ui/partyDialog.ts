@@ -25,13 +25,13 @@ export interface PartyDialogDeps {
 export class PartyDialog {
   private game!: GameState;
   private view: { kind: 'group' } | { kind: 'character'; id: string } | { kind: 'gear'; id: string; slot: 'weapon' | 'armor' | 'shield' } = { kind: 'group' };
-  private shown = false;
+  private mine: PopupView | null = null;
   private message = '';
 
   constructor(private deps: PartyDialogDeps) {}
 
   get open(): boolean {
-    return this.shown;
+    return this.deps.frame.isTop(this.mine);
   }
 
   showGroup(game: GameState): void {
@@ -49,15 +49,15 @@ export class PartyDialog {
 
   /** Redraw after something changed (levelled up, equipped…), if open. */
   refresh(message = ''): void {
-    if (!this.shown) return;
+    if (!this.open) return;
     this.message = message;
     if (this.view.kind === 'gear') this.view = { kind: 'character', id: this.view.id };
     this.render();
   }
 
   close(): void {
-    if (!this.shown) return;
-    this.shown = false;
+    if (!this.open) return;
+    this.mine = null;
     this.deps.frame.pop();
   }
 
@@ -69,8 +69,8 @@ export class PartyDialog {
   private render(): void {
     const v = this.view;
     const part = v.kind === 'character' ? this.character(v.id) : v.kind === 'gear' ? this.gear(v.id, v.slot) : this.group();
-    this.shown = true;
-    this.deps.frame.push({ ...part, modal: true, onCancel: () => this.close() });
+    this.mine = { ...part, modal: true, onCancel: () => this.close() };
+    this.deps.frame.push(this.mine);
   }
 
   private sprite(key: string): SpriteCss | undefined {

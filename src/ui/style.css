@@ -624,37 +624,8 @@ body[data-mode='location'] #touchpad {
 }
 
 /* ---------- Party screen (create / edit characters) ---------- */
-#party-screen,
-#shop-screen {
+#party-screen {
   display: none;
-}
-body[data-mode='shop'] main {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: none;
-}
-body[data-mode='shop'] main > :not(#shop-screen),
-body[data-mode='shop'] #touchpad {
-  display: none;
-}
-body[data-mode='shop'] #shop-screen {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 1rem;
-  min-height: 0;
-  overflow: auto;
-}
-#shop-screen h2 {
-  margin: 0 0 0.4rem;
-  color: var(--gold);
-}
-#shop-screen h3 {
-  margin: 0.8rem 0 0.3rem;
-}
-.sh-col {
-  border: 1px solid var(--line);
-  padding: 0.7rem;
-  min-height: 0;
-  overflow: auto;
 }
 .sh-table {
   width: 100%;
@@ -672,28 +643,6 @@ body[data-mode='shop'] #shop-screen {
 .sh-purse {
   color: var(--gold);
   margin-bottom: 0.4rem;
-}
-.sh-msg {
-  color: #ff8a7d;
-  margin-bottom: 0.4rem;
-}
-.sh-member {
-  border-bottom: 1px solid #2a2a2a;
-  padding: 0.4rem 0;
-}
-.sh-member-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin-top: 0.3rem;
-}
-.sh-member-buttons select {
-  font: inherit;
-  background: #1b1b1b;
-  color: inherit;
-  border: 1px solid #555;
-  border-radius: 4px;
-  max-width: 100%;
 }
 body[data-mode='party'] main {
   grid-template-columns: minmax(0, 1fr);
@@ -1024,13 +973,6 @@ button.danger {
 }
 
 /* Spells dialog */
-#spells-dialog {
-  width: min(44rem, 94vw);
-  max-width: none;
-  max-height: 88vh;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
 .sd-caster {
   border-top: 1px solid #333;
   padding: 0.6rem 0 0.4rem;
@@ -1305,21 +1247,6 @@ button.danger {
 }
 
 /* Pack dialog: tabs + item cards + who-wears-what */
-#pack-dialog {
-  width: min(46rem, 94vw);
-  max-width: none;
-  max-height: 88vh;
-  overflow-y: auto;
-}
-.pk-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-.pk-head h2 {
-  margin: 0;
-}
 .pk-purse {
   color: var(--gold);
   white-space: nowrap;
@@ -1346,7 +1273,7 @@ button.danger {
 }
 .pk-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
   align-items: start;
   gap: 0.4rem;
 }
@@ -1379,9 +1306,6 @@ button.danger {
 }
 .pk-name {
   font-weight: bold;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 .pk-count {
   margin-left: 0.4rem;
@@ -1422,8 +1346,7 @@ button.danger {
 .pk-chip:disabled {
   opacity: 0.35;
 }
-.pk-chip .portrait,
-.pk-wear .portrait {
+.pk-chip .portrait {
   display: inline-block;
   image-rendering: pixelated;
 }
@@ -1436,37 +1359,6 @@ button.danger {
 }
 .pk-empty {
   margin: 1rem 0;
-}
-.pk-sub {
-  margin: 1rem 0 0.3rem;
-  font-size: 1rem;
-}
-.pk-wear {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-.pk-wear td {
-  padding: 0.15rem 0.4rem;
-  border-top: 1px solid var(--line);
-  vertical-align: middle;
-}
-.pk-wear td:first-child {
-  width: 1px;
-}
-.pk-wear tr.focus td {
-  background: #1d1a0c;
-}
-.pk-wear .num {
-  text-align: right;
-  white-space: nowrap;
-}
-.pk-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 0.8rem;
 }
 .name-link {
   all: unset;
@@ -1615,9 +1507,4 @@ button.danger {
 .debug-console input {
   flex: 1;
   font-family: monospace;
-}
-@media (max-width: 30rem) {
-  .pk-wear td:nth-child(4) {
-    display: none; /* armour: AC still shows */
-  }
 }

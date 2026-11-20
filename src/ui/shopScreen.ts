@@ -1,71 +1,130 @@
 /**
- * Shop (HTML): buy SRD weapons, armor, shields and Potions of Healing into the
- * party pack, sell from the pack at half price, and equip / unequip each
- * character. Changes go out as Commands; main.ts applies the rules.
+ * Shop (DND-93): buy SRD weapons, armour, shields and Potions of Healing into
+ * the party pack, sell from the pack at half price. Draws into the shared popup
+ * frame over the town view — categories and pages, never a scrollbar. Equipping
+ * happens on the character sheet / pack. Changes go out as Commands; main.ts
+ * applies the rules.
  */
 import type { Command, CommandBus } from '../engine/commands';
 import type { GameState } from '../engine/state';
-import { characterData, derive } from '../content/characters';
-import { equipped, signed, trainedWithArmor, trainedWithWeapon, weaponDef } from '../rules/character';
-import { canSell, equipProblem, itemInfo, sellPrice } from '../rules/items';
+import { characterData } from '../content/characters';
+import { canSell, itemInfo, sellPrice } from '../rules/items';
 import { formatCoins } from '../rules/party';
+import type { SpriteCss } from './hud';
+import type { PopupFrame, PopupView } from './popupFrame';
 
 const gp = (cp: number) => formatCoins(cp);
 
+/** Rows per page: the frame is a fixed size, so long lists page. */
+const ROWS = 7;
+
+type Tab = 'weapons' | 'armor' | 'other' | 'sell';
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'weapons', label: 'Weapons', icon: 'item-sword' },
+  { id: 'armor', label: 'Armour', icon: 'item-armor' },
+  { id: 'other', label: 'Shields & potions', icon: 'item-potion' },
+  { id: 'sell', label: 'Sell', icon: 'item-gem' },
+];
+
 export class ShopScreen {
-  private root = document.getElementById('shop-screen')!;
+  private mine: PopupView | null = null;
   private game!: GameState;
   private name = '';
   private message = '';
+  private tab: Tab = 'weapons';
+  private page = 0;
 
-  constructor(private bus: CommandBus) {}
+  constructor(
+    private bus: CommandBus,
+    private frame: PopupFrame,
+    private spriteCss: (key: string) => SpriteCss | null,
+  ) {}
+
+  get open(): boolean {
+    return this.frame.isTop(this.mine);
+  }
 
   show(game: GameState, shopName: string): void {
     this.game = game;
     this.name = shopName;
     this.message = '';
+    this.tab = 'weapons';
+    this.page = 0;
     this.render();
   }
 
   refresh(message = ''): void {
+    if (!this.open) return;
     this.message = message;
     this.render();
+  }
+
+  close(): void {
+    if (!this.open) return;
+    this.mine = null;
+    this.frame.pop();
   }
 
   private send(cmd: Command): void {
     this.bus.dispatch(cmd);
   }
 
-  private render(): void {
+  private refsFor(tab: Tab): string[] {
     const d = characterData;
-    const stock: { title: string; refs: string[] }[] = [
-      { title: 'Weapons', refs: Object.keys(d.weapons).map((id) => `weapon:${id}`) },
-      { title: 'Armor', refs: Object.keys(d.armor).map((id) => `armor:${id}`) },
-      { title: 'Shields and potions', refs: ['shield', ...Object.keys(d.consumables).filter((id) => d.consumables[id].shop !== false).map((id) => `consumable:${id}`)] },
+    if (tab === 'weapons') return Object.keys(d.weapons).map((id) => `weapon:${id}`);
+    if (tab === 'armor') return Object.keys(d.armor).map((id) => `armor:${id}`);
+    if (tab === 'other') return ['shield', ...Object.keys(d.consumables).filter((id) => d.consumables[id].shop !== false).map((id) => `consumable:${id}`)];
+    return Object.keys(this.game.inventory).filter((r) => this.game.inventory[r] > 0);
+  }
+
+  private render(): void {
+    const refs = this.refsFor(this.tab);
+    const pages = Math.max(1, Math.ceil(refs.length / ROWS));
+    this.page = Math.min(this.page, pages - 1);
+    const rows = refs.slice(this.page * ROWS, (this.page + 1) * ROWS);
+
+    const tabs = el('div', 'pk-tabs');
+    for (const t of TABS) {
+      tabs.append(
+        btn(t.label, () => {
+          this.tab = t.id;
+          this.page = 0;
+          this.message = '';
+          this.render();
+        }, this.tab === t.id ? 'pk-tab on' : 'pk-tab'),
+      );
+    }
+    const table = el('table', 'sh-table', ...rows.map((ref) => (this.tab === 'sell' ? this.sellRow(ref) : this.stockRow(ref))));
+    const content: HTMLElement[] = [
+      el('div', 'sh-purse', `Purse: ${gp(this.game.coins)}`),
+      tabs,
+      refs.length ? table : el('p', 'muted', 'Nothing in the pack to sell.'),
+      el('div', 'ps-message pd-msg', this.message),
     ];
-    const forSale = div(
-      'sh-col',
-      h('h2', '', this.name),
-      h('p', 'muted small', 'Prices from the SRD. You sell things back for half. Bought items go into the party pack; equip them from the party list.'),
-      ...stock.map((g) =>
-        div(
-          'sh-group',
-          h('h3', '', g.title),
-          h('table', 'sh-table', ...g.refs.map((ref) => this.stockRow(ref))),
-        ),
-      ),
-    );
-    const party = div(
-      'sh-col',
-      h('h2', '', 'The party'),
-      div('sh-purse', `Purse: ${gp(this.game.coins)}`),
-      this.message ? h('div', 'sh-msg', this.message) : null,
-      ...this.game.roster.map((s) => this.memberCard(s.id)),
-      h('h3', '', 'Pack'),
-      this.packTable(),
-      div('ps-buttons', button('Leave the shop', () => this.send({ type: 'closeShop' }), undefined, 'primary')),
-    );
-    this.root.replaceChildren(forSale, party);
+    const go = (to: number) => () => {
+      this.page = to;
+      this.render();
+    };
+    this.mine = {
+      sprite: this.spriteCss(TABS.find((t) => t.id === this.tab)!.icon) ?? undefined,
+      title: this.name,
+      hint: 'SRD prices; the shop buys back at half. Purchases go into the party pack: equip them from a character sheet.',
+      content,
+      row: true,
+      modal: true,
+      choices: [
+        ...(pages > 1
+          ? [
+              { label: '◀', disabled: this.page === 0, onClick: go(this.page - 1) },
+              { label: `Page ${this.page + 1} / ${pages}`, muted: true, disabled: true, onClick: () => undefined },
+              { label: '▶', disabled: this.page >= pages - 1, onClick: go(this.page + 1) },
+            ]
+          : []),
+        { label: 'Leave', onClick: () => this.send({ type: 'closeShop' }) },
+      ],
+      onCancel: () => this.send({ type: 'closeShop' }),
+    };
+    this.frame.push(this.mine);
   }
 
   private stockRow(ref: string): HTMLElement {
@@ -81,92 +140,47 @@ export class ShopScreen {
     } else if (ref === 'shield') detail = '+2 AC';
     else detail = `heals ${characterData.consumables[id].heal} · Bonus Action`;
     const owned = this.game.inventory[ref] ?? 0;
-    return h(
+    return el(
       'tr',
       '',
-      h('td', '', info.name, owned ? h('span', 'muted small', ` (${owned} in pack)`) : null),
-      h('td', 'muted small', detail),
-      h('td', 'num', gp(info.cost)),
-      h('td', '', button('Buy', () => this.send({ type: 'shopBuy', ref }), this.game.coins < info.cost ? 'Not enough coin' : undefined)),
+      el('td', '', info.name, owned ? el('span', 'muted small', ` (${owned})`) : ''),
+      el('td', 'muted small', detail),
+      el('td', 'num', gp(info.cost)),
+      el('td', '', this.button('Buy', () => this.send({ type: 'shopBuy', ref }), this.game.coins < info.cost ? 'Not enough coin' : undefined)),
     );
   }
 
-  private memberCard(id: string): HTMLElement {
-    const sheet = this.game.roster.find((s) => s.id === id)!;
-    const cls = characterData.classes[sheet.classId];
-    const g = equipped(sheet, characterData);
-    const dv = derive(sheet);
-    const state = this.game.party.find((p) => p.id === id);
-    // what in the pack this character could put on
-    const options = Object.keys(this.game.inventory)
-      .filter((ref) => ref === 'shield' || ref.startsWith('weapon:') || ref.startsWith('armor:'))
-      .map((ref) => ({ ref, why: equipProblem(sheet, ref, characterData) }));
-    const select = h('select', '') as HTMLSelectElement;
-    select.append(new Option('Equip from pack…', ''));
-    for (const o of options) {
-      const info = itemInfo(o.ref, characterData)!;
-      const kind = o.ref.split(':')[0];
-      const untrained = kind === 'weapon' && !trainedWithWeapon(cls, weaponDef(characterData, o.ref.split(':')[1])!);
-      const opt = new Option(`${info.name}${o.why ? ` — ${o.why}` : untrained ? ' — not trained (no proficiency bonus)' : ''}`, o.ref);
-      opt.disabled = !!o.why;
-      select.append(opt);
+  private sellRow(ref: string): HTMLElement {
+    return el(
+      'tr',
+      '',
+      el('td', '', `${this.game.inventory[ref]}× ${itemInfo(ref, characterData)?.name ?? ref}`),
+      el('td', 'muted small num', canSell(ref) ? `sells for ${gp(sellPrice(ref, characterData))}` : 'quest item'),
+      el('td', '', canSell(ref) ? this.button('Sell one', () => this.send({ type: 'shopSell', ref })) : ''),
+    );
+  }
+
+  private button(label: string, onClick: () => void, disabledReason?: string): HTMLButtonElement {
+    const b = btn(label, onClick, '');
+    if (disabledReason) {
+      b.disabled = true;
+      b.title = disabledReason;
     }
-    select.disabled = !options.length;
-    select.addEventListener('change', () => {
-      if (select.value) this.send({ type: 'equipItem', characterId: id, ref: select.value });
-    });
-    const armorName = g.armor ? characterData.armor[g.armor].name : 'no armor';
-    return div(
-      'sh-member',
-      h('div', 'name party', `${sheet.name}${state?.dead ? ' (dead)' : ''}`),
-      h('div', 'small', `${cls.name} · AC ${dv.ac} · ${dv.attackName} ${signed(dv.attackBonus)} (${dv.damage.join(' + ')})`),
-      h(
-        'div',
-        'small muted',
-        `Wearing ${armorName}${g.shield ? ' and a shield' : ''}${g.shield && !trainedWithArmor(cls, 'shield') ? ' (untrained: no AC)' : ''}.`,
-      ),
-      ...dv.notes.map((n) => h('div', 'warn small', n)),
-      div(
-        'sh-member-buttons',
-        select,
-        button('Remove armor', () => this.send({ type: 'unequipItem', characterId: id, slot: 'armor' }), g.armor ? undefined : 'No armor'),
-        button('Remove shield', () => this.send({ type: 'unequipItem', characterId: id, slot: 'shield' }), g.shield ? undefined : 'No shield'),
-      ),
-    );
-  }
-
-  private packTable(): HTMLElement {
-    const refs = Object.keys(this.game.inventory);
-    if (!refs.length) return h('p', 'muted small', 'Empty.');
-    return h(
-      'table',
-      'sh-table',
-      ...refs.map((ref) =>
-        h(
-          'tr',
-          '',
-          h('td', '', `${this.game.inventory[ref]}× ${itemInfo(ref, characterData)?.name ?? ref}`),
-          h('td', 'num', canSell(ref) ? `sells for ${gp(sellPrice(ref, characterData))}` : 'quest item'),
-          h('td', '', canSell(ref) ? button('Sell one', () => this.send({ type: 'shopSell', ref })) : null),
-        ),
-      ),
-    );
+    return b;
   }
 }
 
-function h(tag: string, cls: string, ...children: (Node | string | null)[]): HTMLElement {
+function el(tag: string, cls: string, ...children: (Node | string)[]): HTMLElement {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
-  for (const c of children) if (c !== null) e.append(typeof c === 'string' ? document.createTextNode(c) : c);
+  for (const c of children) e.append(typeof c === 'string' ? document.createTextNode(c) : c);
   return e;
 }
-const div = (cls: string, ...children: (Node | string | null)[]) => h('div', cls, ...children);
 
-function button(label: string, onClick: () => void, disabledReason?: string, cls = ''): HTMLButtonElement {
-  const b = h('button', cls, label) as HTMLButtonElement;
-  if (disabledReason) {
-    b.disabled = true;
-    b.title = disabledReason;
-  } else b.addEventListener('click', onClick);
+function btn(label: string, onClick: () => void, cls: string): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.textContent = label;
+  if (cls) b.className = cls;
+  b.addEventListener('click', onClick);
   return b;
 }

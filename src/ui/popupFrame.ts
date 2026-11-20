@@ -84,6 +84,11 @@ export class PopupFrame {
   }
 
   /** Is the frame showing a conversation-style (modal) view? */
+  /** True while this exact view is the one showing (a dialog uses it to know the frame hasn't been swapped to something else). */
+  isTop(view: PopupView | null): boolean {
+    return view !== null && this.dlg.open && this.stack.top === view;
+  }
+
   get busy(): boolean {
     return this.dlg.open && this.stack.top?.modal === true;
   }
