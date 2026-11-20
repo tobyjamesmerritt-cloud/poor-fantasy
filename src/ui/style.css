@@ -1100,48 +1100,76 @@ button.danger {
 
 
 /* Conversations and the quest journal */
-/* Popup frame (popupFrame.ts, epic DND-89): the one frame every popup draws into.
+/* Popup frame (popupFrame.ts, epic DND-89): the one frame every popup draws into — one fixed size.
    The look is variables + [data-frame]; a different border = a new [data-frame="…"] rule. */
 .popup-frame {
   --frame-bg: #161616;
   --frame-border: 1px solid #555;
   --frame-radius: 8px;
-  --frame-pad: 1.1rem;
-  --frame-picture: 160px;
+  --frame-pad: 1rem;
+  --frame-picture: 200px;
   position: fixed;
   inset: 0;
   margin: auto;
-  width: min(46rem, 94vw);
+  width: min(50rem, 94vw);
+  height: min(22rem, 62vh); /* fixed: centre() in popupFrame.ts fits it to the stage */
   max-width: none;
-  height: fit-content;
-  max-height: 62vh; /* the log below stays visible; content fits, no scrolling (CLAUDE.md UI principles) */
+  max-height: none;
   overflow: hidden;
   padding: var(--frame-pad);
+  box-sizing: border-box;
   background: var(--frame-bg);
   border: var(--frame-border);
   border-radius: var(--frame-radius);
 }
 .popup-frame[open] {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
-}
-.popup-frame.has-picture[open] {
   grid-template-columns: var(--frame-picture) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 1rem;
 }
 .popup-frame[data-modal='0']::backdrop {
   display: none;
 }
 .pf-picture {
-  /* portrait: fills its box (cropped, never letterboxed); local-only pictures come from localPictures.ts */
+  /* large portrait, left: image fills its box (cropped, never letterboxed) */
   width: 100%;
   height: 100%;
-  min-height: 160px;
+  min-height: 0;
   object-fit: cover;
+  box-sizing: border-box;
   border: 2px solid #555;
   border-radius: 4px;
 }
-.pf-main h2 {
+.pf-plain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d0d0d;
+}
+.pf-sprite {
+  image-rendering: pixelated;
+  flex: none;
+}
+.pf-initial {
+  font-size: 5rem;
+  color: var(--gold);
+  opacity: 0.35;
+}
+.pf-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.pf-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden; /* popups fit: no scrolling … */
+}
+.pf-body.pf-scroll {
+  overflow-y: auto; /* … except a conversation's text (the one allowed exception) */
+}
+.pf-body h2 {
   margin: 0;
 }
 .pf-kind {
@@ -1170,6 +1198,7 @@ button.danger {
   flex-direction: column;
   gap: 0.35rem;
   margin-top: 0.8rem;
+  flex: none;
 }
 .pf-choices button {
   text-align: left;

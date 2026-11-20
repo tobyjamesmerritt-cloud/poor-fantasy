@@ -6,11 +6,13 @@
  */
 import type { CommandBus } from '../engine/commands';
 import { pictureUrl } from './localPictures';
+import type { SpriteCss } from './hud';
 import type { PopupChoice, PopupFrame } from './popupFrame';
 
 export interface TalkView {
   speaker?: string;
   picture?: string; // local-only image id (localPictures.ts)
+  sprite?: string; // sprite id for the portrait when there is no picture (monster encounters)
   text: string;
   results: string[]; // what the last choice did
   choices: { index: number; text: string; check?: { label: string; rollers: { id: string; name: string; bonus: number; note: string }[] } }[];
@@ -23,6 +25,7 @@ export class TalkDialog {
   constructor(
     private bus: CommandBus,
     private frame: PopupFrame,
+    private spriteCss: (key: string) => SpriteCss | null,
   ) {}
 
   get open(): boolean {
@@ -77,6 +80,8 @@ export class TalkDialog {
     } else choices.push({ label: 'Farewell.', onClick: () => this.bus.dispatch({ type: 'talkClose' }) });
     this.frame.push({
       picture: pictureUrl(v.picture) ?? undefined,
+      sprite: (v.sprite && this.spriteCss(v.sprite)) || undefined,
+      scrollable: true,
       title: v.speaker ?? 'Conversation',
       notes: v.results,
       text: v.text,

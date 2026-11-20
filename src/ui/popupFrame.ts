@@ -12,6 +12,7 @@
  * keys still work and walking away dismisses it); modal = a conversation (the
  * game behind it waits).
  */
+import type { SpriteCss } from './hud';
 import { ViewStack } from './viewStack';
 
 export interface PopupChoice {
@@ -23,7 +24,11 @@ export interface PopupChoice {
 }
 
 export interface PopupView {
-  picture?: string; // image url; the column is left out when absent
+  /** Large portrait, left. Order: picture (image url) → sprite (enlarged pixel art) → a plain panel with the title's initial. Every popup has the column, so every popup is the same size. */
+  picture?: string;
+  sprite?: SpriteCss;
+  /** Conversations only: the text area may scroll when a long text overflows. Everything else must fit (UI principles). */
+  scrollable?: boolean;
   title: string;
   subtitle?: string;
   notes?: string[]; // what just happened (dice, items)
@@ -112,6 +117,7 @@ export class PopupFrame {
       s.removeProperty('top');
       s.removeProperty('transform');
       s.removeProperty('width');
+      s.removeProperty('height');
       return;
     }
     s.inset = 'auto';
@@ -119,7 +125,8 @@ export class PopupFrame {
     s.left = `${Math.round(r.left + r.width / 2)}px`;
     s.top = `${Math.round(r.top + r.height / 2)}px`;
     s.transform = 'translate(-50%, -50%)';
-    s.width = `${Math.min(736, Math.round(r.width) - 16)}px`;
+    s.width = `${Math.min(800, Math.round(r.width) - 16)}px`;
+    s.height = `${Math.min(352, Math.round(r.height) - 16)}px`;
   }
 
   private render(): void {
@@ -128,14 +135,7 @@ export class PopupFrame {
       if (this.dlg.open) this.dlg.close();
       return;
     }
-    const children: (Node | string)[] = [];
-    if (v.picture) {
-      const img = document.createElement('img');
-      img.className = 'pf-picture';
-      img.src = v.picture;
-      img.alt = v.title;
-      children.push(img);
-    }
+    const children: (Node | string)[] = [portraitOf(v)];
     const list = el('div', 'pf-choices');
     let n = 0;
     for (const c of v.choices) {
@@ -147,17 +147,16 @@ export class PopupFrame {
       b.addEventListener('click', c.onClick);
       list.append(b);
     }
-    const main = el(
+    const body = el(
       'div',
-      'pf-main',
+      v.scrollable ? 'pf-body pf-scroll' : 'pf-body',
       ...(v.notes?.length ? [el('div', 'pf-notes', ...v.notes.map((t) => el('p', '', t)))] : []),
       el('h2', '', v.title),
       ...(v.subtitle ? [el('p', 'pf-kind', v.subtitle)] : []),
       ...(v.text ? [el('p', 'pf-text', v.text)] : []),
       ...(v.hint ? [el('p', 'small muted', v.hint)] : []),
-      list,
     );
-    children.push(main);
+    children.push(el('div', 'pf-main', body, list));
     if (v.onCancel) {
       const x = document.createElement('button');
       x.className = 'pf-close';
@@ -167,7 +166,6 @@ export class PopupFrame {
       x.addEventListener('click', v.onCancel);
       children.push(x);
     }
-    this.dlg.classList.toggle('has-picture', Boolean(v.picture));
     this.dlg.replaceChildren(...children.map((c) => (typeof c === 'string' ? document.createTextNode(c) : c)));
     // A dialog can't change between modal and not while open: reopen it.
     const wasModal = this.dlg.dataset.modal === '1';
@@ -181,6 +179,35 @@ export class PopupFrame {
     if (v.modal) (list.querySelector('button:not([disabled])') as HTMLButtonElement | null)?.focus();
   }
 }
+
+/** The large portrait column: the same box in every popup. */
+function portraitOf(v: PopupView): HTMLElement {
+  if (v.picture) {
+    const img = document.createElement('img');
+    img.className = 'pf-picture';
+    img.src = v.picture;
+    img.alt = v.title;
+    return img;
+  }
+  const box = el('div', 'pf-picture pf-plain');
+  if (v.sprite) {
+    // pixel art, enlarged by a whole number so it stays crisp
+    const sc = Math.max(1, Math.floor(PORTRAIT_PX / v.sprite.frameWidth));
+    const px = sc * v.sprite.frameWidth;
+    const art = el('div', 'pf-sprite');
+    Object.assign(art.style, {
+      width: `${px}px`,
+      height: `${px}px`,
+      backgroundImage: `url(${v.sprite.url})`,
+      backgroundSize: `${v.sprite.sheetCols * px}px ${v.sprite.sheetRows * px}px`,
+      backgroundPosition: `-${v.sprite.col * px}px -${v.sprite.row * px}px`,
+    });
+    box.append(art);
+  } else box.append(el('span', 'pf-initial', v.title.trim().charAt(0).toUpperCase()));
+  return box;
+}
+
+const PORTRAIT_PX = 192;
 
 function el(tag: string, cls: string, ...children: (Node | string)[]): HTMLElement {
   const e = document.createElement(tag);

@@ -1,3 +1,4 @@
+import { assets } from '../src/content/assets';
 import { describe, expect, it } from 'vitest';
 import { pregens } from '../src/content/characters';
 import { checkRoller, questContext, questData } from '../src/content/quests';
@@ -244,6 +245,16 @@ describe('walking away from a conversation (Esc)', () => {
     g.flags['quest:troll'] = 'met';
     const troll = startTalk(g, questData, 'troll')!;
     expect(canWalkAway(g, questData, troll)).toBe(true);
+  });
+});
+
+describe('dialog portraits (DND-89)', () => {
+  it('every monster encounter dialog names a sprite that exists in the art manifest', () => {
+    for (const id of ['wander-ogre', 'wander-bandits', 'wander-dead', 'wander-dead-inside', 'wander-rats', 'wander-bats', 'wander-spiders', 'troll']) {
+      const sprite = questData.dialogs[id].sprite;
+      expect(sprite, id).toBeTruthy();
+      expect(assets.sprites[sprite!], `${id}: sprite ${sprite}`).toBeTruthy();
+    }
   });
 });
 

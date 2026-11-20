@@ -78,6 +78,8 @@ export interface DialogNode {
 export interface DialogDef {
   /** NPC / encounter picture id (DND-63/69): an image in the git-ignored local/pictures/ folder; hidden when absent. */
   picture?: string;
+  /** Sprite id (assets.json): the large portrait when there is no local picture (monster encounters, DND-89). */
+  sprite?: string;
   entry: { when?: Condition; node: string }[]; // first match starts the conversation
   nodes: Record<string, DialogNode>;
 }

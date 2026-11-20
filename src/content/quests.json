@@ -51,6 +51,7 @@
 
   "dialogs": {
     "wander-ogre": {
+      "sprite": "cyclops",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
@@ -68,6 +69,7 @@
       }
     },
     "wander-bandits": {
+      "sprite": "brigand",
       "picture": "bandit-captain",
       "entry": [{ "node": "meet" }],
       "nodes": {
@@ -86,6 +88,7 @@
       }
     },
     "wander-dead": {
+      "sprite": "undead",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
@@ -103,6 +106,7 @@
       }
     },
     "wander-dead-inside": {
+      "sprite": "undead",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
@@ -120,6 +124,7 @@
       }
     },
     "wander-rats": {
+      "sprite": "m-giant-rat",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
@@ -137,6 +142,7 @@
       }
     },
     "wander-bats": {
+      "sprite": "m-giant-bat",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
@@ -154,6 +160,7 @@
       }
     },
     "wander-spiders": {
+      "sprite": "m-giant-spider",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
@@ -382,6 +389,7 @@
     },
 
     "troll": {
+      "sprite": "troll",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {

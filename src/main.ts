@@ -199,7 +199,7 @@ const partyDialog = new PartyDialog({ bus, spriteCss: (key) => spriteCssFromSize
 // ---------------------------------------------------------------------------
 // Quests (rules/quests.ts + content/quests.json): conversations, hooks, quest fights
 // ---------------------------------------------------------------------------
-const talkDialog = new TalkDialog(bus, hud.frame);
+const talkDialog = new TalkDialog(bus, hud.frame, (key) => spriteCssFromSizes(sheetSizes, key));
 const journal = new JournalDialog(questData);
 document.getElementById('menu-journal')!.addEventListener('click', () => journal.show(gameState));
 let talk: Talk | null = null; // the conversation on screen
@@ -261,6 +261,7 @@ function talkView(results: string[]): TalkView {
   return {
     speaker: node.speaker,
     picture,
+    sprite: questData.dialogs[talk!.dialog]?.sprite,
     text: node.text,
     results,
     choices: visibleChoices(gameState, questData, talk!).map((c) => ({
