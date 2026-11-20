@@ -103,30 +103,31 @@ export class PopupFrame {
   }
 
   /**
-   * Centre the frame on the stage (3D view + map), not the window, so it never
-   * covers the party panel (and its touch buttons) or the log. Where there is no
-   * stage on screen, the CSS default (centred in the window) applies.
+   * Size and place the frame (one size for every popup): wide, centred in the
+   * window, from just under the menu bar down to just above the log, so the log
+   * stays readable and the 3D view / map still show at the edges. Where there is
+   * no log or stage on screen, the CSS default applies.
    */
   private centre(): void {
-    const r = document.getElementById('stage')?.getBoundingClientRect();
     const s = this.dlg.style;
-    if (!r || r.width < 200 || r.height < 120) {
-      s.removeProperty('inset');
-      s.removeProperty('margin');
-      s.removeProperty('left');
-      s.removeProperty('top');
-      s.removeProperty('transform');
-      s.removeProperty('width');
-      s.removeProperty('height');
+    const stage = document.getElementById('stage')?.getBoundingClientRect();
+    const log = document.getElementById('log')?.getBoundingClientRect();
+    const head = document.querySelector('header')?.getBoundingClientRect();
+    if (!stage || stage.width < 200 || stage.height < 120) {
+      for (const k of ['inset', 'margin', 'left', 'top', 'transform', 'width', 'height']) s.removeProperty(k);
       return;
     }
+    const top = (head?.bottom ?? stage.top) + 12;
+    const bottom = (log && log.height > 0 ? log.top : window.innerHeight) - 8;
+    const h = Math.max(300, Math.min(600, bottom - top));
+    const w = Math.min(1040, Math.round(window.innerWidth * 0.88));
     s.inset = 'auto';
     s.margin = '0';
-    s.left = `${Math.round(r.left + r.width / 2)}px`;
-    s.top = `${Math.round(r.top + r.height / 2)}px`;
+    s.left = `${Math.round(window.innerWidth / 2)}px`;
+    s.top = `${Math.round(top + (bottom - top) / 2)}px`;
     s.transform = 'translate(-50%, -50%)';
-    s.width = `${Math.min(800, Math.round(r.width) - 16)}px`;
-    s.height = `${Math.min(352, Math.round(r.height) - 16)}px`;
+    s.width = `${w}px`;
+    s.height = `${h}px`;
   }
 
   private render(): void {
@@ -207,7 +208,7 @@ function portraitOf(v: PopupView): HTMLElement {
   return box;
 }
 
-const PORTRAIT_PX = 192;
+const PORTRAIT_PX = 288;
 
 function el(tag: string, cls: string, ...children: (Node | string)[]): HTMLElement {
   const e = document.createElement(tag);
