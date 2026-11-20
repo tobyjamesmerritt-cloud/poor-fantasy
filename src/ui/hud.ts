@@ -79,6 +79,7 @@ export interface RosterEntry {
   sprite: SpriteCss;
   state?: 'ok' | 'out' | 'dead';
   cls?: string; // class name
+  ac?: number;
 }
 
 export interface PartyRow {
@@ -596,22 +597,20 @@ function rosterList(entries: readonly RosterEntry[], bus: CommandBus, partyName?
     'div',
     'roster',
     head,
+    el('div', 'roster-cols', el('span', ''), el('span', '', 'Name'), el('span', 'num', 'AC'), el('span', 'num', 'HP')),
     ...entries.map((e) => {
       const pct = Math.max(0, Math.round((e.hp / e.maxHp) * 100));
-      const fill = el('div', pct > 50 ? 'fill ok' : pct > 25 ? 'fill warn' : 'fill bad');
-      fill.style.width = `${pct}%`;
-      const hp = e.state === 'dead' ? 'dead' : e.state === 'out' ? `${e.hp}/${e.maxHp} · unconscious` : `${e.hp}/${e.maxHp}`;
+      const hpCls = e.state === 'dead' ? 'dead' : e.state === 'out' || pct <= 25 ? 'bad' : pct <= 50 ? 'warn' : 'ok';
+      const hp = e.state === 'dead' ? 'dead' : e.state === 'out' ? `0/${e.maxHp}` : `${e.hp}/${e.maxHp}`;
+      const hpCell = el('span', `num hp ${hpCls}`, hp);
+      if (e.state === 'out') hpCell.title = 'Unconscious';
       return el(
         'div',
-        'roster-row',
+        e.state === 'dead' ? 'roster-row muted' : 'roster-row',
         portrait(e.sprite, 32),
-        el(
-          'div',
-          e.state === 'dead' ? 'muted' : '',
-          nameButton(e.name, e.id, bus),
-          `${e.cls ? ` (${e.cls})` : ''}  ${hp}`,
-          el('div', 'bar', fill),
-        ),
+        el('span', 'who', nameButton(e.name, e.id, bus), e.cls ? el('small', 'muted', ` ${e.cls}`) : ''),
+        el('span', 'num ac', e.ac === undefined ? '–' : String(e.ac)),
+        hpCell,
       );
     }),
   );

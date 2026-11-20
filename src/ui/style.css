@@ -254,12 +254,39 @@ main {
   flex-direction: column;
   gap: 0.35rem;
 }
-.roster-row {
+.roster-row,
+.roster-cols {
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 32px minmax(0, 1fr) 2.2rem 3.4rem;
   gap: 0.4rem;
   align-items: center;
   font-size: 0.85rem;
+}
+.roster-cols {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+.roster-row .who {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.roster .num {
+  text-align: right;
+}
+.roster .hp.ok {
+  color: var(--ok, #4bd47c);
+}
+.roster .hp.warn {
+  color: #e6c34a;
+}
+.roster .hp.bad {
+  color: #e74c3c;
+}
+.roster .hp.dead {
+  color: #888;
 }
 .roster-row .portrait {
   width: 32px;
