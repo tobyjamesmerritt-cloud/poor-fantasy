@@ -34,7 +34,11 @@ export interface PopupView {
   notes?: string[]; // what just happened (dice, items)
   text?: string;
   hint?: string;
+  /** Custom content (a sheet, a table…) shown after the text. */
+  content?: HTMLElement[];
   choices: PopupChoice[];
+  /** Choices as one row of plain buttons (not numbered) instead of a numbered list. */
+  row?: boolean;
   modal: boolean;
   /** Esc / the ✕ button. Absent = no close control. */
   onCancel?: () => void;
@@ -137,13 +141,13 @@ export class PopupFrame {
       return;
     }
     const children: (Node | string)[] = [portraitOf(v)];
-    const list = el('div', 'pf-choices');
+    const list = el('div', v.row ? 'pf-choices pf-row' : 'pf-choices');
     let n = 0;
     for (const c of v.choices) {
       const b = document.createElement('button');
       if (c.muted) b.className = 'muted-btn';
-      else b.dataset.n = String(++n);
-      b.textContent = c.muted ? c.label : `${n}. ${c.label}`;
+      else if (!v.row) b.dataset.n = String(++n);
+      b.textContent = c.muted || v.row ? c.label : `${n}. ${c.label}`;
       b.disabled = c.disabled === true;
       b.addEventListener('click', c.onClick);
       list.append(b);
@@ -156,6 +160,7 @@ export class PopupFrame {
       ...(v.subtitle ? [el('p', 'pf-kind', v.subtitle)] : []),
       ...(v.text ? [el('p', 'pf-text', v.text)] : []),
       ...(v.hint ? [el('p', 'small muted', v.hint)] : []),
+      ...(v.content ?? []),
     );
     children.push(el('div', 'pf-main', body, list));
     if (v.onCancel) {

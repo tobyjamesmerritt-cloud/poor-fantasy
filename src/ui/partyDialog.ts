@@ -14,30 +14,24 @@ import { canLevelUp, xpForNext } from '../rules/levelling';
 import { equipProblem, itemInfo } from '../rules/items';
 import { formatCoins } from '../rules/party';
 import type { SpriteCss } from './hud';
+import type { PopupChoice, PopupFrame, PopupView } from './popupFrame';
 
 export interface PartyDialogDeps {
   bus: CommandBus;
+  frame: PopupFrame;
   spriteCss: (key: string) => SpriteCss | null;
 }
 
 export class PartyDialog {
-  private dlg: HTMLDialogElement;
   private game!: GameState;
-  private view: { kind: 'group' } | { kind: 'character'; id: string } = { kind: 'group' };
-  private gearDlg: HTMLDialogElement; // pop-up for choosing a weapon / armour / shield
+  private view: { kind: 'group' } | { kind: 'character'; id: string } | { kind: 'gear'; id: string; slot: 'weapon' | 'armor' | 'shield' } = { kind: 'group' };
+  private shown = false;
   private message = '';
 
-  constructor(private deps: PartyDialogDeps) {
-    const d = document.getElementById('party-dialog');
-    if (!(d instanceof HTMLDialogElement)) throw new Error('Missing #party-dialog in index.html');
-    this.dlg = d;
-    this.gearDlg = document.createElement('dialog');
-    this.gearDlg.className = 'gear-dialog';
-    document.body.append(this.gearDlg);
-  }
+  constructor(private deps: PartyDialogDeps) {}
 
   get open(): boolean {
-    return this.dlg.open;
+    return this.shown;
   }
 
   showGroup(game: GameState): void {
@@ -55,31 +49,37 @@ export class PartyDialog {
 
   /** Redraw after something changed (levelled up, equipped…), if open. */
   refresh(message = ''): void {
-    if (!this.dlg.open) return;
+    if (!this.shown) return;
     this.message = message;
+    if (this.view.kind === 'gear') this.view = { kind: 'character', id: this.view.id };
     this.render();
   }
 
   close(): void {
-    if (this.gearDlg.open) this.gearDlg.close();
-    if (this.dlg.open) this.dlg.close();
+    if (!this.shown) return;
+    this.shown = false;
+    this.deps.frame.pop();
   }
 
   private send(cmd: Parameters<CommandBus['dispatch']>[0]): void {
     this.deps.bus.dispatch(cmd);
   }
 
+  /** Everything draws into the one popup frame (popupFrame.ts); the gear chooser is a state of the sheet, not a second pop-up. */
   private render(): void {
     const v = this.view;
-    this.dlg.classList.toggle('pd-sheet', v.kind === 'character');
-    this.dlg.replaceChildren(...(v.kind === 'character' ? this.character(v.id) : this.group()));
-    if (!this.dlg.open) this.dlg.showModal();
-    this.dlg.scrollTop = 0;
+    const part = v.kind === 'character' ? this.character(v.id) : v.kind === 'gear' ? this.gear(v.id, v.slot) : this.group();
+    this.shown = true;
+    this.deps.frame.push({ ...part, modal: true, onCancel: () => this.close() });
+  }
+
+  private sprite(key: string): SpriteCss | undefined {
+    return this.deps.spriteCss(key) ?? undefined;
   }
 
   // --- Group view -------------------------------------------------------------
 
-  private group(): HTMLElement[] {
+  private group(): Omit<PopupView, 'modal'> {
     const g = this.game;
     const stats = statsOf(g.roster);
     const rows = g.roster.map((s, i) => {
@@ -100,28 +100,34 @@ export class PartyDialog {
       );
     });
     const anyCaster = g.roster.some((s) => characterData.classes[s.classId]?.spellcasting);
-    return [
-      el('h2', '', g.partyName || 'The party'),
-      el('div', 'sh-purse', `Purse: ${formatCoins(g.coins)}`),
-      el(
-        'table',
-        'pd-table',
-        el('tr', '', el('th', '', ''), el('th', '', 'Name'), el('th', 'num', 'Lvl'), el('th', 'num', 'HP'), el('th', 'num', 'AC'), el('th', 'num', 'XP'), el('th', '', '')),
-        ...rows,
-      ),
-      el('p', 'small muted', 'Click a name for the character sheet.'),
-      el(
-        'div',
-        'ps-buttons',
-        btn('Pack…', () => this.send({ type: 'openPack' })),
-        anyCaster ? btn('✦ Spells…', () => this.send({ type: 'openSpells' })) : null,
-        btn('Roster…', () => {
+    const choices: PopupChoice[] = [
+      { label: 'Pack…', onClick: () => this.send({ type: 'openPack' }) },
+      ...(anyCaster ? [{ label: '✦ Spells…', onClick: () => this.send({ type: 'openSpells' }) }] : []),
+      {
+        label: 'Roster…',
+        onClick: () => {
           this.close();
           this.send({ type: 'partyScreen' });
-        }),
-        btn('Close', () => this.close(), 'close'),
-      ),
+        },
+      },
+      { label: 'Close', onClick: () => this.close() },
     ];
+    return {
+      title: g.partyName || 'The party',
+      sprite: g.roster[0] ? this.sprite(g.roster[0].sprite) : undefined,
+      content: [
+        el('div', 'sh-purse', `Purse: ${formatCoins(g.coins)}`),
+        el(
+          'table',
+          'pd-table',
+          el('tr', '', el('th', '', ''), el('th', '', 'Name'), el('th', 'num', 'Lvl'), el('th', 'num', 'HP'), el('th', 'num', 'AC'), el('th', 'num', 'XP'), el('th', '', '')),
+          ...rows,
+        ),
+        el('p', 'small muted', 'Click a name for the character sheet.'),
+      ],
+      choices,
+      row: true,
+    };
   }
 
   private levelUp(s: CharacterSheet): void {
@@ -131,7 +137,7 @@ export class PartyDialog {
 
   // --- Character view ---------------------------------------------------------
 
-  private character(id: string): HTMLElement[] {
+  private character(id: string): Omit<PopupView, 'modal'> {
     const g = this.game;
     const d = characterData;
     const i = g.roster.findIndex((r) => r.id === id);
@@ -141,28 +147,6 @@ export class PartyDialog {
     const max = statsOf([s])[0].hp;
     const status = p?.dead ? 'Dead' : p && p.hp <= 0 ? 'Unconscious' : 'Okay';
     const gear = equipped(s, d);
-
-    const nav = el(
-      'div',
-      'pd-nav',
-      btn('◀', () => this.showCharacter(g, g.roster[(i - 1 + g.roster.length) % g.roster.length].id)),
-      el('span', 'small muted', `${i + 1} of ${g.roster.length}`),
-      btn('▶', () => this.showCharacter(g, g.roster[(i + 1) % g.roster.length].id)),
-    );
-
-    const head = el(
-      'div',
-      'pd-head',
-      this.portrait(s.sprite, 96),
-      el(
-        'div',
-        '',
-        el('div', 'pd-name name party', s.name),
-        el('div', '', `${d.species[s.speciesId].name} ${className(s)} · ${d.backgrounds[s.backgroundId].name}`),
-        el('div', '', `Level ${s.level} · ${xpText(s)}`),
-        el('div', p?.dead ? 'bad' : p && p.hp <= 0 ? 'warn' : 'ok', `Status: ${status}`),
-      ),
-    );
 
     const abilities = el(
       'table',
@@ -215,70 +199,88 @@ export class PartyDialog {
       );
     } else spellBox = el('p', 'small muted', `${className(s)}s don't cast spells (yet).`);
 
-    const parts: HTMLElement[] = [
-      nav,
-      head,
-      el('div', 'pd-cols', el('div', '', el('h3', '', 'Abilities'), abilities), el('div', '', el('h3', '', 'Combat'), combat)),
-      el(
-        'div',
-        'pd-cols',
-        el('div', '', el('h3', '', 'Equipment'), items, el('p', 'small muted', 'Click an item to change it.')),
-        el('div', '', el('h3', '', 'Spells'), spellBox),
-      ),
-      el('div', 'ps-message pd-msg', this.message || (dv.notes.length ? dv.notes.join(' · ') : '')),
-    ];
-
-    parts.push(
-      el(
-        'div',
-        'ps-buttons',
-        btn('◀ Party', () => this.showGroup(g)),
-        btn('Gear & pack…', () => this.send({ type: 'openPack', characterId: s.id })),
-        caster ? btn('✦ Spells…', () => this.send({ type: 'openSpells', characterId: s.id })) : null,
-        canLevelUp(s) ? btn('Level up!', () => this.levelUp(s), 'primary') : null,
-        btn('Close', () => this.close(), 'close'),
-      ),
+    const status$ = el(
+      'div',
+      'pd-status',
+      `Level ${s.level} · ${xpText(s)} · `,
+      el('span', p?.dead ? 'bad' : p && p.hp <= 0 ? 'warn' : 'ok', `Status: ${status}`),
     );
-    return parts;
+    const choices: PopupChoice[] = [
+      { label: '◀', onClick: () => this.showCharacter(g, g.roster[(i - 1 + g.roster.length) % g.roster.length].id) },
+      { label: '▶', onClick: () => this.showCharacter(g, g.roster[(i + 1) % g.roster.length].id) },
+      { label: 'Party', onClick: () => this.showGroup(g) },
+      { label: 'Gear & pack…', onClick: () => this.send({ type: 'openPack', characterId: s.id }) },
+      ...(caster ? [{ label: '✦ Spells…', onClick: () => this.send({ type: 'openSpells', characterId: s.id }) }] : []),
+      ...(canLevelUp(s) ? [{ label: 'Level up!', onClick: () => this.levelUp(s) }] : []),
+      { label: 'Close', onClick: () => this.close() },
+    ];
+    return {
+      title: s.name,
+      subtitle: `${d.species[s.speciesId].name} ${className(s)} · ${d.backgrounds[s.backgroundId].name}`,
+      sprite: this.sprite(s.sprite),
+      content: [
+        status$,
+        el('div', 'pd-cols', el('div', '', el('h3', '', 'Abilities'), abilities), el('div', '', el('h3', '', 'Combat'), combat)),
+        el(
+          'div',
+          'pd-cols',
+          el('div', '', el('h3', '', 'Equipment'), items),
+          el('div', '', el('h3', '', 'Spells'), spellBox),
+        ),
+        el('div', 'ps-message pd-msg', this.message || (dv.notes.length ? dv.notes.join(' · ') : '')),
+      ],
+      choices,
+      row: true,
+    };
   }
 
-  /** One equipment slot: click the item to choose its replacement in a pop-up. */
+  /** One equipment slot: click the item to choose its replacement (in this same frame). */
   private gearRow(s: CharacterSheet, slot: 'weapon' | 'armor' | 'shield', label: string, current: string): HTMLElement {
-    const item = btn(`${current} ▾`, () => this.openGear(s, slot, label, current), 'name-link pd-item');
+    const item = btn(`${current} ▾`, () => this.openGear(s, slot), 'name-link pd-item');
+    item.title = `Change the ${label.toLowerCase()}`;
     return el('tr', '', el('td', 'muted', label), el('td', '', item));
   }
 
-  /** The gear pop-up: what in the pack fits this slot (greyed out, with the reason, if the character can't use it). */
-  private openGear(s: CharacterSheet, slot: 'weapon' | 'armor' | 'shield', label: string, current: string): void {
+  private openGear(s: CharacterSheet, slot: 'weapon' | 'armor' | 'shield'): void {
+    this.view = { kind: 'gear', id: s.id, slot };
+    this.render();
+  }
+
+  /** The gear chooser: what in the pack fits this slot (greyed out, with the reason, if the character can't use it). */
+  private gear(id: string, slot: 'weapon' | 'armor' | 'shield'): Omit<PopupView, 'modal'> {
     const d = characterData;
     const g = this.game;
-    const choose = (cmd: Parameters<CommandBus['dispatch']>[0]) => {
-      this.gearDlg.close();
-      this.send(cmd);
+    const s = g.roster.find((r) => r.id === id)!;
+    const gear = equipped(s, d);
+    const label = slot === 'weapon' ? 'Weapon' : slot === 'armor' ? 'Armour' : 'Shield';
+    const nameOf = (ref: string) => itemInfo(ref, d)?.name ?? ref;
+    const current = slot === 'weapon' ? (gear.weapon ? nameOf(`weapon:${gear.weapon}`) : 'none') : slot === 'armor' ? (gear.armor ? nameOf(`armor:${gear.armor}`) : 'none') : gear.shield ? nameOf('shield') : 'none';
+    const back = () => {
+      this.view = { kind: 'character', id };
     };
-    const list = el('div', 'gear-list');
+    const choose = (cmd: Parameters<CommandBus['dispatch']>[0]) => {
+      back();
+      this.send(cmd);
+      this.render(); // main also refreshes after equipping; this covers a rejected command
+    };
+    const choices: PopupChoice[] = [];
     const refs = Object.keys(g.inventory).filter((r) => g.inventory[r] > 0 && (slot === 'shield' ? r === 'shield' : r.startsWith(`${slot}:`)));
     for (const ref of refs) {
       const why = equipProblem(s, ref, d);
-      const b = btn(`${itemInfo(ref, d)?.name ?? ref}${g.inventory[ref] > 1 ? ` (${g.inventory[ref]})` : ''}`, () =>
-        choose({ type: 'equipItem', characterId: s.id, ref }),
-      );
-      if (why) {
-        b.disabled = true;
-        b.title = why;
-        b.append(el('small', 'muted', ` — ${why}`));
-      }
-      list.append(b);
+      choices.push({
+        label: `${nameOf(ref)}${g.inventory[ref] > 1 ? ` (${g.inventory[ref]})` : ''}${why ? ` — ${why}` : ''}`,
+        disabled: Boolean(why),
+        onClick: () => choose({ type: 'equipItem', characterId: s.id, ref }),
+      });
     }
-    if (slot !== 'weapon' && current !== 'none') list.append(btn(`Take off the ${current}`, () => choose({ type: 'unequipItem', characterId: s.id, slot })));
-    if (!list.childElementCount) list.append(el('p', 'small muted', slot === 'weapon' ? 'No other weapons in the pack.' : `No ${label.toLowerCase()} in the pack.`));
-    this.gearDlg.replaceChildren(
-      el('h3', '', `${label} for ${s.name}`),
-      el('div', 'small muted', `Now: ${current}. The old item goes back to the pack.`),
-      list,
-      el('div', 'ps-buttons', btn('Cancel', () => this.gearDlg.close(), 'close')),
-    );
-    this.gearDlg.showModal();
+    if (slot !== 'weapon' && current !== 'none') choices.push({ label: `Take off the ${current}`, onClick: () => choose({ type: 'unequipItem', characterId: s.id, slot }) });
+    return {
+      title: `${label} for ${s.name}`,
+      sprite: this.sprite(s.sprite),
+      text: `Now: ${current}. The old item goes back to the pack.`,
+      hint: choices.length ? undefined : slot === 'weapon' ? 'No other weapons in the pack.' : `No ${label.toLowerCase()} in the pack.`,
+      choices: [...choices, { label: 'Cancel', muted: true, onClick: () => { back(); this.render(); } }],
+    };
   }
 
   private portrait(key: string, px: number): HTMLElement {

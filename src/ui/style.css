@@ -1235,6 +1235,25 @@ button.danger {
   font-size: 1.15rem;
   padding: 0.6rem 0.9rem;
 }
+.pf-choices.pf-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.pf-row button {
+  flex: none;
+}
+.pf-body .pd-table,
+.pf-body .pd-stats {
+  font-size: 0.95rem;
+}
+.pd-status {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 0.95rem;
+}
+.pf-body h3 {
+  margin: 0.4rem 0 0.2rem;
+  font-size: 1rem;
+}
 .pf-close {
   position: absolute;
   top: 0.4rem;
@@ -1460,12 +1479,6 @@ button.danger {
 }
 
 /* Party dialog (group + character sheet) */
-#party-dialog {
-  width: min(44rem, 94vw);
-  max-width: none;
-  max-height: 88vh;
-  overflow-y: auto;
-}
 .roster-head {
   all: unset;
   cursor: pointer;
@@ -1521,13 +1534,13 @@ button.danger {
 .pd-stats th.num {
   text-align: right;
 }
-#party-dialog .ok {
+#popup-frame .ok {
   color: #2ecc71;
 }
-#party-dialog .warn {
+#popup-frame .warn {
   color: #f39c12;
 }
-#party-dialog .bad {
+#popup-frame .bad {
   color: #e74c3c;
 }
 
@@ -1574,10 +1587,6 @@ button.danger {
   font-size: 0.8rem;
 }
 
-/* Character sheet: one fixed size for every character (DND-72) */
-#party-dialog.pd-sheet {
-  height: min(40rem, 90vh);
-}
 .pd-msg {
   min-height: 1.4em;
   margin: 0.2rem 0;
@@ -1586,9 +1595,6 @@ button.danger {
 }
 .pd-msg:empty {
   visibility: hidden;
-}
-.gear-dialog {
-  width: min(26rem, 92vw);
 }
 .gear-list {
   display: flex;
