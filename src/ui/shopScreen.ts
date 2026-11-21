@@ -11,6 +11,7 @@ import { characterData } from '../content/characters';
 import { canSell, itemInfo, sellPrice } from '../rules/items';
 import { formatCoins } from '../rules/party';
 import type { SpriteCss } from './hud';
+import { pictureUrl } from './localPictures';
 import type { PopupFrame, PopupView } from './popupFrame';
 
 const gp = (cp: number) => formatCoins(cp);
@@ -30,6 +31,7 @@ export class ShopScreen {
   private mine: PopupView | null = null;
   private game!: GameState;
   private name = '';
+  private picture: string | undefined;
   private message = '';
   private tab: Tab = 'weapons';
   private page = 0;
@@ -44,8 +46,9 @@ export class ShopScreen {
     return this.frame.isTop(this.mine);
   }
 
-  show(game: GameState, shopName: string): void {
+  show(game: GameState, shopName: string, picture?: string): void {
     this.game = game;
+    this.picture = picture;
     this.name = shopName;
     this.message = '';
     this.tab = 'weapons';
@@ -106,7 +109,8 @@ export class ShopScreen {
       this.render();
     };
     this.mine = {
-      sprite: this.spriteCss(TABS.find((t) => t.id === this.tab)!.icon) ?? undefined,
+      // the shopkeeper's picture when the shop has one, else the tab's item icon
+      ...(pictureUrl(this.picture) ? { picture: pictureUrl(this.picture) } : { sprite: this.spriteCss(TABS.find((t) => t.id === this.tab)!.icon) ?? undefined }),
       title: this.name,
       hint: 'SRD prices; the shop buys back at half. Purchases go into the party pack: equip them from a character sheet.',
       content,

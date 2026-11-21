@@ -807,7 +807,7 @@ bus.subscribe((cmd) => {
     case 'openShop':
       // the shop is a view in the popup frame over the town, not a screen of its own (DND-93)
       shopName = cmd.name;
-      shopScreen.show(gameState, shopName);
+      shopScreen.show(gameState, shopName, cmd.picture);
       break;
     case 'closeShop':
       persistLibrary(); // equipment lives on the character sheets

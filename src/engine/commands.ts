@@ -43,7 +43,7 @@ export type Command =
   | { type: 'deleteCharacter'; id: string } // bench → gone
   | { type: 'moveCharacter'; id: string; by: -1 | 1 }
   | { type: 'closePartyScreen' } // begin the adventure / back to the game
-  | { type: 'openShop'; name: string }
+  | { type: 'openShop'; name: string; picture?: string }
   | { type: 'closeShop' }
   | { type: 'shopBuy'; ref: string } // item ref, see rules/items.ts
   | { type: 'shopSell'; ref: string }

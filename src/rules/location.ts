@@ -22,8 +22,15 @@ export interface Spot {
   encounter?: string; // fight spots
   building?: string; // building spots: inn | shop | temple | hall | house
   picture?: string; // building spots: picture id (assets.json `pictures`) shown in the place panel; absent = placeholder
+  altPicture?: string; // building spots: shown instead of `picture` once `altFlag` is set (e.g. the grateful innkeeper)
+  altFlag?: string;
   locked?: boolean; // building spots: the door won't open…
   unlockFlag?: string; // …until this flag is set (a quest unlocks it)
+}
+
+/** The picture id a building shows right now. */
+export function spotPicture(spot: Spot, flags: Readonly<Record<string, unknown>>): string | undefined {
+  return spot.altPicture && spot.altFlag && flags[spot.altFlag] ? spot.altPicture : spot.picture;
 }
 
 /** A building's door: the square of a building spot. Drawn as a door in the 3D view. */

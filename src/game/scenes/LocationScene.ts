@@ -39,6 +39,7 @@ import {
   type Turn,
   viewFaces,
   locationCampCheck,
+  spotPicture,
 } from '../../rules/location';
 import { darkness, formatClock, MINUTES } from '../../rules/time';
 import { formatCoins, passTime } from '../../rules/party';
@@ -371,7 +372,7 @@ export class LocationScene extends Phaser.Scene {
         name: spot.name,
         kind: BUILDING_LABEL[spot.building!] ?? 'Building',
         description: spot.description,
-        picture: spot.picture,
+        picture: spotPicture(spot, this.deps.game.flags),
         actions: [
           ...this.buildingActions(spot),
           { label: 'Leave', command: { type: 'leavePlace' } },
@@ -407,7 +408,7 @@ export class LocationScene extends Phaser.Scene {
         { label: 'Party roster (recruit, dismiss)', command: { type: 'partyScreen' } },
       ];
     }
-    if (spot.building === 'shop') return [{ label: 'Browse the wares', command: { type: 'openShop', name: spot.name } }];
+    if (spot.building === 'shop') return [{ label: 'Browse the wares', command: { type: 'openShop', name: spot.name, picture: spotPicture(spot, this.deps.game.flags) } }];
     if (spot.building === 'temple') {
       const stats = statsOf(g.roster);
       const cost = healCost(g.party, stats, templePrices);

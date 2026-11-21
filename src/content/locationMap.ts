@@ -64,6 +64,10 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
           spot.picture = String(picture);
           if (!/^[a-z0-9-]+$/.test(spot.picture)) errors.push(`${where}: picture id must be lower-case letters, digits and dashes`);
         }
+        const alt = objProp(o, 'altPicture');
+        const altFlag = objProp(o, 'altFlag');
+        if ((alt === undefined) !== (altFlag === undefined)) errors.push(`${where}: altPicture and altFlag go together`);
+        if (alt !== undefined && altFlag !== undefined) (spot.altPicture = String(alt)), (spot.altFlag = String(altFlag));
         if (objProp(o, 'locked') === true) spot.locked = true;
         const unlock = objProp(o, 'unlockFlag');
         if (unlock !== undefined) spot.unlockFlag = String(unlock);

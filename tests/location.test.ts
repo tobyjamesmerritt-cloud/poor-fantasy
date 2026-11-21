@@ -12,6 +12,7 @@ import {
   tryStep,
   turn,
   viewFaces,
+  spotPicture,
 } from '../src/rules/location';
 
 /** '#' = wall, '.' = floor. */
@@ -154,5 +155,14 @@ describe('fog of war', () => {
     for (const s of [0, 9, 17, 255]) expect(isSeen(mask, s)).toBe(true);
     expect(isSeen(mask, 1)).toBe(false);
     expect(isSeen(undefined, 0)).toBe(false);
+  });
+});
+
+describe('building pictures (DND-63)', () => {
+  const inn = { id: 'inn', kind: 'building', name: 'Inn', x: 0, y: 0, description: '', picture: 'marta', altPicture: 'marta-grateful', altFlag: 'ale:flowing' } as const;
+  it('shows the alternative picture once its flag is set', () => {
+    expect(spotPicture(inn, {})).toBe('marta');
+    expect(spotPicture(inn, { 'ale:flowing': true })).toBe('marta-grateful');
+    expect(spotPicture({ ...inn, altPicture: undefined, altFlag: undefined }, { 'ale:flowing': true })).toBe('marta');
   });
 });
