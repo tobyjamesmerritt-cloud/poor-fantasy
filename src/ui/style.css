@@ -1520,7 +1520,7 @@ button.danger {
 .pf-side {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 1.4rem;
   min-height: 0;
 }
 .pf-side > .pf-picture {
