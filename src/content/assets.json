@@ -342,6 +342,24 @@
     },
     "odo-happy": {
       "url": "assets/portraits/npc/millbrook/odo-happy.png"
+    },
+    "marta": {
+      "url": "assets/portraits/npc/millbrook/marta.png"
+    },
+    "marta-grateful": {
+      "url": "assets/portraits/npc/millbrook/marta-grateful.png"
+    },
+    "bertram": {
+      "url": "assets/portraits/npc/millbrook/bertram.png"
+    },
+    "reeve": {
+      "url": "assets/portraits/npc/millbrook/reeve.png"
+    },
+    "reeve-hall": {
+      "url": "assets/scenes/millbrook/reeve-hall.png"
+    },
+    "shrine-of-the-dawn": {
+      "url": "assets/scenes/millbrook/shrine-of-the-dawn.png"
     }
   }
 }

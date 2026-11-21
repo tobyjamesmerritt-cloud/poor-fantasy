@@ -203,6 +203,17 @@ describe('art registry (art-src/registry.csv)', () => {
     expect(problems, problems.join('\n')).toEqual([]);
   });
 
+  it('every picture used by a map building exists in the manifest', () => {
+    const missing: string[] = [];
+    for (const f of readdirSync('public/assets/maps').filter((n) => n.endsWith('.json'))) {
+      const map = JSON.parse(readFileSync(`public/assets/maps/${f}`, 'utf8'));
+      for (const layer of map.layers ?? [])
+        for (const o of layer.objects ?? [])
+          for (const p of o.properties ?? []) if (p.name === 'picture' && !assets.pictures[p.value]) missing.push(`${f}: "${o.name}" uses unknown picture "${p.value}"`);
+    }
+    expect(missing, missing.join('\n')).toEqual([]);
+  });
+
   it('reports placeholders per type (progress, not a failure)', () => {
     const counts: Record<string, number> = {};
     for (const r of registry) if (r.status.startsWith('placeholder')) counts[r.type] = (counts[r.type] ?? 0) + 1;

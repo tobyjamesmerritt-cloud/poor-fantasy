@@ -371,6 +371,7 @@ export class LocationScene extends Phaser.Scene {
         name: spot.name,
         kind: BUILDING_LABEL[spot.building!] ?? 'Building',
         description: spot.description,
+        picture: spot.picture,
         actions: [
           ...this.buildingActions(spot),
           { label: 'Leave', command: { type: 'leavePlace' } },

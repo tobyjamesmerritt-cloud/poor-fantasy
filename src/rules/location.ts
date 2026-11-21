@@ -21,6 +21,7 @@ export interface Spot {
   description: string;
   encounter?: string; // fight spots
   building?: string; // building spots: inn | shop | temple | hall | house
+  picture?: string; // building spots: picture id (assets.json `pictures`) shown in the place panel; absent = placeholder
   locked?: boolean; // building spots: the door won't open…
   unlockFlag?: string; // …until this flag is set (a quest unlocks it)
 }

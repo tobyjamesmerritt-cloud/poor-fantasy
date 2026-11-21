@@ -59,6 +59,11 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
       if (kind === 'building') {
         spot.building = String(objProp(o, 'building') ?? '');
         if (!BUILDINGS.includes(spot.building)) errors.push(`${where}: building must be one of ${BUILDINGS.join(', ')}`);
+        const picture = objProp(o, 'picture');
+        if (picture !== undefined) {
+          spot.picture = String(picture);
+          if (!/^[a-z0-9-]+$/.test(spot.picture)) errors.push(`${where}: picture id must be lower-case letters, digits and dashes`);
+        }
         if (objProp(o, 'locked') === true) spot.locked = true;
         const unlock = objProp(o, 'unlockFlag');
         if (unlock !== undefined) spot.unlockFlag = String(unlock);

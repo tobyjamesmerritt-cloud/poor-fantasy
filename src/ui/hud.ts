@@ -4,6 +4,7 @@
  * accessibility and mobile scaling. Text is always set via textContent.
  */
 import { TEST_PORTRAIT } from './testPortrait';
+import { pictureUrl } from './localPictures';
 import type { Command, CommandBus } from '../engine/commands';
 import { PopupFrame } from './popupFrame';
 
@@ -234,15 +235,16 @@ export class Hud {
    * frame; null hides it. "Leave" is not a choice: Esc / the ✕ button do it,
    * and walking away dismisses the panel (economy of popups, CLAUDE.md).
    */
-  setPlace(place: { name: string; kind: string; description: string; actions: PlaceAction[] } | null): void {
+  /** `picture` = a picture id (assets.json `pictures` or local/pictures); absent = the placeholder portrait. */
+  setPlace(place: { name: string; kind: string; description: string; picture?: string; actions: PlaceAction[] } | null): void {
     if (!place) {
       this.frame.setBase(null);
       return;
     }
     const leave = place.actions.find((a) => a.command?.type === 'leavePlace');
+    const art = pictureUrl(place.picture);
     this.frame.setBase({
-      picture: TEST_PORTRAIT,
-      pixelArt: true,
+      ...(art ? { picture: art } : { picture: TEST_PORTRAIT, pixelArt: true }),
       title: place.name,
       subtitle: place.kind,
       text: place.description,
