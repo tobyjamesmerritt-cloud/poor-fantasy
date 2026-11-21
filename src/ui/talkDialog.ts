@@ -12,6 +12,7 @@ import type { PopupChoice, PopupFrame } from './popupFrame';
 
 export interface TalkView {
   speaker?: string;
+  title?: string; // shown when nobody speaks (default 'Conversation')
   picture?: string; // local-only image id (localPictures.ts)
   party?: readonly RosterEntry[]; // encounter layout: the party's HP under the portrait
   sprite?: string; // sprite id for the portrait when there is no picture (monster encounters)
@@ -86,7 +87,7 @@ export class TalkDialog {
       sprite: (v.sprite && this.spriteCss(v.sprite)) || undefined,
       aside: v.party ? partyStrip(v.party) : undefined,
       scrollable: true,
-      title: v.speaker ?? 'Conversation',
+      title: v.speaker ?? v.title ?? 'Conversation',
       notes: v.results,
       text: v.text,
       hint,

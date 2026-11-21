@@ -5,6 +5,7 @@ import { checkRoller, questContext, questData } from '../src/content/quests';
 import { createRng } from '../src/engine/rng';
 import { newGameState, type GameState } from '../src/engine/state';
 import {
+  nodePicture,
   check,
   choose,
   type ChoiceResult,
@@ -262,7 +263,19 @@ describe('dialog pictures (DND-63/69)', () => {
   const known = { encounters: [], locations: [], isItem: () => true };
   it('town NPCs and the bandit ambush name a local picture', () => {
     expect(questData.dialogs.reeve.picture).toBe('reeve');
-    expect(questData.dialogs['wander-bandits'].picture).toBe('bandit-captain');
+    expect(questData.dialogs['wander-bandits'].picture).toBe('enc-bandits-day');
+  });
+  it('bandits switch picture at night (dusk) and back at dawn', () => {
+    const g = fresh();
+    const d = questData.dialogs['wander-bandits'];
+    const node = d.nodes.meet;
+    g.time = 12 * 60;
+    expect(nodePicture(g, node, d)).toBe('enc-bandits-day');
+    g.time = 5 * 60; // dawn = day
+    expect(nodePicture(g, node, d)).toBe('enc-bandits-day');
+    g.time = 19 * 60; // dusk = night
+    expect(nodePicture(g, node, d)).toBe('enc-bandits-night');
+    expect(nodePicture(g, { ...node, picture: null }, d)).toBeUndefined();
   });
   it('rejects malformed picture ids', () => {
     const data = { ...questData, dialogs: { x: { picture: 'Bad Id.png', entry: [{ node: 'a' }], nodes: { a: { text: 'hi' } } } } };

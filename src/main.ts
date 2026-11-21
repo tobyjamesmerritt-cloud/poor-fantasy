@@ -247,7 +247,7 @@ function partyHurt(): string | null {
 function warnIfHurt(go: () => void, onBackOff: () => void): void {
   const why = partyHurt();
   if (!why) return go();
-  void confirmDialog({ title: 'Fight now?', text: why, ok: 'Fight anyway', cancel: 'Not yet' }).then((yes) => (yes ? go() : onBackOff()));
+  void confirmDialog({ title: 'Encounter', text: why, ok: 'Fight anyway', cancel: 'Not yet' }).then((yes) => (yes ? go() : onBackOff()));
 }
 const qctx = () => questContext(exploreRng);
 
@@ -269,9 +269,11 @@ function talkView(results: string[]): TalkView {
     const p = gameState.party.find((x) => x.id === r.id);
     return p && !p.dead && p.hp > 0;
   });
-  const picture = nodePicture(gameState, node, questData.dialogs[talk!.dialog]?.picture);
+  const dialog = questData.dialogs[talk!.dialog];
+  const picture = nodePicture(gameState, node, dialog);
   return {
     speaker: node.speaker,
+    title: dialog?.showParty ? 'Encounter' : undefined, // monster / ambush screens with no named speaker
     picture,
     sprite: questData.dialogs[talk!.dialog]?.sprite,
     party: questData.dialogs[talk!.dialog]?.showParty ? rosterEntries(game.textures, gameState) : undefined,

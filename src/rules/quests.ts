@@ -81,6 +81,7 @@ export interface DialogNode {
 export interface DialogDef {
   /** NPC / encounter picture id (DND-63/69): an image in the git-ignored local/pictures/ folder; hidden when absent. */
   picture?: string;
+  pictureWhen?: { when: Condition; picture: string }[]; // first match replaces `picture` (e.g. bandits by day / night)
   /** Sprite id (assets.json): the large portrait when there is no local picture (monster encounters, DND-89). */
   sprite?: string;
   /** Encounter layout (DND-89): the party's HP strip under the portrait, so you see who is hurt before choosing. */
@@ -461,7 +462,7 @@ export function validateQuests(data: QuestData, known: { encounters: string[]; l
     for (const e of d.entry) {
       checkCond(e.when, `dialog "${id}" entry`);
       if (!d.nodes[e.node]) errors.push(`dialog "${id}": entry goes to unknown node "${e.node}"`);
-    for (const pic of [d.picture, ...Object.values(d.nodes).flatMap((n) => [n.picture, ...(n.pictureWhen ?? []).map((w) => w.picture)])])
+    for (const pic of [d.picture, ...(d.pictureWhen ?? []).map((w) => w.picture), ...Object.values(d.nodes).flatMap((n) => [n.picture, ...(n.pictureWhen ?? []).map((w) => w.picture)])])
       if (typeof pic === 'string' && !/^[a-z0-9-]+$/.test(pic)) errors.push(`dialog "${id}": picture id "${pic}" must be lower-case letters, digits and dashes`);
     }
     for (const [nid, n] of Object.entries(d.nodes)) {
@@ -492,9 +493,11 @@ export function validateQuests(data: QuestData, known: { encounters: string[]; l
   return errors;
 }
 
-/** The picture for a dialog node: a matching `pictureWhen` first, then the node's own, then the dialog's. */
-export function nodePicture(g: GameState, node: DialogNode, dialogPicture?: string): string | undefined {
+/** The picture for a dialog node: the node's own (a matching `pictureWhen`, else `picture`), else the dialog's (same rule). */
+export function nodePicture(g: GameState, node: DialogNode, dialog?: Pick<DialogDef, 'picture' | 'pictureWhen'>): string | undefined {
   const hit = node.pictureWhen?.find((w) => check(g, w.when));
   if (hit) return hit.picture;
-  return node.picture === null ? undefined : (node.picture ?? dialogPicture);
+  if (node.picture === null) return undefined;
+  if (node.picture !== undefined) return node.picture;
+  return dialog?.pictureWhen?.find((w) => check(g, w.when))?.picture ?? dialog?.picture;
 }

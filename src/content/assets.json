@@ -370,6 +370,18 @@
     "shack-night": {
       "url": "assets/scenes/wilderness/shack-night.png"
     },
+    "enc-bandits-day": {
+      "url": "assets/scenes/encounter/enc-bandits-day.png"
+    },
+    "enc-bandits-night": {
+      "url": "assets/scenes/encounter/enc-bandits-night.png"
+    },
+    "enc-rats": {
+      "url": "assets/scenes/encounter/enc-rats.png"
+    },
+    "enc-bats": {
+      "url": "assets/scenes/encounter/enc-bats.png"
+    },
     "reeve-hall": {
       "url": "assets/scenes/millbrook/reeve-hall.png"
     },

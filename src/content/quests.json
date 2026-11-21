@@ -72,7 +72,8 @@
     "wander-bandits": {
       "sprite": "brigand",
       "showParty": true,
-      "picture": "bandit-captain",
+      "picture": "enc-bandits-day",
+      "pictureWhen": [{ "when": { "night": true }, "picture": "enc-bandits-night" }],
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
@@ -130,6 +131,7 @@
     "wander-rats": {
       "sprite": "m-giant-rat",
       "showParty": true,
+      "picture": "enc-rats",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
@@ -149,6 +151,7 @@
     "wander-bats": {
       "sprite": "m-giant-bat",
       "showParty": true,
+      "picture": "enc-bats",
       "entry": [{ "node": "meet" }],
       "nodes": {
         "meet": {
