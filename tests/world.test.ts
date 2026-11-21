@@ -2,7 +2,7 @@ import { DIRECTION_VECTORS } from '../src/engine/commands';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadTravelMap, type TiledMap } from '../src/content/world';
-import { canStep, findPath, isBlocked, locationAt, type TravelMap, worldCampSite } from '../src/rules/world';
+import { canStep, findPath, isBlocked, locationAt, stepOffLocation, type TravelMap, worldCampSite } from '../src/rules/world';
 
 const world = loadTravelMap(JSON.parse(readFileSync('public/assets/maps/world.json', 'utf8')) as TiledMap);
 
@@ -101,5 +101,21 @@ describe('camping on the world map', () => {
         if (s.ok) kinds.add(s.kind);
       }
     expect([...kinds].sort()).toEqual(['forest', 'meadow', 'riverside', 'rocks']);
+  });
+});
+
+describe('leaving a location (stepOffLocation)', () => {
+  it('stands one open square off every real location, never on another location or site', () => {
+    for (const l of world.locations) {
+      const p = stepOffLocation(world, l.x, l.y);
+      expect(Math.max(Math.abs(p.x - l.x), Math.abs(p.y - l.y)), l.id).toBe(1);
+      expect(isBlocked(world, p.x, p.y), l.id).toBe(false);
+      expect(locationAt(world, p.x, p.y), l.id).toBeUndefined();
+    }
+  });
+  it('prefers south, skips blocked squares, and stays put when boxed in', () => {
+    expect(stepOffLocation(grid(['...', '...', '...']), 1, 1)).toEqual({ x: 1, y: 2 });
+    expect(stepOffLocation(grid(['...', '.._', '###']), 1, 1)).toEqual({ x: 2, y: 1 });
+    expect(stepOffLocation(grid(['###', '#.#', '###']), 1, 1)).toEqual({ x: 1, y: 1 });
   });
 });

@@ -47,6 +47,22 @@ export function locationAt(m: TravelMap, x: number, y: number): MapLocation | un
   return m.locations.find((l) => l.x === x && l.y === y);
 }
 
+/** Set when the party leaves a location; the world map consumes it and stands one square off the door. */
+export const STEP_OFF_FLAG = 'world:stepOff';
+
+/**
+ * Where the party stands after leaving a town or dungeon: one square off the location (so the
+ * place panel doesn't pop up again). Prefers open squares with no location or site; tries
+ * south, east, west, north, then the diagonals. Stays put when boxed in.
+ */
+export function stepOffLocation(m: TravelMap, x: number, y: number): { x: number; y: number } {
+  const order: Direction[] = ['s', 'e', 'w', 'n', 'se', 'sw', 'ne', 'nw'];
+  const open = order
+    .filter((d) => canStep(m, { x, y }, d))
+    .map((d) => ({ x: x + DIRECTION_VECTORS[d][0], y: y + DIRECTION_VECTORS[d][1] }));
+  return open.find((p) => !locationAt(m, p.x, p.y) && !siteAt(m, p.x, p.y)) ?? open[0] ?? { x, y };
+}
+
 export const siteAt = (m: TravelMap, x: number, y: number): MapSite | undefined => m.sites.find((s) => s.x === x && s.y === y);
 
 /**

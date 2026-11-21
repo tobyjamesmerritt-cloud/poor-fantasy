@@ -7,6 +7,7 @@ import { bindConfirm, confirmDialog } from './ui/confirmDialog';
 import { HelpDialogs } from './ui/helpDialogs';
 import { SaveDialog } from './ui/saveDialog';
 import { SaveStore, SLOTS, type SlotId } from './ui/saveStore';
+import { STEP_OFF_FLAG } from './rules/world';
 import { formatClock } from './rules/time';
 import { CampScene } from './game/scenes/CampScene';
 import { CombatScene, TILE } from './game/scenes/CombatScene';
@@ -628,6 +629,7 @@ bus.subscribe((cmd) => {
         break;
       }
       gameState.location = null;
+      gameState.flags[STEP_OFF_FLAG] = true; // the world map puts the party one square off the door
       show('world');
       break;
     }

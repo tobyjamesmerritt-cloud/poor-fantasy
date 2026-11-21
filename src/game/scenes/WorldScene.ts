@@ -14,7 +14,7 @@ import { formatCoins, passTime } from '../../rules/party';
 import { SITE_RISK } from '../../rules/rest';
 import { rosterEntries } from '../partyView';
 import { loadTravelMap, type TiledMap } from '../../content/world';
-import { canStep, findPath, isBlocked, locationAt, type MapLocation, siteAt, squaresAround, type TravelMap, worldCampSite, worldSight } from '../../rules/world';
+import { canStep, findPath, isBlocked, locationAt, type MapLocation, siteAt, squaresAround, STEP_OFF_FLAG, stepOffLocation, type TravelMap, worldCampSite, worldSight } from '../../rules/world';
 import { isSeen, markSeen } from '../../rules/location';
 import { questData, wandering } from '../../content/quests';
 import { checkZones, wanderingCheck, zoneAt } from '../../rules/wandering';
@@ -83,6 +83,14 @@ export class WorldScene extends Phaser.Scene {
 
     const saved = this.deps.game.world;
     this.pos = saved ? { ...saved } : { ...this.map.start };
+    // coming out of a town or dungeon: stand one square away, so its panel doesn't open again
+    if (this.deps.game.flags[STEP_OFF_FLAG]) {
+      delete this.deps.game.flags[STEP_OFF_FLAG];
+      if (locationAt(this.map, this.pos.x, this.pos.y)) {
+        this.pos = stepOffLocation(this.map, this.pos.x, this.pos.y);
+        this.deps.game.world = { ...this.pos };
+      }
+    }
     const tex = spriteTexture('party-token')!;
     // night: a dark blue wash over the land and sites (the party token stays on top, lantern-lit)
     this.night = this.add.rectangle(0, 0, this.map.width * TILE, this.map.height * TILE, NIGHT_COLOUR).setOrigin(0, 0).setDepth(4);
