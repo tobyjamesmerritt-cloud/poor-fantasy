@@ -12,7 +12,7 @@ import { CampScene } from './game/scenes/CampScene';
 import { CombatScene, TILE } from './game/scenes/CombatScene';
 import { LOCATION_VIEW, LocationScene } from './game/scenes/LocationScene';
 import { WorldScene } from './game/scenes/WorldScene';
-import { Hud } from './ui/hud';
+import { Hud, partyStrip } from './ui/hud';
 import { initMenu } from './ui/menu';
 import { PrefsStore } from './ui/prefs';
 import { BOARD, DEFAULT_ENCOUNTER, encounters, locationContent, resolveEncounter } from './content/encounters';
@@ -88,6 +88,8 @@ let partyReturn: ReturnScene = 'world';
 let shopName = 'Shop';
 let exploreRng = createRng(gameState.seed ^ 0x5eed); // rests, ambushes, ability rolls (combat has its own seeded Rng); saved with the game
 bindConfirm(hud.frame);
+// every popup shows the party's HP under its portrait unless it brings its own strip
+hud.frame.asideProvider = () => (gameState?.roster?.length ? partyStrip(rosterEntries(game.textures, gameState)) : null);
 const help = new HelpDialogs(hud.frame, bus);
 initMenu(prefs, help);
 

@@ -94,6 +94,9 @@ export class PopupFrame {
     return view !== null && this.dlg.open && this.stack.top === view;
   }
 
+  /** Supplies the strip shown under the portrait in every popup that has none of its own (the party's HP). */
+  asideProvider: (() => HTMLElement | null) | null = null;
+
   get busy(): boolean {
     return this.dlg.open && this.stack.top?.modal === true;
   }
@@ -177,7 +180,8 @@ export class PopupFrame {
       if (this.dlg.open) this.dlg.close();
       return;
     }
-    const children: (Node | string)[] = [v.aside ? el('div', 'pf-side', portraitOf(v), v.aside) : portraitOf(v)];
+    const aside = v.aside ?? this.asideProvider?.() ?? null;
+    const children: (Node | string)[] = [el('div', 'pf-side', portraitOf(v), ...(aside ? [aside] : []))];
     const list = el('div', v.row ? 'pf-choices pf-row' : 'pf-choices');
     let n = 0;
     for (const c of v.choices) {
@@ -235,23 +239,18 @@ function portraitOf(v: PopupView): HTMLElement {
   }
   const box = el('div', 'pf-picture pf-plain');
   if (v.sprite) {
-    // pixel art, enlarged by a whole number so it stays crisp
-    const sc = Math.max(1, Math.floor(PORTRAIT_PX / v.sprite.frameWidth));
-    const px = sc * v.sprite.frameWidth;
+    // pixel art scaled to fill the square box, without smoothing
+    const sp = v.sprite;
     const art = el('div', 'pf-sprite');
     Object.assign(art.style, {
-      width: `${px}px`,
-      height: `${px}px`,
-      backgroundImage: `url(${v.sprite.url})`,
-      backgroundSize: `${v.sprite.sheetCols * px}px ${v.sprite.sheetRows * px}px`,
-      backgroundPosition: `-${v.sprite.col * px}px -${v.sprite.row * px}px`,
+      backgroundImage: `url(${sp.url})`,
+      backgroundSize: `${sp.sheetCols * 100}% ${sp.sheetRows * 100}%`,
+      backgroundPosition: `${sp.sheetCols > 1 ? (sp.col / (sp.sheetCols - 1)) * 100 : 0}% ${sp.sheetRows > 1 ? (sp.row / (sp.sheetRows - 1)) * 100 : 0}%`,
     });
     box.append(art);
   } else box.append(el('span', 'pf-initial', v.title.trim().charAt(0).toUpperCase()));
   return box;
 }
-
-const PORTRAIT_PX = 288;
 
 function el(tag: string, cls: string, ...children: (Node | string)[]): HTMLElement {
   const e = document.createElement(tag);
