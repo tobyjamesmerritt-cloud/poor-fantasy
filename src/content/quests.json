@@ -213,7 +213,7 @@
         "reward": {
           "speaker": "Reeve Tamsin Holt",
           "text": "Quiet as a tomb, Mother Ilse says — the good kind of quiet. Here, as promised. Millbrook won't forget it.",
-          "do": [{ "coins": 2500 }, { "quest": "rats", "stage": "done" }, { "set": "shrine:restored" }],
+          "do": [{ "coins": 2500 }, { "quest": "rats", "stage": "done" }],
           "choices": [{ "text": "Anything else troubling the town?", "next": "chat" }, { "text": "Farewell." }]
         },
         "chat": {

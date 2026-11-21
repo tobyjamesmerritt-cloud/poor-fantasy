@@ -163,6 +163,9 @@ describe('building pictures (DND-63)', () => {
   it('shows the alternative picture once its flag is set', () => {
     expect(spotPicture(inn, {})).toBe('marta');
     expect(spotPicture(inn, { 'ale:flowing': true })).toBe('marta-grateful');
+    const shrine = { ...inn, altFlag: 'quest:rats=done' };
+    expect(spotPicture(shrine, { 'quest:rats': 'accepted' })).toBe('marta');
+    expect(spotPicture(shrine, { 'quest:rats': 'done' })).toBe('marta-grateful');
     expect(spotPicture({ ...inn, altPicture: undefined, altFlag: undefined }, { 'ale:flowing': true })).toBe('marta');
   });
 });

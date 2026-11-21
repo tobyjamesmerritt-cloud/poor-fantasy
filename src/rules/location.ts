@@ -30,7 +30,11 @@ export interface Spot {
 
 /** The picture id a building shows right now. */
 export function spotPicture(spot: Spot, flags: Readonly<Record<string, unknown>>): string | undefined {
-  return spot.altPicture && spot.altFlag && flags[spot.altFlag] ? spot.altPicture : spot.picture;
+  if (!spot.altPicture || !spot.altFlag) return spot.picture;
+  // altFlag = "flag" (set / truthy) or "flag=value" (e.g. "quest:rats=done", a quest stage)
+  const [key, want] = spot.altFlag.split('=');
+  const v = flags[key];
+  return (want === undefined ? !!v : v === want) ? spot.altPicture : spot.picture;
 }
 
 /** A building's door: the square of a building spot. Drawn as a door in the 3D view. */
