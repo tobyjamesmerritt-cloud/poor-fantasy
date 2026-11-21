@@ -274,16 +274,16 @@
       ],
       "nodes": {
         "dry": {
-          "speaker": "Bertram, innkeeper",
+          "speaker": "Bertram Hale, innkeeper",
           "text": "No ale, I'm afraid — not a drop. The brewery up in the hills stopped sending barrels two weeks back, and nobody's been to see why. Somewhere north-west of town, it is; I've never been. If you find out what's wrong, there's a free round in it.",
           "choices": [
             { "text": "We'll find the brewery.", "do": [{ "quest": "ale", "stage": "find-brewery" }], "next": "thanks" },
             { "text": "Shame. Farewell." }
           ]
         },
-        "thanks": { "speaker": "Bertram, innkeeper", "text": "Bless you. Follow the hills north-west — you'll smell it before you see it." },
-        "waiting": { "speaker": "Bertram, innkeeper", "text": "Still dry. My regulars are drinking well water and complaining about it." },
-        "flowing": { "speaker": "Bertram, innkeeper", "text": "Listen to that — a full room again! Ale's four copper a mug, and the first one's on the house." }
+        "thanks": { "speaker": "Bertram Hale, innkeeper", "text": "Bless you. Follow the hills north-west — you'll smell it before you see it." },
+        "waiting": { "speaker": "Bertram Hale, innkeeper", "text": "Still dry. My regulars are drinking well water and complaining about it." },
+        "flowing": { "speaker": "Bertram Hale, innkeeper", "text": "Listen to that — a full room again! Ale's four copper a mug, and the first one's on the house." }
       }
     },
 
@@ -481,7 +481,7 @@
     { "at": "millbrook/Shrine of the Dawn", "label": "Speak with Mother Ilse", "dialog": "shrine-door", "when": { "not": { "quest": "rats", "stage": "done" } }, "replaces": true },
     { "at": "millbrook/Shrine of the Dawn", "label": "Speak with Mother Ilse", "dialog": "shrine-door", "when": { "all": [{ "quest": "rats", "stage": "done" }, { "not": { "flag": "ilse:tended" } }, { "partyFallen": true }] } },
     { "at": "millbrook/Shrine of the Dawn", "label": "Look inside the shrine", "do": [{ "enter": "shrine-of-the-dawn" }], "when": { "quest": "rats", "stage": "done" } },
-    { "at": "millbrook/The Leaky Bucket", "label": "Talk to the innkeeper", "dialog": "innkeeper", "when": { "quest": "rats", "stage": "done" } },
+    { "at": "millbrook/The Leaky Bucket", "label": "Talk to Bertram, the innkeeper", "dialog": "innkeeper", "when": { "quest": "rats", "stage": "done" } },
     {
       "at": "millbrook/The Leaky Bucket",
       "label": "Buy a mug of ale (4 cp)",
