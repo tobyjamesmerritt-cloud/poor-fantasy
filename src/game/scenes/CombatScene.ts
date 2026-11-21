@@ -118,6 +118,7 @@ export class CombatScene extends Phaser.Scene {
   private rng!: Rng;
   private state!: CombatState;
   private overlay!: Phaser.GameObjects.Graphics;
+  private skulls!: Phaser.GameObjects.Graphics;
   private ants!: Phaser.GameObjects.Graphics;
   private grid!: Phaser.GameObjects.Graphics;
   private antEdges: Edge[] = [];
@@ -165,6 +166,7 @@ export class CombatScene extends Phaser.Scene {
     this.drawGrid();
     this.ants = this.add.graphics().setDepth(0.6);
     this.overlay = this.add.graphics().setDepth(4); // above sprites so HP bars stay visible
+    this.skulls = this.add.graphics().setDepth(1.6); // above a corpse (1.5), below living units (2): a living unit standing on a body hides the skull
     this.aimLayer = this.add.graphics().setDepth(3.5); // spell targets and areas, over the sprites
     for (const u of this.state.units) this.createUnitSprite(u);
     this.setCursor('default');
@@ -654,7 +656,7 @@ export class CombatScene extends Phaser.Scene {
 
   /** A small skull on a dead unit (not on one who is merely unconscious: those show death saves). */
   private drawSkull(u: Unit): void {
-    const g = this.overlay;
+    const g = this.skulls;
     const cx = u.x * TILE + TILE / 2;
     const cy = u.y * TILE + TILE / 2;
     const r = TILE * 0.2;
@@ -671,6 +673,7 @@ export class CombatScene extends Phaser.Scene {
   private redraw(): void {
     const { overlay, state } = this;
     overlay.clear();
+    this.skulls.clear();
     for (const u of state.units) {
       const before = this.lastHp.get(u.id);
       if (before !== undefined && before !== u.hp && !u.fled) this.floatNumber(u, u.hp - before);
