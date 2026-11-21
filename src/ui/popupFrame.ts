@@ -37,6 +37,8 @@ export interface PopupView {
   hint?: string;
   /** Custom content (a sheet, a table…) shown after the text. */
   content?: HTMLElement[];
+  /** Shown under the portrait (an encounter's party strip). */
+  aside?: HTMLElement;
   choices: PopupChoice[];
   /** Choices as one row of plain buttons (not numbered) instead of a numbered list. */
   row?: boolean;
@@ -173,7 +175,7 @@ export class PopupFrame {
       if (this.dlg.open) this.dlg.close();
       return;
     }
-    const children: (Node | string)[] = [portraitOf(v)];
+    const children: (Node | string)[] = [v.aside ? el('div', 'pf-side', portraitOf(v), v.aside) : portraitOf(v)];
     const list = el('div', v.row ? 'pf-choices pf-row' : 'pf-choices');
     let n = 0;
     for (const c of v.choices) {

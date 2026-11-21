@@ -6,12 +6,13 @@
  */
 import type { CommandBus } from '../engine/commands';
 import { pictureUrl } from './localPictures';
-import type { SpriteCss } from './hud';
+import { partyStrip, type RosterEntry, type SpriteCss } from './hud';
 import type { PopupChoice, PopupFrame } from './popupFrame';
 
 export interface TalkView {
   speaker?: string;
   picture?: string; // local-only image id (localPictures.ts)
+  party?: readonly RosterEntry[]; // encounter layout: the party's HP under the portrait
   sprite?: string; // sprite id for the portrait when there is no picture (monster encounters)
   text: string;
   results: string[]; // what the last choice did
@@ -81,6 +82,7 @@ export class TalkDialog {
     this.frame.push({
       picture: pictureUrl(v.picture) ?? undefined,
       sprite: (v.sprite && this.spriteCss(v.sprite)) || undefined,
+      aside: v.party ? partyStrip(v.party) : undefined,
       scrollable: true,
       title: v.speaker ?? 'Conversation',
       notes: v.results,

@@ -35,6 +35,7 @@ import { PartyDialog } from './ui/partyDialog';
 import { castOutside } from './rules/spells';
 import { spendHitDice } from './rules/rest';
 import { TalkDialog, type TalkView } from './ui/talkDialog';
+import { rosterEntries } from './game/partyView';
 import { JournalDialog } from './ui/journalDialog';
 import { checkRoller, questContext, questData } from './content/quests';
 import { ABILITY_NAMES } from './rules/character';
@@ -264,6 +265,7 @@ function talkView(results: string[]): TalkView {
     speaker: node.speaker,
     picture,
     sprite: questData.dialogs[talk!.dialog]?.sprite,
+    party: questData.dialogs[talk!.dialog]?.showParty ? rosterEntries(game.textures, gameState) : undefined,
     text: node.text,
     results,
     choices: visibleChoices(gameState, questData, talk!).map((c) => ({

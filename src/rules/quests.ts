@@ -80,6 +80,8 @@ export interface DialogDef {
   picture?: string;
   /** Sprite id (assets.json): the large portrait when there is no local picture (monster encounters, DND-89). */
   sprite?: string;
+  /** Encounter layout (DND-89): the party's HP strip under the portrait, so you see who is hurt before choosing. */
+  showParty?: boolean;
   entry: { when?: Condition; node: string }[]; // first match starts the conversation
   nodes: Record<string, DialogNode>;
 }

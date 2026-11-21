@@ -589,6 +589,20 @@ function hotkeyLabel(text: string, key: string): (Node | string)[] {
   return i < 0 ? [text] : [text.slice(0, i), el('u', '', text[i]), text.slice(i + 1)];
 }
 
+/** Compact read-only party strip (portrait, name, HP) for popups that show the party's state, e.g. an encounter. */
+export function partyStrip(entries: readonly RosterEntry[]): HTMLElement {
+  return el(
+    'div',
+    'pf-party',
+    ...entries.map((e) => {
+      const pct = Math.max(0, Math.round((e.hp / e.maxHp) * 100));
+      const cls = e.state === 'dead' ? 'dead' : e.state === 'out' || pct <= 25 ? 'bad' : pct <= 50 ? 'warn' : 'ok';
+      const hp = e.state === 'dead' ? 'dead' : e.state === 'out' ? `0/${e.maxHp}` : `${e.hp}/${e.maxHp}`;
+      return el('div', e.state === 'dead' ? 'pf-party-row muted' : 'pf-party-row', portrait(e.sprite, 24), el('span', 'who', e.name), el('span', `num hp ${cls}`, hp));
+    }),
+  );
+}
+
 function rosterList(entries: readonly RosterEntry[], bus: CommandBus, partyName?: string): HTMLElement {
   const head = el('button', 'roster-head', ...hotkeyLabel(`${partyName || 'Party'} ▸`, 'p')) as HTMLButtonElement;
   head.title = 'The party: levels, spells, pack and each character’s sheet (P)';

@@ -1515,3 +1515,34 @@ button.danger {
   padding: 0;
   margin: 0.2rem 0;
 }
+
+/* Encounter layout: square portrait with the party's HP strip under it */
+.pf-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 0;
+}
+.pf-side > .pf-picture {
+  flex: 0 0 auto;
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+.pf-party {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow: hidden;
+  font-size: 0.85rem;
+}
+.pf-party-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+.pf-party-row .portrait {
+  width: 24px;
+  height: 24px;
+}
