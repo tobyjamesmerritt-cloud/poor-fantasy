@@ -55,6 +55,7 @@ import {
   runTriggers,
   type Talk,
   visibleChoices,
+  nodePicture,
 } from './rules/quests';
 import './ui/style.css';
 
@@ -263,7 +264,7 @@ function talkView(results: string[]): TalkView {
     const p = gameState.party.find((x) => x.id === r.id);
     return p && !p.dead && p.hp > 0;
   });
-  const picture = node.picture === null ? undefined : (node.picture ?? questData.dialogs[talk!.dialog]?.picture);
+  const picture = nodePicture(gameState, node, questData.dialogs[talk!.dialog]?.picture);
   return {
     speaker: node.speaker,
     picture,

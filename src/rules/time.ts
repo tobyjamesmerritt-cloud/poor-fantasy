@@ -27,3 +27,9 @@ export function darkness(minutes: number): number {
   if (h >= 18) return (h - 18) / 3; // dusk
   return 0;
 }
+
+/** Night for art and story: dusk (18:00) until dawn (05:00) counts as night; dawn (05:00–07:00) already counts as day. */
+export function isNight(minutes: number): boolean {
+  const h = (((minutes % 1440) + 1440) % 1440) / 60;
+  return h >= 18 || h < 5;
+}

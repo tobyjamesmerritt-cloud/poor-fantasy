@@ -333,6 +333,8 @@
       ],
       "nodes": {
         "found": {
+          "picture": "shack-day",
+          "pictureWhen": [{ "when": { "night": true }, "picture": "shack-night" }],
           "text": "Behind a wall of brambles you find a sagging shack. The door hangs by one hinge. Inside, something squeaks — a lot of somethings — and leathery wings stir in the rafters.",
           "do": [{ "reveal": "shack" }],
           "choices": [
@@ -356,7 +358,7 @@
             { "text": "Leave it for now." }
           ]
         },
-        "empty": { "text": "The old shack is empty but for droppings and broken crates." },
+        "empty": { "picture": "shack-day", "pictureWhen": [{ "when": { "night": true }, "picture": "shack-night" }], "text": "The old shack is empty but for droppings and broken crates." },
         "troll-home": {
           "picture": "troll-friendly",
           "speaker": "The troll",

@@ -12,6 +12,7 @@
  */
 import type { Rng } from '../engine/rng';
 import type { Ability, GameState } from '../engine/state';
+import { isNight } from './time';
 
 // ---------------------------------------------------------------------------
 // Data shapes (quests.json)
@@ -25,6 +26,7 @@ export type Condition =
   | { item: string; count?: number }
   | { cleared: string } // "<location>:<spot>" fight won
   | { coins: number } // at least this much copper
+  | { night: boolean } // dusk to dawn (rules/time.ts isNight); dawn counts as day
   | { partyFallen: boolean } // someone in the party is dead or unconscious (or nobody is)
   | { not: Condition }
   | { all: Condition[] }
@@ -70,6 +72,7 @@ export interface Choice {
 export interface DialogNode {
   speaker?: string;
   picture?: string | null; // overrides the dialog's picture; null = none on this node
+  pictureWhen?: { when: Condition; picture: string }[]; // first match replaces `picture` (e.g. shack by day / night)
   text: string;
   do?: Action[]; // run on arriving at this node
   choices?: Choice[]; // none = a single "Farewell"
@@ -166,6 +169,7 @@ export function check(g: GameState, c: Condition | undefined): boolean {
   if ('item' in c) return (g.inventory[c.item] ?? 0) >= (c.count ?? 1);
   if ('cleared' in c) return g.flags[`cleared:${c.cleared}`] === true;
   if ('coins' in c) return g.coins >= c.coins;
+  if ('night' in c) return isNight(g.time) === c.night;
   if ('partyFallen' in c) return g.party.some((p) => p.dead || p.hp <= 0) === c.partyFallen;
   const v = g.flags[c.flag];
   return c.is === undefined ? !!v : v === c.is;
@@ -457,7 +461,7 @@ export function validateQuests(data: QuestData, known: { encounters: string[]; l
     for (const e of d.entry) {
       checkCond(e.when, `dialog "${id}" entry`);
       if (!d.nodes[e.node]) errors.push(`dialog "${id}": entry goes to unknown node "${e.node}"`);
-    for (const pic of [d.picture, ...Object.values(d.nodes).map((n) => n.picture)])
+    for (const pic of [d.picture, ...Object.values(d.nodes).flatMap((n) => [n.picture, ...(n.pictureWhen ?? []).map((w) => w.picture)])])
       if (typeof pic === 'string' && !/^[a-z0-9-]+$/.test(pic)) errors.push(`dialog "${id}": picture id "${pic}" must be lower-case letters, digits and dashes`);
     }
     for (const [nid, n] of Object.entries(d.nodes)) {
@@ -486,4 +490,11 @@ export function validateQuests(data: QuestData, known: { encounters: string[]; l
     checkActions(t.do, `trigger "${t.id}"`);
   }
   return errors;
+}
+
+/** The picture for a dialog node: a matching `pictureWhen` first, then the node's own, then the dialog's. */
+export function nodePicture(g: GameState, node: DialogNode, dialogPicture?: string): string | undefined {
+  const hit = node.pictureWhen?.find((w) => check(g, w.when));
+  if (hit) return hit.picture;
+  return node.picture === null ? undefined : (node.picture ?? dialogPicture);
 }

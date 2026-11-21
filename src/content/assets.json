@@ -364,6 +364,12 @@
     "troll-friendly": {
       "url": "assets/portraits/npc/wilderness/troll-friendly.png"
     },
+    "shack-day": {
+      "url": "assets/scenes/wilderness/shack-day.png"
+    },
+    "shack-night": {
+      "url": "assets/scenes/wilderness/shack-night.png"
+    },
     "reeve-hall": {
       "url": "assets/scenes/millbrook/reeve-hall.png"
     },
