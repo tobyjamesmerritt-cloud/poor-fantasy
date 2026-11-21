@@ -15,7 +15,7 @@ import type { MemberStats } from '../rules/party';
 import { membersOf, type PartyMemberDef, pregens, statsOf } from './characters';
 
 export type { PartyMemberDef };
-import { assets } from './assets';
+import { assets, hasSprite } from './assets';
 import locationsRaw from './locations.json';
 import type { LocationWander } from '../rules/wandering';
 import monstersRaw from './monsters.json';
@@ -151,7 +151,7 @@ export function validateMonsters(defs: Record<string, MonsterDef>): Record<strin
   const errors: string[] = [];
   for (const [id, m] of Object.entries(defs)) {
     const where = `monster "${id}"`;
-    if (!assets.sprites[m.sprite]) errors.push(`${where}: unknown sprite "${m.sprite}"`);
+    if (!hasSprite(m.sprite)) errors.push(`${where}: unknown sprite "${m.sprite}"`);
     for (const k of ['xp', 'ac', 'hp', 'speed'] as const) {
       if (!Number.isFinite(m[k]) || m[k] <= 0) errors.push(`${where}: ${k} must be positive`);
     }
@@ -260,7 +260,7 @@ export function buildUnits(
     if (now?.dead) return;
     const start = e.partyStart[i] ?? { x: -1, y: -1 };
     occupy(start.x, start.y, p.name);
-    if (!assets.sprites[p.sprite]) errors.push(`${p.name}: unknown sprite "${p.sprite}"`);
+    if (!hasSprite(p.sprite)) errors.push(`${p.name}: unknown sprite "${p.sprite}"`);
     const { hitDie: _hd, conMod: _con, caster, ...combatStats } = p;
     const hp = now ? Math.max(0, now.hp) : p.hp;
     const warded = p.unarmoredAc !== undefined && (now?.spells?.mageArmorUntil ?? -1) > time;

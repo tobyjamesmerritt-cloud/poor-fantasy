@@ -17,7 +17,7 @@ import {
 import type { CasterInfo } from '../rules/combat';
 import type { MemberStats } from '../rules/party';
 import { casterInfo, type SpellDef, spellChoices, type Spells } from '../rules/spells';
-import { assets } from './assets';
+import { assets, hasSprite } from './assets';
 import backgroundsRaw from './backgrounds.json';
 import classesRaw from './classes.json';
 import gearRaw from './gear.json';
@@ -94,7 +94,7 @@ function checkSpell(id: string, s: SpellDef, data: CharacterData): string[] {
 }
 
 /** Portraits the party screen offers (sprite keys in assets.json). */
-export const PORTRAITS: readonly string[] = Object.keys(assets.sprites).filter((k) => k.startsWith('hero') || ['fighter', 'paladin', 'rogue', 'cleric', 'ranger', 'wizard'].includes(k));
+export const PORTRAITS: readonly string[] = [...new Set([...Object.keys(assets.sprites), ...Object.keys(assets.images)])].filter((k) => k.startsWith('hero') || ['fighter', 'paladin', 'rogue', 'cleric', 'ranger', 'wizard'].includes(k));
 
 /** A party member as combat uses it (fixed stats for one fight). */
 export interface PartyMemberDef {
@@ -142,7 +142,7 @@ export const spells: Spells = characterData.spells;
 
 export function checkSheet(sheet: CharacterSheet): string[] {
   const errors = validateSheet(sheet, characterData);
-  if (!assets.sprites[sheet.sprite]) errors.push(`Unknown portrait "${sheet.sprite}".`);
+  if (!hasSprite(sheet.sprite)) errors.push(`Unknown portrait "${sheet.sprite}".`);
   return errors;
 }
 

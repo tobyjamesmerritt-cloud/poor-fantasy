@@ -1,5 +1,5 @@
 {
-  "_note": "Art manifest. Swap art by changing sheets/frames here; game code never hard-codes frame numbers. cell = combat square in canvas px; each sheet's (square) frame size must divide it, so 16 px art draws at 4x and 32 px art at 2x.",
+  "_note": "Art manifest. Swap art by changing sheets/frames here; game code never hard-codes frame numbers. cell = combat square in canvas px; each sheet's (square) frame size must divide it, so 16 px art draws at 4x and 32 px art at 2x. images = single-PNG sprites by id (win over a same-id sprite frame; optional attack pose). pictures = dialog picture ids -> committed portraits (url = headshot, optional half/full). See docs/art-pipeline.md.",
   "cell": 64,
   "sheets": {
     "dungeon": {
@@ -328,5 +328,7 @@
       "hotX": 8,
       "hotY": 4
     }
-  }
+  },
+  "images": {},
+  "pictures": {}
 }

@@ -7,14 +7,14 @@ import * as Phaser from 'phaser';
 import type { Command, CommandBus } from '../../engine/commands';
 import type { Rng } from '../../engine/rng';
 import type { GameState } from '../../engine/state';
-import { assets, spriteScale } from '../../content/assets';
+import { spriteTexture } from '../../content/assets';
 import { characterData, membersOf, statsOf } from '../../content/characters';
 import { rosterEntries } from '../partyView';
 import { formatCoins } from '../../rules/party';
 import { type CampSite, canRest, innCost, isInn, rest, type RestKind } from '../../rules/rest';
 import { formatClock } from '../../rules/time';
 import type { Hud } from '../../ui/hud';
-import { preloadSheets } from '../spriteCss';
+import { preloadSheets, spriteScaleOf } from '../spriteCss';
 
 const W = 576;
 const H = 432;
@@ -184,7 +184,7 @@ export class CampScene extends Phaser.Scene {
     const members = membersOf(this.deps.game.roster).map((p) => ({ def: p, now: this.deps.game.party.find((s) => s.id === p.id)! }));
     const alive = members.filter((m) => !m.now.dead);
     alive.forEach((m, i) => {
-      const ref = assets.sprites[m.def.sprite];
+      const tex = spriteTexture(m.def.sprite)!;
       // a half circle around the fire (or along the inn's tables)
       const a = Math.PI * (0.15 + (0.7 * i) / Math.max(1, alive.length - 1));
       const x = inn ? 90 + i * 62 : W / 2 - Math.cos(a) * 150;
@@ -192,8 +192,8 @@ export class CampScene extends Phaser.Scene {
       const down = m.now.hp <= 0;
       this.sprites.push(
         this.add
-          .image(x, y, ref.sheet, ref.frame)
-          .setScale(spriteScale(ref.sheet, 48))
+          .image(x, y, tex.key, tex.frame)
+          .setScale(spriteScaleOf(this.textures, m.def.sprite, 48))
           .setAngle(down ? 90 : 0)
           .setAlpha(down ? 0.7 : 1)
           .setDepth(3),

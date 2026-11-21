@@ -38,13 +38,13 @@ import {
 } from '../../rules/combat';
 import { areaSquares, castOptions, castSpell, spellOf, targetingOf, validTargets } from '../../rules/spells';
 import { spells } from '../../content/characters';
-import { assets, cellSize, cursorCss, spriteScale } from '../../content/assets';
+import { assets, cellSize, cursorCss, spriteScale, spriteTexture } from '../../content/assets';
 import { buildUnits, encounters, type EncounterDef, type PartyMemberDef, resolveEncounter } from '../../content/encounters';
 import type { FightTweaks } from '../../rules/quests';
 import type { ActiveCard, Hud } from '../../ui/hud';
 import type { PrefsStore } from '../../ui/prefs';
 import { commandForKey } from '../input/keyboard';
-import { preloadSheets, spriteCss } from '../spriteCss';
+import { preloadSheets, spriteCss, spriteScaleOf } from '../spriteCss';
 
 export const TILE = cellSize();
 
@@ -243,9 +243,9 @@ export class CombatScene extends Phaser.Scene {
   }
 
   private createUnitSprite(u: Unit): void {
-    const ref = assets.sprites[u.sprite];
-    if (!ref) throw new Error(`Unit ${u.id} has no sprite in assets.json`);
-    this.sprites.set(u.id, this.add.image(0, 0, ref.sheet, ref.frame).setScale(spriteScale(ref.sheet)).setDepth(2));
+    const tex = spriteTexture(u.sprite);
+    if (!tex) throw new Error(`Unit ${u.id} has no sprite in assets.json`);
+    this.sprites.set(u.id, this.add.image(0, 0, tex.key, tex.frame).setScale(spriteScaleOf(this.textures, u.sprite, TILE)).setDepth(2));
     // Enemies sharing a sprite get a letter tag so the log ("Giant Rat B") is readable.
     const suffix = u.name.split(' ').at(-1);
     if (u.side === 'enemy' && suffix?.length === 1) {
@@ -697,10 +697,10 @@ export class CombatScene extends Phaser.Scene {
         .setAngle(up ? 0 : 90) // lying on the ground
         .setAlpha(up ? 1 : down ? 0.8 : 0.3)
         .setDepth(up ? 2 : 1.5)
-        .setScale(spriteScale(img.texture.key));
+        .setScale(spriteScaleOf(this.textures, u.sprite, TILE));
       if (u.carriedBy) {
         // shown small, slung over the carrier's shoulder
-        sprite.setScale(spriteScale(sprite.texture.key) * 0.5).setPosition(u.x * TILE + TILE - TILE / 5, u.y * TILE + TILE / 5).setDepth(2.5).setAlpha(1);
+        sprite.setScale(spriteScaleOf(this.textures, u.sprite, TILE) * 0.5).setPosition(u.x * TILE + TILE - TILE / 5, u.y * TILE + TILE / 5).setDepth(2.5).setAlpha(1);
       }
       this.tags
         .get(u.id)

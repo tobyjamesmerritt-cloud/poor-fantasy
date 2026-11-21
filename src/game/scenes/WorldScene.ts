@@ -7,7 +7,7 @@ import * as Phaser from 'phaser';
 import type { Command, CommandBus, Direction } from '../../engine/commands';
 import { DIRECTION_VECTORS } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
-import { assets, cursorCss } from '../../content/assets';
+import { assets, cursorCss, spriteTexture } from '../../content/assets';
 import { locationContent } from '../../content/encounters';
 import { statsOf } from '../../content/characters';
 import { formatCoins, passTime } from '../../rules/party';
@@ -83,12 +83,12 @@ export class WorldScene extends Phaser.Scene {
 
     const saved = this.deps.game.world;
     this.pos = saved ? { ...saved } : { ...this.map.start };
-    const ref = assets.sprites['party-token'];
+    const tex = spriteTexture('party-token')!;
     // night: a dark blue wash over the land and sites (the party token stays on top, lantern-lit)
     this.night = this.add.rectangle(0, 0, this.map.width * TILE, this.map.height * TILE, NIGHT_COLOUR).setOrigin(0, 0).setDepth(4);
     this.fog = new SoftFog(this, 'fog:world', 0, 0, this.map.width, this.map.height, TILE, 4.5); // land the party hasn't seen yet
     this.fogDrawn = false;
-    this.token = this.add.image(0, 0, ref.sheet, ref.frame).setScale(WORLD_SCALE).setDepth(5);
+    this.token = this.add.image(0, 0, tex.key, tex.frame).setScale(WORLD_SCALE).setDepth(5);
     this.placeToken();
     this.drawSites();
 
@@ -214,9 +214,9 @@ export class WorldScene extends Phaser.Scene {
     for (const s of this.map.sites) {
       if (!siteVisible(this.deps.game, s.id, s.hidden)) continue;
       const key = siteIcon(this.deps.game, questData, s.id);
-      const ref = key ? assets.sprites[key] : undefined;
-      if (!ref) continue;
-      this.add.image(s.x * TILE + TILE / 2, s.y * TILE + TILE / 2, ref.sheet, ref.frame).setScale(WORLD_SCALE).setDepth(3);
+      const tex = key ? spriteTexture(key) : undefined;
+      if (!tex) continue;
+      this.add.image(s.x * TILE + TILE / 2, s.y * TILE + TILE / 2, tex.key, tex.frame).setScale(WORLD_SCALE).setDepth(3);
     }
   }
 

@@ -1,9 +1,22 @@
 /** CSS background info for showing one sprite-sheet frame in the HTML UI. */
 import * as Phaser from 'phaser';
-import { assets } from '../content/assets';
+import { assets, imageKey, spriteTexture } from '../content/assets';
 import type { SpriteCss } from '../ui/hud';
 
+/** Whole-number scale that draws sprite `id` (single image or sheet frame) at `px` pixels. */
+export function spriteScaleOf(textures: Phaser.Textures.TextureManager, id: string, px: number): number {
+  const tex = spriteTexture(id);
+  if (!tex) throw new Error(`Unknown sprite "${id}"`);
+  if (tex.frame === undefined) return px / (textures.get(tex.key).getSourceImage() as HTMLImageElement).width;
+  return px / assets.sheets[tex.key].frameWidth;
+}
+
 export function spriteCss(textures: Phaser.Textures.TextureManager, spriteKey: string): SpriteCss {
+  const single = assets.images[spriteKey];
+  if (single) {
+    const img = textures.get(imageKey(spriteKey)).getSourceImage() as HTMLImageElement;
+    return { url: single.url, frameWidth: img.width, col: 0, row: 0, sheetCols: 1, sheetRows: 1 };
+  }
   const ref = assets.sprites[spriteKey];
   if (!ref) throw new Error(`Unknown sprite "${spriteKey}"`);
   const sheet = assets.sheets[ref.sheet];
@@ -24,18 +37,25 @@ export function preloadSheets(load: Phaser.Loader.LoaderPlugin): void {
   for (const [key, s] of Object.entries(assets.sheets)) {
     load.spritesheet(key, s.url, { frameWidth: s.frameWidth, frameHeight: s.frameHeight });
   }
+  for (const [id, i] of Object.entries(assets.images)) {
+    load.image(imageKey(id), i.url);
+    if (i.attack) load.image(imageKey(id, 'attack'), i.attack);
+  }
 }
 
 /** Sheet image sizes without Phaser (for HTML screens shown before any scene has loaded art). */
 export async function loadSheetSizes(): Promise<Record<string, { width: number; height: number }>> {
   const entries = await Promise.all(
-    Object.entries(assets.sheets).map(
-      ([key, s]) =>
+    [
+      ...Object.entries(assets.sheets).map(([key, s]) => [key, s.url] as const),
+      ...Object.entries(assets.images).map(([id, i]) => [imageKey(id), i.url] as const),
+    ].map(
+      ([key, url]) =>
         new Promise<[string, { width: number; height: number }]>((resolve, reject) => {
           const img = new Image();
           img.onload = () => resolve([key, { width: img.naturalWidth, height: img.naturalHeight }]);
-          img.onerror = () => reject(new Error(`Could not load ${s.url}`));
-          img.src = s.url;
+          img.onerror = () => reject(new Error(`Could not load ${url}`));
+          img.src = url;
         }),
     ),
   );
@@ -44,6 +64,11 @@ export async function loadSheetSizes(): Promise<Record<string, { width: number; 
 
 /** spriteCss from known sheet sizes (see loadSheetSizes). */
 export function spriteCssFromSizes(sizes: Record<string, { width: number; height: number }>, spriteKey: string): SpriteCss | null {
+  const single = assets.images[spriteKey];
+  if (single) {
+    const size = sizes[imageKey(spriteKey)];
+    return size ? { url: single.url, frameWidth: size.width, col: 0, row: 0, sheetCols: 1, sheetRows: 1 } : null;
+  }
   const ref = assets.sprites[spriteKey];
   const size = ref && sizes[ref.sheet];
   if (!ref || !size) return null;

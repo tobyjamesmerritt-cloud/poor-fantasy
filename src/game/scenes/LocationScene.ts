@@ -16,7 +16,7 @@ import type { Rng } from '../../engine/rng';
 import { locationWanderCheck } from '../../rules/wandering';
 import { encounters, locationContent } from '../../content/encounters';
 import { statsOf } from '../../content/characters';
-import { assets } from '../../content/assets';
+import { spriteTexture } from '../../content/assets';
 import { loadLocationMap } from '../../content/locationMap';
 import { loadTravelMap, type TiledMap } from '../../content/world';
 import {
@@ -475,10 +475,10 @@ export class LocationScene extends Phaser.Scene {
     const cy = this.pose.y * CELL + CELL / 2;
     const game = this.deps.game;
     const first = game.roster.find((r) => !game.party.find((p) => p.id === r.id)?.dead) ?? game.roster[0];
-    const ref = first ? assets.sprites[first.sprite] : undefined;
-    if (ref) {
-      if (!this.leader) this.leader = this.add.image(cx, cy, ref.sheet, ref.frame).setScale(MAP_SCALE).setDepth(3.5);
-      this.leader.setTexture(ref.sheet, ref.frame).setPosition(cx, cy);
+    const tex = first ? spriteTexture(first.sprite) : undefined;
+    if (tex) {
+      if (!this.leader) this.leader = this.add.image(cx, cy, tex.key, tex.frame).setScale(MAP_SCALE).setDepth(3.5);
+      this.leader.setTexture(tex.key, tex.frame).setPosition(cx, cy);
     }
     const [fx, fy] = FACING_VECTORS[this.pose.facing];
     // a small triangle on the facing edge of the square, over the icon
