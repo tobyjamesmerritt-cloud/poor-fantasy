@@ -355,6 +355,15 @@
     "reeve": {
       "url": "assets/portraits/npc/millbrook/reeve.png"
     },
+    "troll-threatening": {
+      "url": "assets/portraits/npc/wilderness/troll-threatening.png"
+    },
+    "troll-drunk": {
+      "url": "assets/portraits/npc/wilderness/troll-drunk.png"
+    },
+    "troll-friendly": {
+      "url": "assets/portraits/npc/wilderness/troll-friendly.png"
+    },
     "reeve-hall": {
       "url": "assets/scenes/millbrook/reeve-hall.png"
     },

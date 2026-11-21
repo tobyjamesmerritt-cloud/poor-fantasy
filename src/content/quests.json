@@ -358,6 +358,7 @@
         },
         "empty": { "text": "The old shack is empty but for droppings and broken crates." },
         "troll-home": {
+          "picture": "troll-friendly",
           "speaker": "The troll",
           "text": "The troll sits in the shack's doorway, crunching something that squeaked not long ago. It sees you and waves a huge claw. \"Friend! Shack dry. Rats tasty. Troll happy.\"",
           "choices": [
@@ -372,6 +373,7 @@
           ]
         },
         "troll-gear": {
+          "picture": "troll-friendly",
           "speaker": "The troll",
           "text": "\"Rats in shack. Bats in shack. Troll eat.\" It pats its belly, then shoves a crate of junk out of the door with one foot. \"Not food. Friend take.\" Among the junk: old brewing gear and a few things somebody left behind.",
           "do": [
@@ -385,12 +387,14 @@
           "choices": [{ "text": "Thank it and go." }]
         },
         "gift": {
+          "picture": "troll-friendly",
           "speaker": "The troll",
           "text": "The troll rummages under a heap of bones and holds out a sodden purse. \"Shiny. Troll no eat shiny. Friend take.\"",
           "do": [{ "set": "troll:gift" }, { "coins": 2000 }],
           "choices": [{ "text": "Thank it and go." }]
         },
         "cheers": {
+          "picture": "troll-drunk",
           "speaker": "The troll",
           "text": "The troll drains the mug in one gulp, thumps its chest and bellows a song with no tune and only one word: \"RATS!\" Birds flee for half a mile.",
           "choices": [{ "text": "Applaud, and leave while your ears still work." }]
@@ -400,6 +404,7 @@
 
     "troll": {
       "sprite": "troll",
+      "picture": "troll-threatening",
       "showParty": true,
       "entry": [{ "node": "meet" }],
       "nodes": {
@@ -445,6 +450,7 @@
           ]
         },
         "drunk": {
+          "picture": "troll-drunk",
           "speaker": "The troll",
           "text": "The troll snatches the mug, sniffs, and pours it down in one gulp. Then it belches, sways, and grins. \"More!\" It is in no state to aim straight — but it is still in the way.",
           "choices": [
@@ -461,6 +467,7 @@
           ]
         },
         "merry-refused": {
+          "picture": "troll-drunk",
           "speaker": "The troll",
           "text": "The troll laughs so hard it nearly falls off the bridge. \"Funny! Troll stay. More ale!\" It still sways on its feet.",
           "do": [{ "set": "troll:merry-refused" }],
