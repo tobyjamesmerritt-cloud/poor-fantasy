@@ -1584,3 +1584,9 @@ button.danger {
     margin: 0 0 0.1rem;
   }
 }
+
+/* About → Quest flags (debug cheat): rows with the flags indented under their quest */
+.flag-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.flag-row { display: flex; align-items: center; gap: 6px; }
+.flag-indent { margin-left: 22px; }
+.flag-list select { background: #1b1b1b; color: inherit; border: 1px solid #444; padding: 2px 4px; }

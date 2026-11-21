@@ -57,6 +57,7 @@ import {
   visibleChoices,
   nodePicture,
 } from './rules/quests';
+import { flagGroups, setQuestStage, toggleFlag } from './rules/debugFlags';
 import './ui/style.css';
 
 // ?seed=123 in the URL jumps straight into the test fight with those dice — paste it into bug reports.
@@ -92,7 +93,11 @@ let exploreRng = createRng(gameState.seed ^ 0x5eed); // rests, ambushes, ability
 bindConfirm(hud.frame);
 // every popup shows the party's HP under its portrait unless it brings its own strip
 hud.frame.asideProvider = () => (gameState?.roster?.length ? partyStrip(rosterEntries(game.textures, gameState)) : null);
-const help = new HelpDialogs(hud.frame, bus);
+const help = new HelpDialogs(hud.frame, bus, {
+  groups: () => flagGroups(questData, gameState.flags),
+  toggle: (key) => void toggleFlag(gameState.flags, key),
+  stage: (quest, stage) => setQuestStage(gameState.flags, quest, stage),
+});
 initMenu(prefs, help);
 
 const freshOf = (sheet: CharacterSheet) => freshParty(statsOf([sheet]))[0];

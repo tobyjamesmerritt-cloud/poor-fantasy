@@ -5,6 +5,14 @@
  */
 import type { CommandBus } from '../engine/commands';
 import type { PopupFrame, PopupView } from './popupFrame';
+import type { FlagGroup } from '../rules/debugFlags';
+
+/** What the flag editor needs from the game (supplied by main.ts). */
+export interface FlagsApi {
+  groups(): FlagGroup[];
+  toggle(key: string): void;
+  stage(quest: string, stage: string): void;
+}
 
 const SECTIONS: { title: string; items: string[] }[] = [
   {
@@ -48,6 +56,7 @@ export class HelpDialogs {
   constructor(
     private frame: PopupFrame,
     private bus: CommandBus,
+    private flagsApi?: FlagsApi,
   ) {}
 
   get open(): boolean {
@@ -76,6 +85,44 @@ export class HelpDialogs {
     });
   }
 
+  /** Quest flags cheat: one tab per quest (stage + its flags, indented) and one for the rest. */
+  private flagTab = 0;
+  flags(tab = this.flagTab): void {
+    const api = this.flagsApi;
+    if (!api) return;
+    const groups = api.groups();
+    const quests = groups.filter((g) => g.quest);
+    const others = groups.filter((g) => !g.quest);
+    const tabs: { title: string; groups: FlagGroup[] }[] = [...quests.map((g) => ({ title: g.title, groups: [g] })), ...(others.length ? [{ title: 'Other', groups: others }] : [])];
+    this.flagTab = Math.min(tab, tabs.length - 1);
+    const bar = el('div', 'pk-tabs');
+    tabs.forEach((t, i) => bar.append(btn(t.title, () => this.flags(i), i === this.flagTab ? 'pk-tab on' : 'pk-tab')));
+    const body = el('div', 'flag-list');
+    for (const g of tabs[this.flagTab]?.groups ?? []) {
+      if (g.quest) {
+        const sel = document.createElement('select');
+        for (const st of g.quest.stages) sel.append(new Option(st, st, false, st === g.quest.stage));
+        sel.addEventListener('change', () => api.stage(g.quest!.id, sel.value));
+        const label = el('label', 'flag-row', `Stage: `, sel);
+        body.append(label);
+      } else body.append(el('h3', '', g.title));
+      if (!g.flags.length) body.append(el('p', 'hint flag-indent', g.quest ? 'No flags of its own.' : ''));
+      for (const f of g.flags) {
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.checked = f.on;
+        box.addEventListener('change', () => api.toggle(f.key));
+        body.append(el('label', 'flag-row flag-indent', box, ` ${f.label}`));
+      }
+    }
+    this.put({
+      title: 'Quest flags',
+      text: 'Test cheat: changes take effect straight away. Reopen the place panel (or step) to see it redraw.',
+      content: [bar, body],
+      choices: [{ label: 'Back', onClick: () => this.about() }],
+    });
+  }
+
   about(focusDebug = false): void {
     const debugButtons = el(
       'div',
@@ -87,6 +134,7 @@ export class HelpDialogs {
           ['Reset fog of war', 'fog'],
         ] as const
       ).map(([label, text]) => btn(label, () => this.bus.dispatch({ type: 'debug', text }))),
+      ...(this.flagsApi ? [btn('Quest flags…', () => this.flags())] : []),
     );
     const input = document.createElement('input');
     input.id = 'debug-input';
