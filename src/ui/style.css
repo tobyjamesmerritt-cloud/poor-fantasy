@@ -1546,3 +1546,7 @@ button.danger {
   width: 24px;
   height: 24px;
 }
+
+.pf-picture.pixel {
+  image-rendering: pixelated;
+}

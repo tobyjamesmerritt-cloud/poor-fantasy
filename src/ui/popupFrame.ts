@@ -27,6 +27,8 @@ export interface PopupChoice {
 export interface PopupView {
   /** Large portrait, left. Order: picture (image url) → sprite (enlarged pixel art) → a plain panel with the title's initial. Every popup has the column, so every popup is the same size. */
   picture?: string;
+  /** The picture is pixel art: scale it without smoothing. */
+  pixelArt?: boolean;
   sprite?: SpriteCss;
   /** Conversations only: the text area may scroll when a long text overflows. Everything else must fit (UI principles). */
   scrollable?: boolean;
@@ -226,7 +228,7 @@ export class PopupFrame {
 function portraitOf(v: PopupView): HTMLElement {
   if (v.picture) {
     const img = document.createElement('img');
-    img.className = 'pf-picture';
+    img.className = v.pixelArt ? 'pf-picture pixel' : 'pf-picture';
     img.src = v.picture;
     img.alt = v.title;
     return img;

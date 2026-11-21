@@ -4,6 +4,7 @@
  * choice with a skill check first asks which character tries, showing each
  * one's bonus. Sends Commands only.
  */
+import { TEST_PORTRAIT } from './testPortrait';
 import type { CommandBus } from '../engine/commands';
 import { pictureUrl } from './localPictures';
 import { partyStrip, type RosterEntry, type SpriteCss } from './hud';
@@ -80,7 +81,8 @@ export class TalkDialog {
       }
     } else choices.push({ label: 'Farewell.', onClick: () => this.bus.dispatch({ type: 'talkClose' }) });
     this.frame.push({
-      picture: pictureUrl(v.picture) ?? undefined,
+      // a real (local) picture first; people with none get the placeholder; monsters keep their sprite
+      ...(pictureUrl(v.picture) ? { picture: pictureUrl(v.picture) } : v.sprite ? {} : { picture: TEST_PORTRAIT, pixelArt: true }),
       sprite: (v.sprite && this.spriteCss(v.sprite)) || undefined,
       aside: v.party ? partyStrip(v.party) : undefined,
       scrollable: true,

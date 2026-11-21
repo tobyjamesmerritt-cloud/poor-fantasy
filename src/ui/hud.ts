@@ -3,6 +3,7 @@
  * overlays). Menus and text live in the DOM rather than Phaser: easier layout,
  * accessibility and mobile scaling. Text is always set via textContent.
  */
+import { TEST_PORTRAIT } from './testPortrait';
 import type { Command, CommandBus } from '../engine/commands';
 import { PopupFrame } from './popupFrame';
 
@@ -240,6 +241,8 @@ export class Hud {
     }
     const leave = place.actions.find((a) => a.command?.type === 'leavePlace');
     this.frame.setBase({
+      picture: TEST_PORTRAIT,
+      pixelArt: true,
       title: place.name,
       subtitle: place.kind,
       text: place.description,

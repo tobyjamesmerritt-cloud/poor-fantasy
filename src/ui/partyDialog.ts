@@ -6,6 +6,7 @@
  *   portrait, ability scores, combat numbers, gear and spells.
  * Opened from "Party" above any party list, or from a character's name. Sends Commands only.
  */
+import { TEST_PORTRAIT } from './testPortrait';
 import type { CommandBus } from '../engine/commands';
 import type { CharacterSheet, GameState } from '../engine/state';
 import { ABILITIES, ABILITY_NAMES, abilityMod, equipped, signed } from '../rules/character';
@@ -215,6 +216,8 @@ export class PartyDialog {
       { label: 'Close', onClick: () => this.close() },
     ];
     return {
+      picture: TEST_PORTRAIT,
+      pixelArt: true,
       title: s.name,
       subtitle: `${d.species[s.speciesId].name} ${className(s)} · ${d.backgrounds[s.backgroundId].name}`,
       sprite: this.sprite(s.sprite),
