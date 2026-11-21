@@ -232,8 +232,8 @@ export class Hud {
 
   /**
    * Place panel (a building, a world site, a danger spot) in the shared popup
-   * frame; null hides it. "Leave" is not a choice: Esc / the ✕ button do it,
-   * and walking away dismisses the panel (economy of popups, CLAUDE.md).
+   * frame; null hides it. Its Leave / Back away action stays a visible choice
+   * (restored by Toby, 2026-11-21); Esc / the ✕ button and walking away also dismiss it.
    */
   /** `picture` = a picture id (assets.json `pictures` or local/pictures); absent = the placeholder portrait. */
   setPlace(place: { name: string; kind: string; description: string; picture?: string; actions: PlaceAction[] } | null): void {
@@ -249,7 +249,6 @@ export class Hud {
       subtitle: place.kind,
       text: place.description,
       choices: place.actions
-        .filter((a) => a !== leave)
         .map((a) => ({ label: a.label, disabled: !a.command, onClick: () => a.command && this.bus.dispatch(a.command) })),
       modal: false,
       onCancel: leave?.command ? () => this.bus.dispatch(leave.command!) : undefined,
