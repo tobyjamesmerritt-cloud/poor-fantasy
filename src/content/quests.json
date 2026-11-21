@@ -246,6 +246,7 @@
           "choices": [{ "text": "Go in.", "do": [{ "enter": "shrine-of-the-dawn" }] }, { "text": "Not yet." }]
         },
         "cleared": {
+          "picture": "ilse-happy",
           "speaker": "Mother Ilse",
           "text": "You did it! I'll light the candles again. Do tell the reeve.",
           "choices": [{ "text": "Look inside again.", "do": [{ "enter": "shrine-of-the-dawn" }] }, { "text": "Farewell." }]
@@ -257,6 +258,7 @@
           "choices": [{ "text": "Thank you, Mother.", "next": "tended" }]
         },
         "tended": {
+          "picture": "ilse-happy",
           "speaker": "Mother Ilse",
           "text": "Rest now, and tell the reeve the shrine is ours again. The candles will burn for you tonight."
         }
@@ -314,10 +316,11 @@
           ]
         },
         "fixed": {
+          "picture": "odo-happy",
           "speaker": "Odo, brewmaster",
           "text": "Hear that gurgle? Sweetest sound in the Vale. I can't pay you — every copper I have is in those vats — but the Leaky Bucket will have barrels by nightfall. Drink one for me."
         },
-        "thanks-again": { "speaker": "Odo, brewmaster", "text": "Spigot's holding! Tell Bertram I said hello." },
+        "thanks-again": { "picture": "odo-happy", "speaker": "Odo, brewmaster", "text": "Spigot's holding! Tell Bertram I said hello." },
         "closed": { "text": "The brewery is shut and quiet." }
       }
     },

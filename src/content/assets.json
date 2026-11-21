@@ -330,5 +330,18 @@
     }
   },
   "images": {},
-  "pictures": {}
+  "pictures": {
+    "ilse": {
+      "url": "assets/portraits/npc/millbrook/ilse.png"
+    },
+    "ilse-happy": {
+      "url": "assets/portraits/npc/millbrook/ilse-happy.png"
+    },
+    "odo": {
+      "url": "assets/portraits/npc/millbrook/odo.png"
+    },
+    "odo-happy": {
+      "url": "assets/portraits/npc/millbrook/odo-happy.png"
+    }
+  }
 }

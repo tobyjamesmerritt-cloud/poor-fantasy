@@ -70,8 +70,10 @@ cursor-attack,cursor,ui,cursors,,placeholder,Kenney Cursor Pack,CC0 1.0,assets/u
 cursor-move,cursor,ui,cursors,,placeholder,Kenney Cursor Pack,CC0 1.0,assets/ui/cursors/boot.png,,,
 cursor-help,cursor,ui,cursors,,placeholder,Kenney Cursor Pack,CC0 1.0,assets/ui/cursors/gauntlet_open.png,,,
 reeve,picture,portraits,npc/millbrook,Reeve Tamsin Holt,placeholder-local,Corax Digital Art,LOCAL ONLY - never commit,local/pictures/reeve.*,,,
-ilse,picture,portraits,npc/millbrook,Mother Ilse (shrine),placeholder-local,Corax Digital Art,LOCAL ONLY - never commit,local/pictures/ilse.*,,,
+ilse,picture,portraits,npc/millbrook,Mother Ilse (shrine),placeholder,Art department (AI-generated; confirm tool),Toby's own work (confirm generator terms),assets/portraits/npc/millbrook/ilse.png,1,,Before quest done: serious. 200x200; replace with 512x512. Corax local image kept as unused fallback.
+ilse-happy,picture,portraits,npc/millbrook,Mother Ilse (shrine) - happy (after quest),placeholder,Art department (AI-generated; confirm tool),Toby's own work (confirm generator terms),assets/portraits/npc/millbrook/ilse-happy.png,1,,After quest done. 200x200; replace with 512x512.
 bertram,picture,portraits,npc/millbrook,"Bertram, innkeeper",placeholder-local,Corax Digital Art,LOCAL ONLY - never commit,local/pictures/bertram.*,,,
-odo,picture,portraits,npc/millbrook,Odo (confirm area),placeholder-local,Corax Digital Art,LOCAL ONLY - never commit,local/pictures/odo.*,,,
+odo,picture,portraits,npc/millbrook,Odo (confirm area),placeholder,Art department (AI-generated; confirm tool),Toby's own work (confirm generator terms),assets/portraits/npc/millbrook/odo.png,1,,Before quest done: worried. 200x200; replace with 512x512. Corax local image kept as unused fallback. Area to confirm.
+odo-happy,picture,portraits,npc/millbrook,Odo (confirm area) - happy (after quest),placeholder,Art department (AI-generated; confirm tool),Toby's own work (confirm generator terms),assets/portraits/npc/millbrook/odo-happy.png,1,,After quest done. 200x200; replace with 512x512.
 bandit-captain,picture,portraits,npc/wilderness,Bandit captain,placeholder-local,Corax Digital Art,LOCAL ONLY - never commit,local/pictures/bandit-captain.*,,,
 test-portrait,portrait,portraits,party,Toby's own test image (placeholder for every popup),placeholder,Toby (own test image),Toby's own work - confirm generator terms if AI-made,assets/portraits/test-portrait.png,,,153x148; replace with 512x512 portraits
