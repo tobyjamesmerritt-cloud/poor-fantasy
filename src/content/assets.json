@@ -373,6 +373,9 @@
     "reeve-hall": {
       "url": "assets/scenes/millbrook/reeve-hall.png"
     },
+    "shrine-exterior": {
+      "url": "assets/scenes/millbrook/shrine-exterior.png"
+    },
     "shrine-of-the-dawn": {
       "url": "assets/scenes/millbrook/shrine-of-the-dawn.png"
     }

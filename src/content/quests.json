@@ -213,7 +213,7 @@
         "reward": {
           "speaker": "Reeve Tamsin Holt",
           "text": "Quiet as a tomb, Mother Ilse says — the good kind of quiet. Here, as promised. Millbrook won't forget it.",
-          "do": [{ "coins": 2500 }, { "quest": "rats", "stage": "done" }],
+          "do": [{ "coins": 2500 }, { "quest": "rats", "stage": "done" }, { "set": "shrine:restored" }],
           "choices": [{ "text": "Anything else troubling the town?", "next": "chat" }, { "text": "Farewell." }]
         },
         "chat": {
@@ -238,11 +238,25 @@
       "nodes": {
         "closed": {
           "speaker": "Mother Ilse",
-          "text": "You can't go in there, friend. Too many rats — they bite, and they're bold as wolves. If you want to help, speak to the reeve in her hall."
+          "text": "You can't go in there, friend. Too many rats — they bite, and they're bold as wolves. If you want to help, speak to the reeve in her hall.",
+          "choices": [{ "text": "Where are they coming from?", "next": "rats-closed" }, { "text": "Farewell." }]
+        },
+        "rats-closed": {
+          "speaker": "Mother Ilse",
+          "text": "From the catacombs beneath the shrine. The old burial vaults run deep, and the rats have made them a nest. They keep coming up from below, a few more every night — through the crypt stair, up into the nave. I've barred the door, but I can't hold it forever. Speak to the reeve; she can pay for help."
         },
         "open": {
           "speaker": "Mother Ilse",
           "text": "The reeve sent you? The Dawn be thanked. They're in the nave, and worse down in the crypt behind the altar. I'll bar the door behind you.",
+          "choices": [
+            { "text": "Go in.", "do": [{ "enter": "shrine-of-the-dawn" }] },
+            { "text": "Where are they coming from?", "next": "rats-open" },
+            { "text": "Not yet." }
+          ]
+        },
+        "rats-open": {
+          "speaker": "Mother Ilse",
+          "text": "The catacombs beneath the shrine — that's their nest. They keep coming up from below, through the crypt stair behind the altar and out into the nave. Clear the nave, then the crypt behind the altar, or more will keep coming up.",
           "choices": [{ "text": "Go in.", "do": [{ "enter": "shrine-of-the-dawn" }] }, { "text": "Not yet." }]
         },
         "cleared": {
