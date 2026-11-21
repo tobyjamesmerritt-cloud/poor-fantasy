@@ -7,3 +7,7 @@ dist/
 
 # Local-only placeholder art (licence forbids redistribution) — never commit
 local/
+
+# Art originals kept next to the repo clone (C:\Users\tobym\Documents\poor-fantasy\assets) — never commit
+/assets/
+/art-originals/
