@@ -109,6 +109,7 @@ floor-town-2,texture,textures,floors,Town ground (grass) variant 2 (3D view),dra
 floor-interior-1,texture,textures,floors,Interior floor variant 1 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-interior-1.png,1,,128x128 seamless
 floor-interior-2,texture,textures,floors,Interior floor variant 2 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-interior-2.png,1,,128x128 seamless
 floor-town-path,texture,textures,floors,Town grass that matches the path pieces (used beside roads),draft,Art department,Toby's own work,assets/textures/floors/floor-town-path.png,1,,128x128 seamless
+floor-city-exit,texture,textures,floors,Floor under a town exit gate (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-city-exit.png,1,,128x128 seamless floor tile
 floor-path-straight,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-straight.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
 floor-path-corner,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-corner.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
 floor-path-t,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-t.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
@@ -125,3 +126,7 @@ wall-door-square,texture,textures,walls,Wooden door in a stone wall (3D view; de
 wall-door-round,texture,textures,walls,Round-arched wooden door (3D view; temples and halls),draft,Art department,Toby's own work,assets/textures/walls/wall-door-round.png,1,,128x128 whole wall tile with the door baked in
 wall-door-iron,texture,textures,walls,Iron-studded door (3D view; locked doors),draft,Art department,Toby's own work,assets/textures/walls/wall-door-iron.png,1,,128x128 whole wall tile with the door baked in
 wall-gate-exit,texture,textures,walls,Town gate onto the road (3D view; town exits),draft,Art department,Toby's own work,assets/textures/walls/wall-gate-exit.png,1,,128x128 whole wall tile with the door baked in
+wall-stairs-up-stone,texture,textures,walls,Staircase up - stone variant (3D view),draft,Art department,Toby's own work,assets/textures/walls/wall-stairs-up-stone.png,1,,128x128 whole wall tile with the stairs baked in
+wall-stairs-up-wood,texture,textures,walls,Staircase up - wood variant (3D view),draft,Art department,Toby's own work,assets/textures/walls/wall-stairs-up-wood.png,1,,128x128 whole wall tile with the stairs baked in
+wall-stairs-down-stone,texture,textures,walls,Staircase down - stone variant (3D view),draft,Art department,Toby's own work,assets/textures/walls/wall-stairs-down-stone.png,1,,128x128 whole wall tile with the stairs baked in
+wall-stairs-down-wood,texture,textures,walls,Staircase down - wood variant (3D view),draft,Art department,Toby's own work,assets/textures/walls/wall-stairs-down-wood.png,1,,128x128 whole wall tile with the stairs baked in

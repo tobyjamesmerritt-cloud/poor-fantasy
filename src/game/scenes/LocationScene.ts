@@ -569,6 +569,9 @@ export class LocationScene extends Phaser.Scene {
       if (list.length) this.wallTex[m] = list;
     }
     this.doorTex = { square: tex('wall-door-square'), round: tex('wall-door-round'), iron: tex('wall-door-iron'), gate: tex('wall-gate-exit') };
+    const wooden = this.style === 'interior' ? 'wood' : 'stone'; // staircases: wooden indoors, stone elsewhere
+    this.doorTex['stairs-up'] = tex(`wall-stairs-up-${wooden}`) ?? tex('wall-stairs-up-stone');
+    this.doorTex['stairs-down'] = tex(`wall-stairs-down-${wooden}`) ?? tex('wall-stairs-down-stone');
     this.upperImg = tex('wall-stone-upper');
     this.roofImg = tex('roof-tile');
     const st = STYLES[this.style];
@@ -628,6 +631,8 @@ export class LocationScene extends Phaser.Scene {
     const m = this.map;
     const inside = x >= 0 && y >= 0 && x < m.width && y < m.height;
     if (this.style === 'town' && inside) {
+      const exitData = isExit(m, x, y) ? this.pixelsOf('floor-city-exit') : null;
+      if (exitData) return { data: exitData, turns: 0 };
       if (roadAt(m, x, y)) {
         const { piece, turns } = floorPiece(roadAt(m, x, y - 1), roadAt(m, x + 1, y), roadAt(m, x, y + 1), roadAt(m, x - 1, y));
         const data = this.pixelsOf(`floor-path-${piece}`);
@@ -724,7 +729,7 @@ export class LocationScene extends Phaser.Scene {
     }
     const lit = light(zMid) * (f.kind === 'front' ? 1 : 0.78);
     // a door or gate is a whole wall tile with the door baked in: it takes the ground storey
-    const doorArt = f.feature === 'gate' ? this.doorTex.gate : f.feature === 'door' ? this.doorTex.iron : f.door ? this.doorTex[f.doorStyle ?? 'square'] : undefined;
+    const doorArt = f.feature === 'gate' ? this.doorTex.gate : f.feature === 'door' ? this.doorTex.iron : f.feature === 'stairs-up' || f.feature === 'stairs-down' ? this.doorTex[f.feature] : f.door ? this.doorTex[f.doorStyle ?? 'square'] : undefined;
     const variants = this.wallTex[f.material] ?? (doorArt ? this.wallTex.stone : undefined);
     if (variants) {
       this.wallImg = variants[f.variant % variants.length];
