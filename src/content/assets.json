@@ -414,6 +414,15 @@
     "enc-bats": {
       "url": "assets/scenes/encounter/enc-bats.png"
     },
+    "inn-interior-marta": {
+      "url": "assets/scenes/millbrook/inn-interior-marta.png"
+    },
+    "inn-interior-day": {
+      "url": "assets/scenes/millbrook/inn-interior-day.png"
+    },
+    "brewery-interior-odo": {
+      "url": "assets/scenes/wilderness/brewery-interior-odo.png"
+    },
     "brewery-exterior": {
       "url": "assets/scenes/wilderness/brewery-exterior.png"
     },

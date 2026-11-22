@@ -172,7 +172,7 @@ const LOCATIONS = {
       '########X#######',
     ],
     spots: {
-      b: { type: 'building', building: 'house', name: "Odo's Office", description: 'A cramped office stacked with ledgers and sample jugs. Odo has pinned a list of orders to the wall.', picture: 'odo-happy' },
+      b: { type: 'building', building: 'house', name: "Odo's Office", description: 'A cramped office stacked with ledgers and sample jugs. Odo has pinned a list of orders to the wall.', picture: 'brewery-interior-odo' },
       a: { type: 'text', name: 'Mash Tun', description: 'A great copper tun, still warm. The mash smells of toasted grain.' },
       d: { type: 'text', name: 'Barrel Store', description: 'Rows of oak barrels, chalked for the Leaky Bucket and the inns up the valley.' },
       e: { type: 'text', name: 'Hop Loft Ladder', description: 'A ladder climbs to the hop loft. The rungs are sticky and smell sharply green.' },
