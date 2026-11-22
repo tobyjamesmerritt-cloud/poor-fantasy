@@ -10,7 +10,7 @@
 export type Facing = 'n' | 'e' | 's' | 'w';
 export type Turn = 'left' | 'right' | 'around';
 export type StepDir = 'forward' | 'back' | 'left' | 'right';
-export type SpotKind = 'fight' | 'building' | 'text' | 'stairs';
+export type SpotKind = 'fight' | 'building' | 'text' | 'stairs' | 'chest'; // chest: opens once, loot scaled to the party (rules/chests.ts)
 
 export interface Spot {
   id: string; // unique within the location, used in cleared flags
@@ -45,7 +45,7 @@ export function stairsArrival(spot: Spot): Pose {
 export const isStairs = (m: LocationMap, x: number, y: number): boolean => spotAt(m, x, y)?.kind === 'stairs';
 
 /** What an exit / stairs square is drawn as in the 3D view (placeholder shapes until the art lands). */
-export type Feature = 'gate' | 'stairs-up' | 'stairs-down';
+export type Feature = 'gate' | 'stairs-up' | 'stairs-down' | 'door';
 
 /** The picture id a building shows right now. */
 export function spotPicture(spot: Spot, flags: Readonly<Record<string, unknown>>): string | undefined {
@@ -82,6 +82,7 @@ export interface LocationMap {
   material: string[]; // row-major; what a solid square looks like in the 3D view (stone, rock, tree, wood…)
   storeys?: number[]; // row-major; storeys a solid square rises in the 3D view (tile property `height`, default 1)
   roof?: boolean[]; // row-major; a roof cap on top (tile property `roof`)
+  doorTile?: boolean[]; // row-major; dungeon doors (tile property `door`)
   prop?: (string | undefined)[]; // row-major; a billboard prop standing in the square (tile property `prop`: well, chest…) — draws no wall
   road?: boolean[]; // row-major; ground square is a road/path (drawn with path floor pieces in the 3D view)
   entrance: Pose;
@@ -127,6 +128,10 @@ export const roofAt = (m: LocationMap, x: number, y: number): boolean =>
   x >= 0 && y >= 0 && x < m.width && y < m.height && !!m.roof?.[y * m.width + x];
 
 /** The prop standing on a square, if any (the square keeps its `blocked` setting; the 3D view draws the prop, not a wall). */
+/** A dungeon door (tile property `door`): walkable, drawn as a door in the wall. */
+export const doorTileAt = (m: LocationMap, x: number, y: number): boolean =>
+  x >= 0 && y >= 0 && x < m.width && y < m.height && !!m.doorTile?.[y * m.width + x];
+
 export const propAt = (m: LocationMap, x: number, y: number): string | undefined =>
   x < 0 || y < 0 || x >= m.width || y >= m.height ? undefined : m.prop?.[y * m.width + x];
 
@@ -260,6 +265,7 @@ export function viewFaces(
   const featureAt = (x: number, y: number): Feature | undefined => {
     const spot = spotAt(m, x, y);
     if (spot?.kind === 'stairs') return spot.dir === 'down' ? 'stairs-down' : 'stairs-up';
+    if (doorTileAt(m, x, y)) return 'door';
     return gates && isExit(m, x, y) ? 'gate' : undefined;
   };
   const solidAt = (d: number, l: number) => {

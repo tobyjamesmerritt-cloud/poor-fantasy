@@ -10,6 +10,9 @@
 import { drawRoads } from '../roadTiles';
 import { questData, wandering } from '../../content/quests';
 import { hooksAt } from '../../rules/quests';
+import { describeHaul, rollTreasure } from '../../content/loot';
+import { chestTable, partyLevel } from '../../rules/chests';
+import { takeTreasure } from '../../rules/rewards';
 import * as Phaser from 'phaser';
 import type { Command, CommandBus } from '../../engine/commands';
 import type { GameState } from '../../engine/state';
@@ -340,6 +343,7 @@ export class LocationScene extends Phaser.Scene {
         isExit(this.map, this.pose.x, this.pose.y) ||
         spot?.kind === 'building' ||
         spot?.kind === 'stairs' ||
+        (spot?.kind === 'chest' && !this.looted(spot)) ||
         (spot?.kind === 'fight' && !this.cleared(spot));
       if (i === path.length - 1 || stopsHere) {
         this.busy = false;
@@ -373,6 +377,7 @@ export class LocationScene extends Phaser.Scene {
     const spot = spotAt(this.map, x, y);
     if (!spot) return;
     if (spot.kind === 'text') return this.say(spot.description);
+    if (spot.kind === 'chest') return this.openChest(spot);
     if (spot.kind === 'stairs') {
       this.say(spot.description || `You ${spot.dir === 'down' ? 'go down' : 'climb'} the stairs.`);
       this.busy = true;
@@ -400,6 +405,20 @@ export class LocationScene extends Phaser.Scene {
       type: 'camp',
       site: { kind, name: `Camp in ${this.name}`, risk: SITE_RISK[kind], ambush: 'ambush-dark' },
     });
+  }
+
+  private looted(spot: Spot): boolean {
+    return this.deps.game.flags[`looted:${this.deps.locationId}:${spot.id}`] === true;
+  }
+
+  /** Step onto a chest: it opens once, and pays out a table chosen by the party's level (rules/chests.ts). */
+  private openChest(spot: Spot): void {
+    if (this.looted(spot)) return this.say(`${spot.name}: empty now.`);
+    this.deps.game.flags[`looted:${this.deps.locationId}:${spot.id}`] = true;
+    const level = partyLevel(this.deps.game.roster);
+    const haul = rollTreasure(chestTable(level), this.deps.rng);
+    takeTreasure(this.deps.game, haul);
+    this.say(`${spot.description || `You open ${spot.name}.`} Inside: ${describeHaul(haul)}.`);
   }
 
   private cleared(spot: Spot): boolean {
@@ -705,7 +724,7 @@ export class LocationScene extends Phaser.Scene {
     }
     const lit = light(zMid) * (f.kind === 'front' ? 1 : 0.78);
     // a door or gate is a whole wall tile with the door baked in: it takes the ground storey
-    const doorArt = f.feature === 'gate' ? this.doorTex.gate : f.door ? this.doorTex[f.doorStyle ?? 'square'] : undefined;
+    const doorArt = f.feature === 'gate' ? this.doorTex.gate : f.feature === 'door' ? this.doorTex.iron : f.door ? this.doorTex[f.doorStyle ?? 'square'] : undefined;
     const variants = this.wallTex[f.material] ?? (doorArt ? this.wallTex.stone : undefined);
     if (variants) {
       this.wallImg = variants[f.variant % variants.length];
@@ -715,7 +734,8 @@ export class LocationScene extends Phaser.Scene {
     g.lineStyle(2, shade(mat.edge, Math.max(0.5, lit)), 1).strokePoints(pts, true);
     if (f.roof && !this.roofImg) this.drawRoofPlaceholder(g, f, lit);
     if (variants && this.doorImg) return; // drawn from the art
-    if (f.feature) this.drawFeature(g, f, lit);
+    if (f.feature === 'door') this.drawDoor(g, { ...f, door: 'locked' }, lit);
+    else if (f.feature) this.drawFeature(g, f, lit);
     else if (f.door) this.drawDoor(g, f, lit);
   }
 
@@ -757,6 +777,10 @@ export class LocationScene extends Phaser.Scene {
       box(0.2, 0.27, 0.36, 0.86, 0x5d3714); // posts
       box(0.73, 0.8, 0.36, 0.86, 0x5d3714);
       g.fillStyle(shade(0x8f3e2a, Math.max(0.3, lit)), 1).fillPoints([at(0.08, 0.84), at(0.92, 0.84), at(0.5, 1)], true); // roof
+    } else if (v.prop === 'cross') {
+      box(0.1, 0.9, 0, 0.12, 0x6e6a64); // plinth
+      box(0.44, 0.56, 0.12, 0.8, 0x8a8f96); // upright
+      box(0.28, 0.72, 0.52, 0.62, 0x8a8f96); // arms
     } else box(0.25, 0.75, 0, 0.6, 0xb04bd8); // unknown prop: a purple block
   }
 

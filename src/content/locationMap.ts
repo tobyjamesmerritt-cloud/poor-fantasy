@@ -20,7 +20,7 @@
 import { FACING_VECTORS, type Facing, type LocationMap, type Spot, type SpotKind } from '../rules/location';
 import { objectLayer, objProp, objTile, squareProps, type TiledMap } from './world';
 
-const SPOT_KINDS: readonly string[] = ['fight', 'building', 'text', 'stairs'];
+const SPOT_KINDS: readonly string[] = ['fight', 'building', 'text', 'stairs', 'chest'];
 const FACINGS: readonly string[] = ['n', 'e', 's', 'w'];
 const BUILDINGS: readonly string[] = ['inn', 'shop', 'temple', 'hall', 'house'];
 
@@ -45,6 +45,8 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
     return typeof p.prop === 'string' ? p.prop : undefined;
   });
   const roof = props.map((p) => p.roof === true);
+  // dungeon doors: tile property `door` (bool) — walkable, drawn as a door in the wall from outside
+  const doorTile = props.map((p) => p.door === true);
   // roads: ground squares showing the road tile (tiny-dungeon local id 48 — the one terrain.json calls road)
   const roadGid = (t.tilesets.find((ts) => ts.name === 'tiny-dungeon')?.firstgid ?? -1) + 48;
   const ground = t.layers.find((l) => l.name === 'ground' && l.type === 'tilelayer');
@@ -124,7 +126,7 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
   if (!exits.length && !spots.some((s) => s.kind === 'stairs')) errors.push('no "exit" (or stairs) object in the spots layer');
 
   if (errors.length) throw new Error(`Invalid location map "${id}":\n- ` + errors.join('\n- '));
-  return { id, width: t.width, height: t.height, solid: blocked, material, storeys, roof, prop: prop.some(Boolean) ? prop : undefined, road, entrance: entrance!, exits, spots };
+  return { id, width: t.width, height: t.height, solid: blocked, material, storeys, roof, prop: prop.some(Boolean) ? prop : undefined, doorTile: doorTile.some(Boolean) ? doorTile : undefined, road, entrance: entrance!, exits, spots };
 }
 
 /**
