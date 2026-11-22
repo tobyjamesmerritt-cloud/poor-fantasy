@@ -329,7 +329,9 @@
       "hotY": 4
     }
   },
-  "images": {},
+  "images": {
+    "wall-stone": { "url": "assets/textures/walls/wall-stone.png" }
+  },
   "pictures": {
     "ilse": {
       "url": "assets/portraits/npc/millbrook/ilse.png"

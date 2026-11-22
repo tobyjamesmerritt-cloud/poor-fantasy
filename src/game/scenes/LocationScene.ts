@@ -16,7 +16,7 @@ import type { Rng } from '../../engine/rng';
 import { locationWanderCheck } from '../../rules/wandering';
 import { encounters, locationContent } from '../../content/encounters';
 import { statsOf } from '../../content/characters';
-import { spriteTexture } from '../../content/assets';
+import { imageKey, spriteTexture } from '../../content/assets';
 import { loadLocationMap } from '../../content/locationMap';
 import { loadTravelMap, type TiledMap } from '../../content/world';
 import {
@@ -99,7 +99,9 @@ export class LocationScene extends Phaser.Scene {
   private name = '';
   private style: Style = 'cave';
   private pose!: Pose;
-  private view!: Phaser.GameObjects.Graphics;
+  private view!: Pane; // the 3D view: a 2D canvas (so walls can be textured), shown as one image
+  private viewTex!: Phaser.Textures.CanvasTexture;
+  private wallImg?: CanvasImageSource; // wall-stone texture (assets.json images), when loaded
   private arrow!: Phaser.GameObjects.Graphics;
   private night!: Phaser.GameObjects.Rectangle;
   private fog!: SoftFog;
@@ -146,7 +148,10 @@ export class LocationScene extends Phaser.Scene {
       tm.createLayer(name, tilesets, PANE, 0)?.setScale(MAP_SCALE).setDepth(1);
     }
     this.add.rectangle(PANE, 0, 3, PANE, 0x000000).setOrigin(0.5, 0).setDepth(3); // pane divider
-    this.view = this.add.graphics().setDepth(0);
+    if (this.textures.exists('loc:view')) this.textures.remove('loc:view');
+    this.viewTex = this.textures.createCanvas('loc:view', PANE, PANE)!;
+    this.view = new Pane(this.viewTex.getContext());
+    this.add.image(0, 0, 'loc:view').setOrigin(0, 0).setDepth(0);
     this.arrow = this.add.graphics().setDepth(4);
     this.leader = undefined;
     // night under an open sky: a dark blue wash over the 3D view and the map (the party stays lit)
@@ -498,6 +503,7 @@ export class LocationScene extends Phaser.Scene {
   /** Gold Box-style first-person view: shaded floor/ceiling bands, then walls far → near. */
   private drawView(): void {
     const g = this.view.clear();
+    this.wallImg = this.textures.exists(imageKey('wall-stone')) ? (this.textures.get(imageKey('wall-stone')).getSourceImage() as CanvasImageSource) : undefined;
     const st = STYLES[this.style];
     const cy = PANE / 2;
     const light = (z: number) => Math.max(st.minLight, 1 - st.fog * z);
@@ -521,9 +527,10 @@ export class LocationScene extends Phaser.Scene {
     }
 
     for (const face of viewFaces(this.map, this.pose, MAX_DEPTH, this.lockedAt)) this.drawFace(g, face, light);
+    this.viewTex.refresh();
   }
 
-  private drawFace(g: Phaser.GameObjects.Graphics, f: Face, light: (z: number) => number): void {
+  private drawFace(g: Pane, f: Face, light: (z: number) => number): void {
     const cx = PANE / 2;
     const cy = PANE / 2;
     const mat = MATERIALS[f.material] ?? MATERIALS.wall;
@@ -544,13 +551,52 @@ export class LocationScene extends Phaser.Scene {
       zMid = (z0 + f.z1) / 2;
     }
     const lit = light(zMid) * (f.kind === 'front' ? 1 : 0.78);
-    g.fillStyle(shade(mat.face, lit), 1).fillPoints(pts, true);
+    if (f.material === 'stone' && this.wallImg) {
+      this.drawTexturedFace(g, f, lit, pts); // brick texture, then the light level as a black wash
+    } else g.fillStyle(shade(mat.face, lit), 1).fillPoints(pts, true);
     g.lineStyle(2, shade(mat.edge, Math.max(0.5, lit)), 1).strokePoints(pts, true);
     if (f.door) this.drawDoor(g, f, lit);
   }
 
+  /**
+   * A face with the wall image: one 1-px column of the texture per screen column, stretched to the wall's height there.
+   * Front faces map the texture across the square; side faces map it by world depth (perspective-correct).
+   */
+  private drawTexturedFace(g: Pane, f: Face, lit: number, pts: Phaser.Math.Vector2[]): void {
+    const img = this.wallImg!;
+    const cx = PANE / 2;
+    const cy = PANE / 2;
+    const T = 128; // texture size (px)
+    const cols = (xa: number, xb: number, at: (x: number) => { u: number; z: number }) => {
+      const lo = Math.max(0, Math.ceil(Math.min(xa, xb)));
+      const hi = Math.min(PANE - 1, Math.floor(Math.max(xa, xb)));
+      for (let x = lo; x <= hi; x++) {
+        const { u, z } = at(x + 0.5);
+        const h = F / z;
+        g.ctx.drawImage(img, Math.min(T - 1, Math.max(0, Math.floor(u * T))), 0, 1, T, x, cy - h / 2, 1, h);
+      }
+    };
+    if (f.kind === 'front') {
+      const xa = cx + (F * f.X0) / f.z0;
+      const xb = cx + (F * f.X1) / f.z0;
+      cols(xa, xb, (x) => ({ u: (x - xa) / (xb - xa), z: f.z0 }));
+    } else {
+      const z0 = Math.max(f.z0, Z_NEAR);
+      if (f.z1 <= z0) return;
+      const xa = cx + (F * f.X0) / z0;
+      const xb = cx + (F * f.X0) / f.z1;
+      cols(xa, xb, (x) => {
+        const z = (F * f.X0) / (x - cx); // depth at this screen column
+        return { u: (z - f.z0) / (f.z1 - f.z0), z };
+      });
+    }
+    // light level: black wash with the same factor as the flat colours use
+    const wash = Math.min(1, Math.max(0, 1 - lit));
+    if (wash > 0.001) g.fillStyle(0x000000, wash).fillPoints(pts, true);
+  }
+
   /** A wooden door set into a wall face (in perspective); a locked one is barred with iron. */
-  private drawDoor(g: Phaser.GameObjects.Graphics, f: Face, lit: number): void {
+  private drawDoor(g: Pane, f: Face, lit: number): void {
     const cx = PANE / 2;
     const cy = PANE / 2;
     // a point on the face: u across it (0..1), h up from the floor (0..1)
@@ -573,6 +619,49 @@ export class LocationScene extends Phaser.Scene {
       g.fillStyle(iron, 1);
       for (const h of [0.18, 0.55]) g.fillPoints(rect(0.28, 0.72, h, h + 0.05), true); // iron bands
     }
+  }
+}
+
+/** The 3D view's drawing surface: the few Graphics calls drawView uses, on a 2D canvas (so walls can carry a texture). */
+class Pane {
+  private fill = '#000';
+  constructor(readonly ctx: CanvasRenderingContext2D) {
+    ctx.imageSmoothingEnabled = false;
+  }
+  private css = (rgb: number, a: number) => `rgba(${(rgb >> 16) & 0xff},${(rgb >> 8) & 0xff},${rgb & 0xff},${a})`;
+  clear(): this {
+    this.ctx.clearRect(0, 0, PANE, PANE);
+    return this;
+  }
+  fillStyle(rgb: number, a = 1): this {
+    this.fill = this.css(rgb, a);
+    return this;
+  }
+  lineStyle(w: number, rgb: number, a = 1): this {
+    this.ctx.lineWidth = w;
+    this.ctx.strokeStyle = this.css(rgb, a);
+    return this;
+  }
+  fillRect(x: number, y: number, w: number, h: number): this {
+    this.ctx.fillStyle = this.fill;
+    this.ctx.fillRect(x, y, w, h);
+    return this;
+  }
+  private path(pts: { x: number; y: number }[], close: boolean): void {
+    this.ctx.beginPath();
+    pts.forEach((p, i) => (i ? this.ctx.lineTo(p.x, p.y) : this.ctx.moveTo(p.x, p.y)));
+    if (close) this.ctx.closePath();
+  }
+  fillPoints(pts: { x: number; y: number }[], close = true): this {
+    this.path(pts, close);
+    this.ctx.fillStyle = this.fill;
+    this.ctx.fill();
+    return this;
+  }
+  strokePoints(pts: { x: number; y: number }[], close = false): this {
+    this.path(pts, close);
+    this.ctx.stroke();
+    return this;
   }
 }
 
