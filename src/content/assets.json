@@ -340,6 +340,10 @@
   },
   "images": {
     "wall-stone": { "url": "assets/textures/walls/wall-stone.png" },
+    "wall-door-square": { "url": "assets/textures/walls/wall-door-square.png" },
+    "wall-door-round": { "url": "assets/textures/walls/wall-door-round.png" },
+    "wall-door-iron": { "url": "assets/textures/walls/wall-door-iron.png" },
+    "wall-gate-exit": { "url": "assets/textures/walls/wall-gate-exit.png" },
     "wall-rock-1": { "url": "assets/textures/walls/wall-rock-1.png" },
     "wall-rock-2": { "url": "assets/textures/walls/wall-rock-2.png" },
     "wall-tree-1": { "url": "assets/textures/walls/wall-tree-1.png" },

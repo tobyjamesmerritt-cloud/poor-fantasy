@@ -126,6 +126,8 @@ export class LocationScene extends Phaser.Scene {
   private viewTex!: Phaser.Textures.CanvasTexture;
   private wallTex: Record<string, CanvasImageSource[]> = {}; // wall textures per material (assets.json images wall-<material>[-n]); a square picks one by its variant
   private wallImg?: CanvasImageSource; // the texture chosen for the face being drawn
+  private doorImg?: CanvasImageSource; // door / gate art for the ground storey of that face (replaces the wall tile there)
+  private doorTex: Record<string, CanvasImageSource | undefined> = {};
   private upperImg?: CanvasImageSource; // wall-stone-upper (storeys above the first), else wall-stone again
   private roofImg?: CanvasImageSource; // roof-tile: transparent top half, so the sky shows behind it
   private texPixels = new Map<string, Uint8ClampedArray | null>(); // decoded floor / ceiling textures
@@ -547,6 +549,7 @@ export class LocationScene extends Phaser.Scene {
       const list = [tex(`wall-${m}`), tex(`wall-${m}-1`), tex(`wall-${m}-2`)].filter((t): t is CanvasImageSource => !!t);
       if (list.length) this.wallTex[m] = list;
     }
+    this.doorTex = { square: tex('wall-door-square'), round: tex('wall-door-round'), iron: tex('wall-door-iron'), gate: tex('wall-gate-exit') };
     this.upperImg = tex('wall-stone-upper');
     this.roofImg = tex('roof-tile');
     const st = STYLES[this.style];
@@ -701,13 +704,17 @@ export class LocationScene extends Phaser.Scene {
       zMid = (z0 + f.z1) / 2;
     }
     const lit = light(zMid) * (f.kind === 'front' ? 1 : 0.78);
-    const variants = this.wallTex[f.material];
+    // a door or gate is a whole wall tile with the door baked in: it takes the ground storey
+    const doorArt = f.feature === 'gate' ? this.doorTex.gate : f.door ? this.doorTex[f.doorStyle ?? 'square'] : undefined;
+    const variants = this.wallTex[f.material] ?? (doorArt ? this.wallTex.stone : undefined);
     if (variants) {
       this.wallImg = variants[f.variant % variants.length];
+      this.doorImg = doorArt;
       this.drawTexturedFace(g, f, lit, pts); // brick texture, then the light level as a black wash
     } else g.fillStyle(shade(mat.face, lit), 1).fillPoints(pts, true);
     g.lineStyle(2, shade(mat.edge, Math.max(0.5, lit)), 1).strokePoints(pts, true);
     if (f.roof && !this.roofImg) this.drawRoofPlaceholder(g, f, lit);
+    if (variants && this.doorImg) return; // drawn from the art
     if (f.feature) this.drawFeature(g, f, lit);
     else if (f.door) this.drawDoor(g, f, lit);
   }
@@ -819,7 +826,7 @@ export class LocationScene extends Phaser.Scene {
         const unit = F / z;
         for (let i = 0; i < H; i++) {
           const frac = Math.min(1, H - i); // the last storey of a low wall is only partly tall: draw the bottom of the tile
-          g.ctx.drawImage(i === 0 || f.material !== 'stone' ? this.wallImg! : (this.upperImg ?? this.wallImg!), sx, T * (1 - frac), 1, T * frac, x, cy + (F * (0.5 - (i + frac))) / z, 1, unit * frac + 0.5);
+          g.ctx.drawImage(i === 0 && this.doorImg ? this.doorImg : i === 0 || f.material !== 'stone' ? this.wallImg! : (this.upperImg ?? this.wallImg!), sx, T * (1 - frac), 1, T * frac, x, cy + (F * (0.5 - (i + frac))) / z, 1, unit * frac + 0.5);
         }
         if (roof) g.ctx.drawImage(roof, sx, 0, 1, T, x, cy + (F * (0.5 - (H + 1))) / z, 1, unit + 0.5);
       }

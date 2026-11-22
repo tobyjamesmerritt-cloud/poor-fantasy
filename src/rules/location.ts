@@ -218,6 +218,7 @@ export interface Face {
   height: number; // storeys (wall tiles) from floor to top
   roof?: boolean; // a roof cap above the top
   door?: 'open' | 'locked'; // the face is a building's door (drawn in the building's own material)
+  doorStyle?: 'square' | 'round' | 'iron'; // which door art: locked = iron, temple / hall = round, else square
   feature?: Feature; // the face is a gate or a staircase
   variant: number; // stable per map square (same square = same texture variant from every angle)
 }
@@ -300,18 +301,20 @@ export function viewFaces(
       const material = isDoorHere ? doorMaterial(c.x, c.y) : materialAt(m, c.x, c.y);
       const feature = featureAt(c.x, c.y);
       const door = isDoorHere && !feature ? (locked(c.x, c.y) ? ('locked' as const) : ('open' as const)) : undefined;
+      const building = spotAt(m, c.x, c.y)?.building;
+      const doorStyle = door ? (door === 'locked' ? ('iron' as const) : building === 'temple' || building === 'hall' ? ('round' as const) : ('square' as const)) : undefined;
       const variant = squareVariant(c.x, c.y);
       const height = heightHere(d, l);
       const roof = roofHere(d, l) || undefined;
       // a wall is hidden by a solid square in front of it only if that is at least as tall
       if (d >= 1 && (!solidAt(d - 1, l) || heightHere(d - 1, l) < height)) {
-        faces.push({ kind: 'front', depth: d, lateral: l, X0: l - 0.5, X1: l + 0.5, z0: d - 0.5, z1: d - 0.5, material, height, roof, door, feature, variant });
+        faces.push({ kind: 'front', depth: d, lateral: l, X0: l - 0.5, X1: l + 0.5, z0: d - 0.5, z1: d - 0.5, material, height, roof, door, doorStyle, feature, variant });
       }
       if (l !== 0) {
         const inward = l < 0 ? l + 1 : l - 1;
         if (!solidAt(d, inward) || heightHere(d, inward) < height) {
           const X = l < 0 ? l + 0.5 : l - 0.5;
-          faces.push({ kind: 'side', depth: d, lateral: l, X0: X, X1: X, z0: d - 0.5, z1: d + 0.5, material, height, roof, door, feature, variant });
+          faces.push({ kind: 'side', depth: d, lateral: l, X0: X, X1: X, z0: d - 0.5, z1: d + 0.5, material, height, roof, door, doorStyle, feature, variant });
         }
       }
     }
