@@ -88,8 +88,11 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
         }
         const alt = objProp(o, 'altPicture');
         const altFlag = objProp(o, 'altFlag');
-        if ((alt === undefined) !== (altFlag === undefined)) errors.push(`${where}: altPicture and altFlag go together`);
-        if (alt !== undefined && altFlag !== undefined) (spot.altPicture = String(alt)), (spot.altFlag = String(altFlag));
+        const altText = objProp(o, 'altDescription');
+        if (altFlag !== undefined) spot.altFlag = String(altFlag);
+        if (alt !== undefined) spot.altPicture = String(alt);
+        if (altText !== undefined) spot.altDescription = String(altText);
+        if ((alt !== undefined || altText !== undefined) !== (altFlag !== undefined)) errors.push(`${where}: altPicture / altDescription and altFlag go together`);
         if (objProp(o, 'locked') === true) spot.locked = true;
         const unlock = objProp(o, 'unlockFlag');
         if (unlock !== undefined) spot.unlockFlag = String(unlock);

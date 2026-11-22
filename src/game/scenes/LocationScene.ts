@@ -41,6 +41,7 @@ import {
   type Turn,
   viewFaces,
   locationCampCheck,
+  spotDescription,
   spotPicture,
   roadAt,
   squareVariant,
@@ -414,7 +415,7 @@ export class LocationScene extends Phaser.Scene {
       this.deps.hud.setPlace({
         name: spot.name,
         kind: BUILDING_LABEL[spot.building!] ?? 'Building',
-        description: spot.description,
+        description: spotDescription(spot, this.deps.game.flags),
         picture: spotPicture(spot, this.deps.game.flags),
         actions: [
           ...this.buildingActions(spot),

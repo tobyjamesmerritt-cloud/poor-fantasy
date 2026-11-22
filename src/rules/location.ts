@@ -22,6 +22,7 @@ export interface Spot {
   encounter?: string; // fight spots
   building?: string; // building spots: inn | shop | temple | hall | house
   picture?: string; // building spots: picture id (assets.json `pictures`) shown in the place panel; absent = placeholder
+  altDescription?: string; // building spots: shown instead of `description` under the same `altFlag` condition
   altPicture?: string; // building spots: shown instead of `picture` once `altFlag` is set (e.g. the grateful innkeeper)
   altFlag?: string;
   locked?: boolean; // building spots: the door won't open…
@@ -48,11 +49,20 @@ export type Feature = 'gate' | 'stairs-up' | 'stairs-down';
 
 /** The picture id a building shows right now. */
 export function spotPicture(spot: Spot, flags: Readonly<Record<string, unknown>>): string | undefined {
-  if (!spot.altPicture || !spot.altFlag) return spot.picture;
+  return altActive(spot, flags) && spot.altPicture ? spot.altPicture : spot.picture;
+}
+
+/** The text a building shows right now (same condition as the picture). */
+export function spotDescription(spot: Spot, flags: Readonly<Record<string, unknown>>): string {
+  return altActive(spot, flags) && spot.altDescription ? spot.altDescription : spot.description;
+}
+
+function altActive(spot: Spot, flags: Readonly<Record<string, unknown>>): boolean {
+  if (!spot.altFlag) return false;
   // altFlag = "flag" (set / truthy) or "flag=value" (e.g. "quest:rats=done", a quest stage)
   const [key, want] = spot.altFlag.split('=');
   const v = flags[key];
-  return (want === undefined ? !!v : v === want) ? spot.altPicture : spot.picture;
+  return want === undefined ? !!v : v === want;
 }
 
 /** A building's door: the square of a building spot. Drawn as a door in the 3D view. */
