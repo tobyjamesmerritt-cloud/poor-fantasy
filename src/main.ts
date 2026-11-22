@@ -740,6 +740,7 @@ bus.subscribe((cmd) => {
     }
     case 'partyScreen':
       partyDialog.close();
+      hud.setPlace(null); // a building panel left open would sit on top of the roster screen
       if (document.body.dataset.mode !== 'party') {
         newGameMode = false;
         partyReturn = returnTo;

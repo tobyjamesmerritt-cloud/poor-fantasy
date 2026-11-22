@@ -449,7 +449,6 @@ export class LocationScene extends Phaser.Scene {
     if (spot.building === 'inn') {
       return [
         { label: 'Take rooms and rest', command: { type: 'camp', site: { kind: 'inn', name: spot.name, risk: 0 } } },
-        { label: 'Party roster (recruit, dismiss)', command: { type: 'partyScreen' } },
       ];
     }
     if (spot.building === 'shop') return [{ label: 'Browse the wares', command: { type: 'openShop', name: spot.name, picture: spotPicture(spot, this.deps.game.flags) } }];
