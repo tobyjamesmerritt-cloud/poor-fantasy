@@ -3,7 +3,7 @@ import random
 from PIL import Image
 
 W = H = 128
-BRICK_W, BRICK_H, MORTAR = 64, 32, 4
+BRICK_W, BRICK_H, MORTAR = 32, 16, 2
 rng = random.Random(7)
 
 # Palette (from the icon): mortar, brick base, highlight, shadow
@@ -45,7 +45,7 @@ for r in range(rows):
                     c = shade(HI, tone) if (dy == 0 or dx == 0) else shade(base, 14)
                 elif dy >= bh - 2 or dx >= bw - 2:
                     c = shade(SH, tone) if (dy == bh - 1 or dx == bw - 1) else shade(base, -14)
-                elif 3 <= dy <= 5 and 6 <= dx <= bw // 2:
+                elif dy == 2 and 3 <= dx <= bw // 2:
                     c = shade(base, 22)  # top-face highlight strip like the icon
                 else:
                     n = rng.random()
@@ -55,7 +55,7 @@ for r in range(rows):
                         c = shade(base, 12)
                 px[x, y] = c
         # chips on corners
-        for _ in range(rng.randint(1, 4)):
+        for _ in range(rng.randint(0, 2)):
             cx = x0 + rng.choice([0, 1, bw - 1, bw - 2])
             cy = y0 + rng.choice([0, 1, bh - 1, bh - 2])
             for ex in (0,1):
@@ -63,7 +63,7 @@ for r in range(rows):
                     if rng.random()<0.6: px[(cx+ex) % W, (cy+ey) % H] = rng.choice(MORTAR_C)
         # occasional crack
         if rng.random() < 0.25:
-            cx = x0 + rng.randint(10, bw - 11)
+            cx = x0 + rng.randint(5, bw - 6)
             cy = y0 + 2
             for _ in range(rng.randint(4, bh - 4)):
                 px[cx % W, cy % H] = DEEP
@@ -72,11 +72,11 @@ for r in range(rows):
                 if cy >= y0 + bh - 2:
                     break
 
-img.save("wall_stone_128.png")
-img.resize((512, 512), Image.NEAREST).save("wall_stone_128_preview4x.png")
+img.save("wall_stone_128_small.png")
+img.resize((512, 512), Image.NEAREST).save("wall_stone_128_small_preview4x.png")
 tiled = Image.new("RGB", (W * 3, H * 3))
 for i in range(3):
     for j in range(3):
         tiled.paste(img, (i * W, j * H))
-tiled.resize((W * 3 * 2, H * 3 * 2), Image.NEAREST).save("wall_stone_tiled3x3.png")
+tiled.resize((W * 3 * 2, H * 3 * 2), Image.NEAREST).save("wall_stone_small_tiled3x3.png")
 print("done")
