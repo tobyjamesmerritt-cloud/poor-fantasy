@@ -30,6 +30,14 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
   const errors: string[] = [];
   const { blocked, props } = squareProps(t, errors);
   const material = props.map((p) => (typeof p.material === 'string' ? p.material : ''));
+  // taller buildings: tile property `height` (storeys, whole number 1-4) and `roof` (bool) — visual only
+  const storeys = props.map((p, i) => {
+    if (p.height === undefined) return 1;
+    const h = Number(p.height);
+    if (!Number.isInteger(h) || h < 1 || h > 4) errors.push(`square ${i % t.width},${Math.floor(i / t.width)}: height must be a whole number from 1 to 4`);
+    return Number.isInteger(h) && h >= 1 && h <= 4 ? h : 1;
+  });
+  const roof = props.map((p) => p.roof === true);
 
   let entrance: LocationMap['entrance'] | undefined;
   const exits: LocationMap['exits'] = [];
@@ -102,7 +110,7 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
   if (!exits.length && !spots.some((s) => s.kind === 'stairs')) errors.push('no "exit" (or stairs) object in the spots layer');
 
   if (errors.length) throw new Error(`Invalid location map "${id}":\n- ` + errors.join('\n- '));
-  return { id, width: t.width, height: t.height, solid: blocked, material, entrance: entrance!, exits, spots };
+  return { id, width: t.width, height: t.height, solid: blocked, material, storeys, roof, entrance: entrance!, exits, spots };
 }
 
 /**

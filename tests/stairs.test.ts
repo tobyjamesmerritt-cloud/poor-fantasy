@@ -70,3 +70,31 @@ describe('stairs (DND-96)', () => {
     expect(checkStairs(maps)).toEqual([]);
   });
 });
+
+describe('taller buildings (DND-97)', () => {
+  const tall = (): LocationMap => {
+    const m = room(['#####', '#...#', '#...#', '#####']);
+    m.storeys = m.solid.map((s) => (s ? 2 : 1));
+    m.roof = m.solid.map((s) => s);
+    return m;
+  };
+  it('faces carry their height and roof; default is one storey, no roof', () => {
+    const f = viewFaces(tall(), { x: 2, y: 2, facing: 'n' }, 4).find((x) => x.kind === 'front' && x.lateral === 0)!;
+    expect(f.height).toBe(2);
+    expect(f.roof).toBe(true);
+    const flat = viewFaces(room(['#####', '#...#', '#...#', '#####']), { x: 2, y: 2, facing: 'n' }, 4).find((x) => x.kind === 'front' && x.lateral === 0)!;
+    expect(flat.height).toBe(1);
+    expect(flat.roof).toBeUndefined();
+  });
+  it('a tall wall behind a low one is still drawn (its top shows above it); behind an equal one it is hidden', () => {
+    const m = room(['.....', '..#..', '.....', '.....']);
+    m.storeys = [1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+    // a low wall at (2,2) in front of the tall one at (2,1)
+    m.solid[2 * 5 + 2] = true;
+    m.material[2 * 5 + 2] = 'stone';
+    const faces = viewFaces(m, { x: 2, y: 3, facing: 'n' }, 4);
+    expect(faces.some((f) => f.kind === 'front' && f.depth === 2 && f.height === 3)).toBe(true);
+    m.storeys[2 * 5 + 2] = 3; // equally tall: hidden
+    expect(viewFaces(m, { x: 2, y: 3, facing: 'n' }, 4).some((f) => f.kind === 'front' && f.depth === 2)).toBe(false);
+  });
+});

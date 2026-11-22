@@ -105,6 +105,9 @@ export class LocationScene extends Phaser.Scene {
   private view!: Pane; // the 3D view: a 2D canvas (so walls can be textured), shown as one image
   private viewTex!: Phaser.Textures.CanvasTexture;
   private wallImg?: CanvasImageSource; // wall-stone texture (assets.json images), when loaded
+  private upperImg?: CanvasImageSource; // wall-stone-upper (storeys above the first), else wall-stone again
+  private roofImg?: CanvasImageSource; // roof-tile: transparent top half, so the sky shows behind it
+  private roofShaded = new Map<number, HTMLCanvasElement>(); // the roof tile pre-darkened per light step
   private arrow!: Phaser.GameObjects.Graphics;
   private night!: Phaser.GameObjects.Rectangle;
   private fog!: SoftFog;
@@ -515,7 +518,10 @@ export class LocationScene extends Phaser.Scene {
   /** Gold Box-style first-person view: shaded floor/ceiling bands, then walls far → near. */
   private drawView(): void {
     const g = this.view.clear();
-    this.wallImg = this.textures.exists(imageKey('wall-stone')) ? (this.textures.get(imageKey('wall-stone')).getSourceImage() as CanvasImageSource) : undefined;
+    const tex = (id: string) => (this.textures.exists(imageKey(id)) ? (this.textures.get(imageKey(id)).getSourceImage() as CanvasImageSource) : undefined);
+    this.wallImg = tex('wall-stone');
+    this.upperImg = tex('wall-stone-upper');
+    this.roofImg = tex('roof-tile');
     const st = STYLES[this.style];
     const cy = PANE / 2;
     const light = (z: number) => Math.max(st.minLight, 1 - st.fog * z);
@@ -546,7 +552,7 @@ export class LocationScene extends Phaser.Scene {
     const cx = PANE / 2;
     const cy = PANE / 2;
     const mat = MATERIALS[f.material] ?? MATERIALS.wall;
-    const project = (X: number, z: number) => ({ x: cx + (F * X) / z, top: cy - (F * 0.5) / z, bottom: cy + (F * 0.5) / z });
+    const project = (X: number, z: number) => ({ x: cx + (F * X) / z, top: cy - (F * (f.height - 0.5)) / z, bottom: cy + (F * 0.5) / z });
     let pts: Phaser.Math.Vector2[];
     let zMid: number;
     if (f.kind === 'front') {
@@ -567,26 +573,65 @@ export class LocationScene extends Phaser.Scene {
       this.drawTexturedFace(g, f, lit, pts); // brick texture, then the light level as a black wash
     } else g.fillStyle(shade(mat.face, lit), 1).fillPoints(pts, true);
     g.lineStyle(2, shade(mat.edge, Math.max(0.5, lit)), 1).strokePoints(pts, true);
+    if (f.roof && !this.roofImg) this.drawRoofPlaceholder(g, f, lit);
     if (f.feature) this.drawFeature(g, f, lit);
     else if (f.door) this.drawDoor(g, f, lit);
   }
 
+  /** A point on a face: u across it (0..1), h up from the floor in wall tiles (can exceed 1 for tall walls and roofs). */
+  private facePoint(f: Face, u: number, h: number): Phaser.Math.Vector2 {
+    const X = f.kind === 'front' ? f.X0 + (f.X1 - f.X0) * u : f.X0;
+    let z = f.kind === 'front' ? f.z0 : f.z0 + (f.z1 - f.z0) * u;
+    z = Math.max(z, Z_NEAR);
+    return new Phaser.Math.Vector2(PANE / 2 + (F * X) / z, PANE / 2 + (F * (0.5 - h)) / z);
+  }
+
+  /** The roof tile darkened to a light level (cached in 8 steps), so its transparent half stays transparent. */
+  private roofAt(lit: number): CanvasImageSource {
+    const step = Math.max(0, Math.min(8, Math.round(lit * 8)));
+    let c = this.roofShaded.get(step);
+    if (!c) {
+      c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const x = c.getContext('2d')!;
+      x.imageSmoothingEnabled = false;
+      x.drawImage(this.roofImg!, 0, 0, 128, 128);
+      x.globalCompositeOperation = 'source-atop';
+      x.fillStyle = `rgba(0,0,0,${1 - step / 8})`;
+      x.fillRect(0, 0, 128, 128);
+      this.roofShaded.set(step, c);
+    }
+    return c;
+  }
+
+  /** Placeholder roof (a flat-coloured cap) until roof-tile art arrives: half a wall tile above the top. */
+  private drawRoofPlaceholder(g: Pane, f: Face, lit: number): void {
+    const H = f.height;
+    const band = [this.facePoint(f, 0, H), this.facePoint(f, 1, H), this.facePoint(f, 1, H + 0.45), this.facePoint(f, 0, H + 0.45)];
+    g.fillStyle(shade(0x8f3e2a, Math.max(0.4, lit)), 1).fillPoints(band, true);
+    g.lineStyle(2, shade(0x3b1a10, Math.max(0.5, lit)), 1).strokePoints(band, true);
+  }
+
   /**
-   * A face with the wall image: one 1-px column of the texture per screen column, stretched to the wall's height there.
-   * Front faces map the texture across the square; side faces map it by world depth (perspective-correct).
+   * A face with the wall image: one 1-px column of the texture per screen column, stretched to the wall's height there,
+   * one tile per storey, then the roof tile on top. Front faces map the texture across the square; side faces map it by
+   * world depth (perspective-correct).
    */
   private drawTexturedFace(g: Pane, f: Face, lit: number, pts: Phaser.Math.Vector2[]): void {
-    const img = this.wallImg!;
     const cx = PANE / 2;
     const cy = PANE / 2;
     const T = 128; // texture size (px)
+    const H = f.height;
+    const roof = f.roof && this.roofImg ? this.roofAt(lit) : undefined;
     const cols = (xa: number, xb: number, at: (x: number) => { u: number; z: number }) => {
       const lo = Math.max(0, Math.ceil(Math.min(xa, xb)));
       const hi = Math.min(PANE - 1, Math.floor(Math.max(xa, xb)));
       for (let x = lo; x <= hi; x++) {
         const { u, z } = at(x + 0.5);
-        const h = F / z;
-        g.ctx.drawImage(img, Math.min(T - 1, Math.max(0, Math.floor(u * T))), 0, 1, T, x, cy - h / 2, 1, h);
+        const sx = Math.min(T - 1, Math.max(0, Math.floor(u * T)));
+        const unit = F / z;
+        for (let i = 0; i < H; i++) g.ctx.drawImage(i === 0 ? this.wallImg! : (this.upperImg ?? this.wallImg!), sx, 0, 1, T, x, cy + (F * (0.5 - (i + 1))) / z, 1, unit + 0.5);
+        if (roof) g.ctx.drawImage(roof, sx, 0, 1, T, x, cy + (F * (0.5 - (H + 1))) / z, 1, unit + 0.5);
       }
     };
     if (f.kind === 'front') {
@@ -603,7 +648,7 @@ export class LocationScene extends Phaser.Scene {
         return { u: (z - f.z0) / (f.z1 - f.z0), z };
       });
     }
-    // light level: black wash with the same factor as the flat colours use
+    // light level: black wash over the wall with the same factor as the flat colours use
     const wash = Math.min(1, Math.max(0, 1 - lit));
     if (wash > 0.001) g.fillStyle(0x000000, wash).fillPoints(pts, true);
   }

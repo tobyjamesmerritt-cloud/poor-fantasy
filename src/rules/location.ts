@@ -70,6 +70,8 @@ export interface LocationMap {
   height: number;
   solid: boolean[]; // row-major
   material: string[]; // row-major; what a solid square looks like in the 3D view (stone, rock, tree, wood…)
+  storeys?: number[]; // row-major; storeys a solid square rises in the 3D view (tile property `height`, default 1)
+  roof?: boolean[]; // row-major; a roof cap on top (tile property `roof`)
   entrance: Pose;
   exits: { x: number; y: number }[];
   spots: Spot[];
@@ -103,6 +105,14 @@ export function stepFacing(f: Facing, d: StepDir): Facing {
 export function isSolid(m: LocationMap, x: number, y: number): boolean {
   return x < 0 || y < 0 || x >= m.width || y >= m.height || m.solid[y * m.width + x];
 }
+
+/** Storeys a square rises in the 3D view (1 = one wall tile; off the map = 1). */
+export function heightAt(m: LocationMap, x: number, y: number): number {
+  return x < 0 || y < 0 || x >= m.width || y >= m.height ? 1 : (m.storeys?.[y * m.width + x] ?? 1);
+}
+
+export const roofAt = (m: LocationMap, x: number, y: number): boolean =>
+  x >= 0 && y >= 0 && x < m.width && y < m.height && !!m.roof?.[y * m.width + x];
 
 export function materialAt(m: LocationMap, x: number, y: number): string {
   return x < 0 || y < 0 || x >= m.width || y >= m.height ? 'wall' : m.material[y * m.width + x] || 'wall';
@@ -185,6 +195,8 @@ export interface Face {
   z0: number;
   z1: number;
   material: string;
+  height: number; // storeys (wall tiles) from floor to top
+  roof?: boolean; // a roof cap above the top
   door?: 'open' | 'locked'; // the face is a building's door (drawn in the building's own material)
   feature?: Feature; // the face is a gate or a staircase
 }
@@ -230,6 +242,23 @@ export function viewFaces(
     for (const [dx, dy] of Object.values(FACING_VECTORS)) if (isSolid(m, x + dx, y + dy)) return materialAt(m, x + dx, y + dy);
     return 'wall';
   };
+  // …and rises as high as that neighbour (a door in a two-storey house)
+  const doorNeighbour = (x: number, y: number): { x: number; y: number } | undefined => {
+    for (const [dx, dy] of Object.values(FACING_VECTORS)) if (isSolid(m, x + dx, y + dy)) return { x: x + dx, y: y + dy };
+    return undefined;
+  };
+  const heightHere = (d: number, l: number) => {
+    const c = cellFor(p, d, l);
+    if (isSolid(m, c.x, c.y)) return heightAt(m, c.x, c.y);
+    const n = doorAt(d, l) ? doorNeighbour(c.x, c.y) : undefined;
+    return n ? heightAt(m, n.x, n.y) : 1;
+  };
+  const roofHere = (d: number, l: number) => {
+    const c = cellFor(p, d, l);
+    if (isSolid(m, c.x, c.y)) return roofAt(m, c.x, c.y);
+    const n = doorAt(d, l) ? doorNeighbour(c.x, c.y) : undefined;
+    return n ? roofAt(m, n.x, n.y) : false;
+  };
   for (let d = maxDepth; d >= 0; d--) {
     const reach = 2 * d + 2; // the view spans about 127° (tan of half-angle = 2)
     // outer squares first, then inward, so the centre is drawn last at each depth
@@ -243,14 +272,17 @@ export function viewFaces(
       const material = isDoorHere ? doorMaterial(c.x, c.y) : materialAt(m, c.x, c.y);
       const feature = featureAt(c.x, c.y);
       const door = isDoorHere && !feature ? (locked(c.x, c.y) ? ('locked' as const) : ('open' as const)) : undefined;
-      if (d >= 1 && !solidAt(d - 1, l)) {
-        faces.push({ kind: 'front', depth: d, lateral: l, X0: l - 0.5, X1: l + 0.5, z0: d - 0.5, z1: d - 0.5, material, door, feature });
+      const height = heightHere(d, l);
+      const roof = roofHere(d, l) || undefined;
+      // a wall is hidden by a solid square in front of it only if that is at least as tall
+      if (d >= 1 && (!solidAt(d - 1, l) || heightHere(d - 1, l) < height)) {
+        faces.push({ kind: 'front', depth: d, lateral: l, X0: l - 0.5, X1: l + 0.5, z0: d - 0.5, z1: d - 0.5, material, height, roof, door, feature });
       }
       if (l !== 0) {
         const inward = l < 0 ? l + 1 : l - 1;
-        if (!solidAt(d, inward)) {
+        if (!solidAt(d, inward) || heightHere(d, inward) < height) {
           const X = l < 0 ? l + 0.5 : l - 0.5;
-          faces.push({ kind: 'side', depth: d, lateral: l, X0: X, X1: X, z0: d - 0.5, z1: d + 0.5, material, door, feature });
+          faces.push({ kind: 'side', depth: d, lateral: l, X0: X, X1: X, z0: d - 0.5, z1: d + 0.5, material, height, roof, door, feature });
         }
       }
     }
