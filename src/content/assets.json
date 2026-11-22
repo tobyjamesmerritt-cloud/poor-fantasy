@@ -382,6 +382,9 @@
     "enc-bats": {
       "url": "assets/scenes/encounter/enc-bats.png"
     },
+    "brewery-exterior": {
+      "url": "assets/scenes/wilderness/brewery-exterior.png"
+    },
     "reeve-hall": {
       "url": "assets/scenes/millbrook/reeve-hall.png"
     },

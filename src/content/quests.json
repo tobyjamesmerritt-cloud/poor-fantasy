@@ -314,13 +314,13 @@
         { "node": "closed" }
       ],
       "nodes": {
-        "found": {
+        "found": { "picture": "brewery-exterior",
           "speaker": "Odo, brewmaster",
           "text": "Visitors! Don't tell me — Marta sent you. It's the main spigot: split clean down the middle. Can't draw a barrel without it, and the smith wants more than I'll see this season. There's an old shack east of here, by the river — the last brewer kept his spare fittings there. Might be something left, if the vermin haven't had it.",
           "do": [{ "reveal": "brewery" }, { "quest": "ale", "stage": "find-parts" }],
           "choices": [{ "text": "We'll look in the shack." }]
         },
-        "waiting": { "speaker": "Odo, brewmaster", "text": "The shack's east of here, by the river. Mind the bats — they nest in the roof." },
+        "waiting": { "picture": "brewery-exterior", "speaker": "Odo, brewmaster", "text": "The shack's east of here, by the river. Mind the bats — they nest in the roof." },
         "parts": {
           "speaker": "Odo, brewmaster",
           "text": "Let's see… brass, a bit green, but — yes! This'll seat. Give me an hour.",
@@ -338,7 +338,7 @@
           "text": "Hear that gurgle? Sweetest sound in the Vale. I can't pay you — every copper I have is in those vats — but the Leaky Bucket will have barrels by nightfall. Drink one for me."
         },
         "thanks-again": { "picture": "odo-happy", "speaker": "Odo, brewmaster", "text": "Spigot's holding! Tell Marta I said hello." },
-        "closed": { "text": "The brewery is shut and quiet." }
+        "closed": { "picture": "brewery-exterior", "text": "The brewery is shut and quiet." }
       }
     },
 
