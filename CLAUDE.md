@@ -26,6 +26,9 @@ party (roster/creation) · explore (first-person dungeon + overhead wilderness) 
 - **Portrait box:** always square (the frame's left column, 30% wide, min 150 px) and fed one picture: local/committed picture → placeholder `TEST_PORTRAIT` (`ui/testPortrait.ts`) or sprite → initial. Under it sits `asideProvider`'s party strip (`partyStrip` in hud.ts), or the view's own `aside`. Frame height = space between the header and the log (300–600 px): lists page (Pack 6, shop 7, journal 5), only a conversation's text may scroll.
 - **Platform layouts:** desktop first; a separate mobile layout with platform detection is DND-88.
 
+## Spirit over fidelity
+A recreation in spirit, not a faithful port (Toby, 2026-11-22). Where the original was awkward or looked poor, fix it rather than copy it; do not reproduce quirks for their own sake. Layout, look and feel stay in the Gold Box spirit.
+
 ## Rules source
 SRD 5.2 (2024 rules), CC-BY-4.0. Implement from the SRD, cite the section in code comments for non-obvious rules. Never copy code, text, maps, art or data from the original SSI games or from reverse-engineered sources (e.g. talonius/pool-of-radiance) — architecture reference only. Do not use the original game's name in the project.
 

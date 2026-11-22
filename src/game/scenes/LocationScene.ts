@@ -58,7 +58,7 @@ const PANE = 512;
 const MAP_SCALE = 2; // 16-px tiles at 32 px: a 16×16 map fills its pane
 const CELL = 16 * MAP_SCALE;
 const MAX_DEPTH = 4;
-const F = PANE / 4; // focal length: the near edge of your own square fills the pane
+const F = PANE / 3; // focal length (~112° view). Was PANE / 4 (~127°): near walls looked stretched; PANE / 2 hides doors beside you
 const Z_NEAR = 0.25;
 
 const FOG_COLOUR = 0x000000;
