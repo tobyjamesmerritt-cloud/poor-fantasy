@@ -10,7 +10,7 @@
 export type Facing = 'n' | 'e' | 's' | 'w';
 export type Turn = 'left' | 'right' | 'around';
 export type StepDir = 'forward' | 'back' | 'left' | 'right';
-export type SpotKind = 'fight' | 'building' | 'text';
+export type SpotKind = 'fight' | 'building' | 'text' | 'stairs';
 
 export interface Spot {
   id: string; // unique within the location, used in cleared flags
@@ -26,7 +26,25 @@ export interface Spot {
   altFlag?: string;
   locked?: boolean; // building spots: the door won't open…
   unlockFlag?: string; // …until this flag is set (a quest unlocks it)
+  to?: string; // stairs spots: the location (locations.json id) on the other floor
+  link?: string; // stairs spots: id (slug of the name) of the matching stairs spot over there
+  facing?: Facing; // stairs spots: the way you face to walk onto them; you arrive on the square in front, facing away
+  dir?: 'up' | 'down'; // stairs spots: which way they go (decides the picture)
 }
+
+const OPPOSITE: Record<Facing, Facing> = { n: 's', e: 'w', s: 'n', w: 'e' };
+
+/** Where you stand after arriving by these stairs: the square in front of them, facing away. */
+export function stairsArrival(spot: Spot): Pose {
+  const f = spot.facing ?? 'n';
+  const [dx, dy] = FACING_VECTORS[f];
+  return { x: spot.x - dx, y: spot.y - dy, facing: OPPOSITE[f] };
+}
+
+export const isStairs = (m: LocationMap, x: number, y: number): boolean => spotAt(m, x, y)?.kind === 'stairs';
+
+/** What an exit / stairs square is drawn as in the 3D view (placeholder shapes until the art lands). */
+export type Feature = 'gate' | 'stairs-up' | 'stairs-down';
 
 /** The picture id a building shows right now. */
 export function spotPicture(spot: Spot, flags: Readonly<Record<string, unknown>>): string | undefined {
@@ -168,6 +186,7 @@ export interface Face {
   z1: number;
   material: string;
   door?: 'open' | 'locked'; // the face is a building's door (drawn in the building's own material)
+  feature?: Feature; // the face is a gate or a staircase
 }
 
 /** View-space square → map square. */
@@ -182,13 +201,25 @@ function cellFor(p: Pose, depth: number, lateral: number): { x: number; y: numbe
  * this order and nearer walls cover farther ones). Faces hidden behind a
  * neighbouring solid square are skipped.
  */
-export function viewFaces(m: LocationMap, p: Pose, maxDepth = 4, locked: (x: number, y: number) => boolean = () => false): Face[] {
+export function viewFaces(
+  m: LocationMap,
+  p: Pose,
+  maxDepth = 4,
+  locked: (x: number, y: number) => boolean = () => false,
+  gates = false, // town exits are drawn as gates in the wall
+): Face[] {
   const faces: Face[] = [];
   // doors look solid from outside (you see the door, not the inside); never the square you stand on
   const doorAt = (d: number, l: number) => {
     if (d === 0 && l === 0) return false;
     const c = cellFor(p, d, l);
-    return isDoor(m, c.x, c.y);
+    return isDoor(m, c.x, c.y) || !!featureAt(c.x, c.y);
+  };
+  // gates and staircases look solid from outside, like doors, but you can walk onto them
+  const featureAt = (x: number, y: number): Feature | undefined => {
+    const spot = spotAt(m, x, y);
+    if (spot?.kind === 'stairs') return spot.dir === 'down' ? 'stairs-down' : 'stairs-up';
+    return gates && isExit(m, x, y) ? 'gate' : undefined;
   };
   const solidAt = (d: number, l: number) => {
     const c = cellFor(p, d, l);
@@ -210,15 +241,16 @@ export function viewFaces(m: LocationMap, p: Pose, maxDepth = 4, locked: (x: num
       const c = cellFor(p, d, l);
       const isDoorHere = doorAt(d, l);
       const material = isDoorHere ? doorMaterial(c.x, c.y) : materialAt(m, c.x, c.y);
-      const door = isDoorHere ? (locked(c.x, c.y) ? ('locked' as const) : ('open' as const)) : undefined;
+      const feature = featureAt(c.x, c.y);
+      const door = isDoorHere && !feature ? (locked(c.x, c.y) ? ('locked' as const) : ('open' as const)) : undefined;
       if (d >= 1 && !solidAt(d - 1, l)) {
-        faces.push({ kind: 'front', depth: d, lateral: l, X0: l - 0.5, X1: l + 0.5, z0: d - 0.5, z1: d - 0.5, material, door });
+        faces.push({ kind: 'front', depth: d, lateral: l, X0: l - 0.5, X1: l + 0.5, z0: d - 0.5, z1: d - 0.5, material, door, feature });
       }
       if (l !== 0) {
         const inward = l < 0 ? l + 1 : l - 1;
         if (!solidAt(d, inward)) {
           const X = l < 0 ? l + 0.5 : l - 0.5;
-          faces.push({ kind: 'side', depth: d, lateral: l, X0: X, X1: X, z0: d - 0.5, z1: d + 0.5, material, door });
+          faces.push({ kind: 'side', depth: d, lateral: l, X0: X, X1: X, z0: d - 0.5, z1: d + 0.5, material, door, feature });
         }
       }
     }
@@ -237,7 +269,7 @@ export function locationCampCheck(m: LocationMap, p: Pose): { ok: true } | { ok:
 // --- Fog of war (overhead map) ---------------------------------------------
 
 /** How far the party sees on the overhead map: open towns far, dungeons only the next square. */
-export const SIGHT = { town: 5, dungeon: 1 } as const;
+export const SIGHT = { town: 5, dungeon: 1, interior: 3 } as const;
 
 /**
  * Squares the party can see from (x, y) within `radius` (round, in squares). Walls,

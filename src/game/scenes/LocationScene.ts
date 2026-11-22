@@ -29,6 +29,7 @@ import {
   SIGHT,
   visibleSquares,
   isExit,
+  stairsArrival,
   type LocationMap,
   type Pose,
   type Spot,
@@ -68,11 +69,12 @@ const NIGHT_COLOUR = 0x0a0f2e;
 const NIGHT_ALPHA = 0.55; // how dark full night gets outdoors
 const NIGHT_SKY = 0x0b1230;
 
-type Style = 'cave' | 'ruins' | 'town';
+type Style = 'cave' | 'ruins' | 'town' | 'interior';
 const STYLES: Record<Style, { ceiling: number; floor: number; fog: number; minLight: number; sky?: boolean }> = {
   cave: { ceiling: 0x000000, floor: 0x8a5a2b, fog: 0.2, minLight: 0.15 },
   ruins: { ceiling: 0x0b0b16, floor: 0x7a6a55, fog: 0.13, minLight: 0.25 },
   town: { ceiling: 0x6fb1ec, floor: 0x5d9440, fog: 0.07, minLight: 0.5, sky: true },
+  interior: { ceiling: 0x4a3322, floor: 0x7b5a3a, fog: 0.1, minLight: 0.3 }, // rooms upstairs / inside buildings (flat until floor-interior / ceiling-interior art lands)
 };
 const MATERIALS: Record<string, { face: number; edge: number }> = {
   stone: { face: 0xa3a3a3, edge: 0x1f9e9e }, // grey with teal edges, after the originals
@@ -91,6 +93,7 @@ export interface LocationSceneDeps {
   locationId: string; // key in content/locations.json
   notices: string[]; // messages to show on arrival (fight results, rescues)
   rng: Rng; // exploration dice (random encounters inside)
+  arrival?: string; // came by stairs: id of the stairs spot to arrive at (in front of it)
 }
 
 export class LocationScene extends Phaser.Scene {
@@ -160,15 +163,17 @@ export class LocationScene extends Phaser.Scene {
 
     // Resume where the party stood (back from a fight), or walk in at the entrance.
     const saved = this.deps.game.location;
+    const arrivalSpot = this.deps.arrival ? this.map.spots.find((x) => x.kind === 'stairs' && x.id === this.deps.arrival) : undefined;
     const resuming = saved?.id === id;
-    this.pose = resuming ? { x: saved.x, y: saved.y, facing: saved.facing } : { ...this.map.entrance };
+    this.pose = arrivalSpot ? stairsArrival(arrivalSpot) : resuming ? { x: saved.x, y: saved.y, facing: saved.facing } : { ...this.map.entrance };
     const hud = this.deps.hud;
     hud.setCombatControls(false);
     hud.setOutcome('none');
     hud.setEndTurnHint(false);
     hud.setNames(this.deps.game.roster.map((p) => ({ name: p.name, side: 'party' as const })));
     hud.setPlace(null);
-    if (!resuming) this.say(locationContent[id]?.intro ?? `You enter ${this.name}.`);
+    if (arrivalSpot) this.say(`You ${arrivalSpot.dir === 'down' ? 'climb up from below' : 'come down the stairs'} into ${this.name}.`);
+    else if (!resuming) this.say(locationContent[id]?.intro ?? `You enter ${this.name}.`);
     else {
       const here = spotAt(this.map, this.pose.x, this.pose.y);
       if (here?.kind === 'fight' && this.cleared(here)) this.say(`The ${here.name} falls silent. The way is clear.`);
@@ -176,7 +181,7 @@ export class LocationScene extends Phaser.Scene {
     }
     for (const n of this.deps.notices) this.say(n);
     this.render();
-    if (resuming) this.showSpotPanel(spotAt(this.map, this.pose.x, this.pose.y));
+    if (resuming && !arrivalSpot) this.showSpotPanel(spotAt(this.map, this.pose.x, this.pose.y));
 
     const unsubscribe = this.deps.bus.subscribe((cmd) => this.handle(cmd));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
@@ -305,6 +310,7 @@ export class LocationScene extends Phaser.Scene {
       const stopsHere =
         isExit(this.map, this.pose.x, this.pose.y) ||
         spot?.kind === 'building' ||
+        spot?.kind === 'stairs' ||
         (spot?.kind === 'fight' && !this.cleared(spot));
       if (i === path.length - 1 || stopsHere) {
         this.busy = false;
@@ -338,6 +344,12 @@ export class LocationScene extends Phaser.Scene {
     const spot = spotAt(this.map, x, y);
     if (!spot) return;
     if (spot.kind === 'text') return this.say(spot.description);
+    if (spot.kind === 'stairs') {
+      this.say(spot.description || `You ${spot.dir === 'down' ? 'go down' : 'climb'} the stairs.`);
+      this.busy = true;
+      this.time.delayedCall(350, () => this.deps.bus.dispatch({ type: 'takeStairs', to: spot.to!, link: spot.link! }));
+      return;
+    }
     if (spot.kind === 'building') {
       this.say(`You step into ${spot.name}.`);
       return this.showSpotPanel(spot);
@@ -465,7 +477,7 @@ export class LocationScene extends Phaser.Scene {
     const game = this.deps.game;
     const id = this.deps.locationId;
     const town = this.style === 'town';
-    const sight = locationContent[id]?.sight ?? (town ? SIGHT.town : SIGHT.dungeon);
+    const sight = locationContent[id]?.sight ?? (town ? SIGHT.town : this.style === 'interior' ? SIGHT.interior : SIGHT.dungeon);
     const seenNow = visibleSquares(this.map, this.pose.x, this.pose.y, sight, !town);
     const mask = markSeen(game.explored?.[id], this.map.width * this.map.height, seenNow);
     game.explored = { ...game.explored, [id]: mask };
@@ -526,7 +538,7 @@ export class LocationScene extends Phaser.Scene {
       if (!st.sky) g.fillStyle(shade(st.ceiling, lit), 1).fillRect(0, cy - y1, PANE, y1 - y0);
     }
 
-    for (const face of viewFaces(this.map, this.pose, MAX_DEPTH, this.lockedAt)) this.drawFace(g, face, light);
+    for (const face of viewFaces(this.map, this.pose, MAX_DEPTH, this.lockedAt, this.style === 'town')) this.drawFace(g, face, light);
     this.viewTex.refresh();
   }
 
@@ -555,7 +567,8 @@ export class LocationScene extends Phaser.Scene {
       this.drawTexturedFace(g, f, lit, pts); // brick texture, then the light level as a black wash
     } else g.fillStyle(shade(mat.face, lit), 1).fillPoints(pts, true);
     g.lineStyle(2, shade(mat.edge, Math.max(0.5, lit)), 1).strokePoints(pts, true);
-    if (f.door) this.drawDoor(g, f, lit);
+    if (f.feature) this.drawFeature(g, f, lit);
+    else if (f.door) this.drawDoor(g, f, lit);
   }
 
   /**
@@ -593,6 +606,42 @@ export class LocationScene extends Phaser.Scene {
     // light level: black wash with the same factor as the flat colours use
     const wash = Math.min(1, Math.max(0, 1 - lit));
     if (wash > 0.001) g.fillStyle(0x000000, wash).fillPoints(pts, true);
+  }
+
+  /**
+   * A gate or a staircase set into a wall face (placeholder shapes until the gate-exit / stairs-up /
+   * stairs-down art arrives). Same frame as a door: u across the face, h up from the floor.
+   */
+  private drawFeature(g: Pane, f: Face, lit: number): void {
+    const cx = PANE / 2;
+    const cy = PANE / 2;
+    const at = (u: number, h: number): Phaser.Math.Vector2 => {
+      const X = f.kind === 'front' ? f.X0 + (f.X1 - f.X0) * u : f.X0;
+      let z = f.kind === 'front' ? f.z0 : f.z0 + (f.z1 - f.z0) * u;
+      z = Math.max(z, Z_NEAR);
+      return new Phaser.Math.Vector2(cx + (F * X) / z, cy + (F * (0.5 - h)) / z);
+    };
+    const rect = (u0: number, u1: number, h0: number, h1: number) => [at(u0, h0), at(u1, h0), at(u1, h1), at(u0, h1)];
+    const dark = Math.max(0.45, lit);
+    if (f.feature === 'gate') {
+      // an arch: stone posts, the road and the open country beyond
+      g.fillStyle(shade(0x6fb1ec, lit), 1).fillPoints(rect(0.2, 0.8, 0.3, 0.86), true); // sky beyond
+      g.fillStyle(shade(0x5d9440, lit), 1).fillPoints(rect(0.2, 0.8, 0, 0.3), true); // grass beyond
+      g.fillStyle(shade(0xc99a63, lit), 1).fillPoints(rect(0.4, 0.6, 0, 0.3), true); // the road
+      g.fillStyle(shade(0x9a9a9a, dark), 1);
+      g.fillPoints(rect(0.12, 0.2, 0, 0.9), true).fillPoints(rect(0.8, 0.88, 0, 0.9), true).fillPoints(rect(0.12, 0.88, 0.86, 0.94), true);
+      return;
+    }
+    const up = f.feature === 'stairs-up';
+    g.fillStyle(shade(0x16110d, dark), 1).fillPoints(rect(0.15, 0.85, 0, 0.8), true); // the opening
+    const steps = 5;
+    for (let i = 0; i < steps; i++) {
+      // up: steps rise toward the top of the opening; down: they sink into the dark
+      const h0 = up ? 0.04 + i * 0.13 : 0.4 - i * 0.07;
+      const h1 = up ? h0 + 0.1 : h0 + 0.05;
+      const tone = up ? 0xb9a789 : 0x6b5c47;
+      g.fillStyle(shade(tone, Math.max(0.3, dark * (up ? 1 - i * 0.08 : 1 - i * 0.18))), 1).fillPoints(rect(0.2 + i * 0.02, 0.8 - i * 0.02, h0, h1), true);
+    }
   }
 
   /** A wooden door set into a wall face (in perspective); a locked one is barred with iron. */

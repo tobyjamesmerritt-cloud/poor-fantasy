@@ -79,6 +79,7 @@ let campSite: CampSiteRef | null = null;
 let locationId = params.get('location') ?? ''; // ?location=millbrook jumps straight into a location
 // Debug URLs (?seed, ?encounter, ?location) use the ready-made party and never touch your saves.
 const debugStart = params.has('seed') || params.has('encounter') || !!locationId;
+let arrival: string | undefined; // came by stairs: the stairs spot to arrive at (taken by the next location scene)
 let notices: string[] = []; // shown by the next exploring scene (fight results, rescues)
 let defeat: ReturnType<typeof afterDefeat> | null = null; // set when the party fell, handled on Continue
 
@@ -550,7 +551,7 @@ function show(key: SceneKey): void {
   } else {
     returnTo = key;
     notices.push(...runTriggers(gameState, qctx()).log); // e.g. the last shrine fight just won
-    if (key === 'location') data = { bus, hud, game: gameState, locationId, notices: take() };
+    if (key === 'location') data = { bus, hud, game: gameState, locationId, notices: take(), arrival: ((a) => ((arrival = undefined), a))(arrival) };
     else if (key === 'camp') data = { bus, hud, game: gameState, site: campSite!, rng: exploreRng, notices: take() };
     else data = { bus, hud, game: gameState, rng: exploreRng, notices: take() };
   }
@@ -625,6 +626,13 @@ bus.subscribe((cmd) => {
     case 'enter':
       locationId = cmd.location;
       gameState.location = null; // walk in at the entrance
+      show('location');
+      break;
+    case 'takeStairs':
+      // another floor = another location; the scene puts the party in front of the linked stairs
+      locationId = cmd.to;
+      arrival = cmd.link;
+      gameState.location = null;
       show('location');
       break;
     case 'leaveLocation': {

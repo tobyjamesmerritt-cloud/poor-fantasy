@@ -128,7 +128,7 @@ export interface LocationContent {
   wander?: LocationWander; // random encounters per step inside (rules/wandering.ts)
   // places inside another location (not on the world map):
   name?: string;
-  style?: 'town' | 'cave' | 'ruins';
+  style?: 'town' | 'cave' | 'ruins' | 'interior';
   parent?: { location: string; x: number; y: number; facing: 'n' | 'e' | 's' | 'w' }; // where you come out
 }
 

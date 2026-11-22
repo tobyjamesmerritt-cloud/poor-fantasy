@@ -29,6 +29,7 @@ export type Command =
   | { type: 'worldMap' } // go to the world map
   | { type: 'enter'; location: string } // walk into a town or dungeon from the world map
   | { type: 'leaveLocation' } // back out to the world map
+  | { type: 'takeStairs'; to: string; link: string } // to another floor: location id + id of the stairs spot to arrive at
   | { type: 'endFight' }
   | { type: 'encamp' } // try to make camp where the party stands
   | { type: 'camp'; site: CampSiteRef } // open the camp screen (validated by the scene that sends it)

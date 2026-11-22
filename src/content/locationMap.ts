@@ -12,12 +12,15 @@
  *                drawn as a door in the 3D view; bool `locked` keeps it shut until the
  *                flag in `unlockFlag` is set)
  *     text      (a message shown when you step there)
+ *     stairs    (to the other floor: `to` = location id, `link` = name of the matching stairs spot there,
+ *                `facing` n|e|s|w = the way you face to walk onto them, `dir` up|down; drawn as a
+ *                staircase in the 3D view; you arrive on the square in front of the linked stairs)
  *   Object name = display name; `description` property = text shown.
  */
-import type { Facing, LocationMap, Spot, SpotKind } from '../rules/location';
+import { FACING_VECTORS, type Facing, type LocationMap, type Spot, type SpotKind } from '../rules/location';
 import { objectLayer, objProp, objTile, squareProps, type TiledMap } from './world';
 
-const SPOT_KINDS: readonly string[] = ['fight', 'building', 'text'];
+const SPOT_KINDS: readonly string[] = ['fight', 'building', 'text', 'stairs'];
 const FACINGS: readonly string[] = ['n', 'e', 's', 'w'];
 const BUILDINGS: readonly string[] = ['inn', 'shop', 'temple', 'hall', 'house'];
 
@@ -72,6 +75,22 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
         const unlock = objProp(o, 'unlockFlag');
         if (unlock !== undefined) spot.unlockFlag = String(unlock);
       }
+      if (kind === 'stairs') {
+        spot.to = String(objProp(o, 'to') ?? '');
+        spot.link = slug(String(objProp(o, 'link') ?? ''));
+        const facing = String(objProp(o, 'facing') ?? '');
+        const dir = String(objProp(o, 'dir') ?? 'up');
+        if (!spot.to) errors.push(`${where}: stairs need a "to" location`);
+        if (!spot.link) errors.push(`${where}: stairs need a "link" (name of the stairs spot on the other floor)`);
+        if (!FACINGS.includes(facing)) errors.push(`${where}: stairs need a facing n, e, s or w`);
+        if (dir !== 'up' && dir !== 'down') errors.push(`${where}: dir must be up or down`);
+        spot.facing = facing as Facing;
+        spot.dir = dir === 'down' ? 'down' : 'up';
+        const [fx, fy] = FACING_VECTORS[spot.facing];
+        const front = { x: at.x - fx, y: at.y - fy };
+        if (front.x < 0 || front.y < 0 || front.x >= t.width || front.y >= t.height || blocked[front.y * t.width + front.x])
+          errors.push(`${where}: the square in front of the stairs (where you arrive) must be open`);
+      }
       if (!spot.id) errors.push(`${where}: needs a name`);
       if (spots.some((s) => s.id === spot.id)) errors.push(`${where}: duplicate spot name`);
       spots.push(spot);
@@ -80,8 +99,34 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
     }
   }
   if (!entrance) errors.push('no "entrance" object in the spots layer');
-  if (!exits.length) errors.push('no "exit" object in the spots layer');
+  if (!exits.length && !spots.some((s) => s.kind === 'stairs')) errors.push('no "exit" (or stairs) object in the spots layer');
 
   if (errors.length) throw new Error(`Invalid location map "${id}":\n- ` + errors.join('\n- '));
   return { id, width: t.width, height: t.height, solid: blocked, material, entrance: entrance!, exits, spots };
+}
+
+/**
+ * Cross-map check (run in tests over every map): each stairs spot must point at an existing location
+ * whose map has the linked stairs spot, and that spot must point back here, one up and one down.
+ * `mapOf` = location id -> its LocationMap.
+ */
+export function checkStairs(mapOf: Readonly<Record<string, LocationMap>>): string[] {
+  const errors: string[] = [];
+  for (const [id, m] of Object.entries(mapOf)) {
+    for (const s of m.spots.filter((x) => x.kind === 'stairs')) {
+      const there = mapOf[s.to!];
+      if (!there) {
+        errors.push(`${id}: stairs "${s.name}" lead to unknown location "${s.to}"`);
+        continue;
+      }
+      const back = there.spots.find((x) => x.kind === 'stairs' && x.id === s.link);
+      if (!back) errors.push(`${id}: stairs "${s.name}" link to "${s.link}" in ${s.to}, which has no such stairs`);
+      else {
+        if (back.to !== id) errors.push(`${id}: stairs "${s.name}" link to "${back.name}" in ${s.to}, which leads to "${back.to}", not back here`);
+        if (back.link !== s.id) errors.push(`${id}: stairs "${s.name}" and "${back.name}" in ${s.to} do not link to each other`);
+        if (back.dir === s.dir) errors.push(`${id}: stairs "${s.name}" and "${back.name}" both go ${s.dir}; one must go up and the other down`);
+      }
+    }
+  }
+  return errors;
 }
