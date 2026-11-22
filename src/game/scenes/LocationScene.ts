@@ -104,7 +104,8 @@ export class LocationScene extends Phaser.Scene {
   private pose!: Pose;
   private view!: Pane; // the 3D view: a 2D canvas (so walls can be textured), shown as one image
   private viewTex!: Phaser.Textures.CanvasTexture;
-  private wallImg?: CanvasImageSource; // wall-stone texture (assets.json images), when loaded
+  private wallTex: Record<string, CanvasImageSource[]> = {}; // wall textures per material (assets.json images wall-<material>[-n]); a square picks one by its variant
+  private wallImg?: CanvasImageSource; // the texture chosen for the face being drawn
   private upperImg?: CanvasImageSource; // wall-stone-upper (storeys above the first), else wall-stone again
   private roofImg?: CanvasImageSource; // roof-tile: transparent top half, so the sky shows behind it
   private roofShaded = new Map<number, HTMLCanvasElement>(); // the roof tile pre-darkened per light step
@@ -519,7 +520,11 @@ export class LocationScene extends Phaser.Scene {
   private drawView(): void {
     const g = this.view.clear();
     const tex = (id: string) => (this.textures.exists(imageKey(id)) ? (this.textures.get(imageKey(id)).getSourceImage() as CanvasImageSource) : undefined);
-    this.wallImg = tex('wall-stone');
+    this.wallTex = {};
+    for (const m of ['stone', 'rock', 'tree', 'wood']) {
+      const list = [tex(`wall-${m}`), tex(`wall-${m}-1`), tex(`wall-${m}-2`)].filter((t): t is CanvasImageSource => !!t);
+      if (list.length) this.wallTex[m] = list;
+    }
     this.upperImg = tex('wall-stone-upper');
     this.roofImg = tex('roof-tile');
     const st = STYLES[this.style];
@@ -569,7 +574,9 @@ export class LocationScene extends Phaser.Scene {
       zMid = (z0 + f.z1) / 2;
     }
     const lit = light(zMid) * (f.kind === 'front' ? 1 : 0.78);
-    if (f.material === 'stone' && this.wallImg) {
+    const variants = this.wallTex[f.material];
+    if (variants) {
+      this.wallImg = variants[f.variant % variants.length];
       this.drawTexturedFace(g, f, lit, pts); // brick texture, then the light level as a black wash
     } else g.fillStyle(shade(mat.face, lit), 1).fillPoints(pts, true);
     g.lineStyle(2, shade(mat.edge, Math.max(0.5, lit)), 1).strokePoints(pts, true);
@@ -630,7 +637,7 @@ export class LocationScene extends Phaser.Scene {
         const { u, z } = at(x + 0.5);
         const sx = Math.min(T - 1, Math.max(0, Math.floor(u * T)));
         const unit = F / z;
-        for (let i = 0; i < H; i++) g.ctx.drawImage(i === 0 ? this.wallImg! : (this.upperImg ?? this.wallImg!), sx, 0, 1, T, x, cy + (F * (0.5 - (i + 1))) / z, 1, unit + 0.5);
+        for (let i = 0; i < H; i++) g.ctx.drawImage(i === 0 || f.material !== 'stone' ? this.wallImg! : (this.upperImg ?? this.wallImg!), sx, 0, 1, T, x, cy + (F * (0.5 - (i + 1))) / z, 1, unit + 0.5);
         if (roof) g.ctx.drawImage(roof, sx, 0, 1, T, x, cy + (F * (0.5 - (H + 1))) / z, 1, unit + 0.5);
       }
     };
