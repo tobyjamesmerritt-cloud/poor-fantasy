@@ -111,6 +111,8 @@ export interface SiteDef {
   blocks?: Condition; // while true the party can't step onto it (the hook fires instead)
   icon?: string; // sprite id (assets.json) while visible
   iconWhen?: { when: Condition; icon: string | null }[]; // icon changes (null = none)
+  /** Arriving shows the place panel first (picture + Enter / Leave); Enter runs the site's hook. Without it the hook fires at once. */
+  panel?: { picture?: string; enter?: string };
 }
 
 /** Fires once when its condition becomes true (checked after fights and moves). */

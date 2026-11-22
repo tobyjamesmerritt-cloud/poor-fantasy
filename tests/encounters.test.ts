@@ -61,7 +61,8 @@ describe('encounters', () => {
     const ids = world.locations.map((l) => l.id);
     const fights: string[] = [];
     for (const [id, c] of Object.entries(locationContent)) {
-      if (c.parent) expect(ids, `locations.json "${id}" parent`).toContain(c.parent.location);
+      if (c.site) expect(world.sites.map((x) => x.id), `locations.json "${id}" site`).toContain(c.site);
+      else if (c.parent) expect(ids, `locations.json "${id}" parent`).toContain(c.parent.location);
       else expect(ids, `locations.json "${id}"`).toContain(id);
       if (!c.map) continue;
       const tiled = JSON.parse(readFileSync(`public/assets/maps/${c.map}.json`, 'utf8')) as TiledMap;

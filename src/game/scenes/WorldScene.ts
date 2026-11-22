@@ -277,15 +277,26 @@ export class WorldScene extends Phaser.Scene {
     }
     if (site && announce) {
       // quest content takes over (main.ts runs the site's hooks); a plain visible site just shows its panel
-      if (hooksAt(this.deps.game, questData, `site:${site.id}`).length) {
+      if (hooksAt(this.deps.game, questData, `site:${site.id}`).length && !questData.sites[site.id]?.panel) {
         this.deps.hud.setLog(this.log);
         this.deps.bus.dispatch({ type: 'atSite', site: site.id });
         return;
       }
     }
-    if (site && this.siteShown(site)) {
+    // a site with a panel shows it even before it is found (its quest hook is what reveals it)
+    if (site && (this.siteShown(site) || (questData.sites[site.id]?.panel && hooksAt(this.deps.game, questData, `site:${site.id}`).length))) {
       this.deps.hud.setLog(this.log);
-      this.deps.hud.setPlace({ name: site.name, kind: 'Site', description: site.description, actions: [{ label: 'Leave', command: { type: 'leavePlace' } }] });
+      const panel = questData.sites[site.id]?.panel;
+      const enter = panel && hooksAt(this.deps.game, questData, `site:${site.id}`).length
+        ? [{ label: panel.enter ?? 'Enter', command: { type: 'atSite' as const, site: site.id } }]
+        : [];
+      this.deps.hud.setPlace({
+        name: site.name,
+        kind: 'Site',
+        description: site.description,
+        picture: panel?.picture,
+        actions: [...enter, { label: 'Leave', command: { type: 'leavePlace' } }],
+      });
       return;
     }
     const loc = locationAt(this.map, this.pos.x, this.pos.y);

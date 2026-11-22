@@ -150,6 +150,35 @@ const LOCATIONS = {
       s: { type: 'text', name: 'Shrine Door', description: 'Mother Ilse bars the door behind you. You hear her muttering a prayer.' },
     },
   },
+  'brewery-interior': {
+    style: 'interior',
+    facing: 'n',
+    rows: [
+      '#######b########',
+      '#..............#',
+      '#.W.W.W.W.W....#',
+      '#..............#',
+      '#.W.W.W.W.W..a.#',
+      '#..............#',
+      '#..............#',
+      '#.d..........e.#',
+      '#..............#',
+      '#..............#',
+      '#.W.W.W.W.W..t.#',
+      '#..............#',
+      '#..............#',
+      '#..............#',
+      '#######.@#######',
+      '########X#######',
+    ],
+    spots: {
+      b: { type: 'building', building: 'house', name: "Odo's Office", description: 'A cramped office stacked with ledgers and sample jugs. Odo has pinned a list of orders to the wall.', picture: 'odo-happy' },
+      a: { type: 'text', name: 'Mash Tun', description: 'A great copper tun, still warm. The mash smells of toasted grain.' },
+      d: { type: 'text', name: 'Barrel Store', description: 'Rows of oak barrels, chalked for the Leaky Bucket and the inns up the valley.' },
+      e: { type: 'text', name: 'Hop Loft Ladder', description: 'A ladder climbs to the hop loft. The rungs are sticky and smell sharply green.' },
+      t: { type: 'text', name: 'Fermenting Vats', description: 'The vats burble softly. Odo says never to open one while it is working.' },
+    },
+  },
   millbrook: {
     style: 'town',
     facing: 'e',
@@ -214,6 +243,8 @@ const STYLE = {
   cave: { floor: () => pick([d(48), d(48), d(48), d(49), d(50)]), wall: () => pick([d(0), d(0), d(12), d(24)]), exit: d(21) },
   ruins: { floor: () => pick([d(42), d(48), d(48), d(49)]), wall: () => pick([d(40), d(40), d(57), d(58), d(59)]), exit: d(21) },
   town: { floor: () => pick([b(0), b(0), b(0), b(1), b(2)]), wall: () => d(40), exit: d(48) },
+  // not d(48): that is the road tile the overhead map draws paths over
+  interior: { floor: () => pick([d(42), d(49), d(49)]), wall: () => d(40), exit: d(21) },
 };
 
 function build(id, loc) {

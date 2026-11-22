@@ -129,6 +129,7 @@ export interface LocationContent {
   // places inside another location (not on the world map):
   name?: string;
   style?: 'town' | 'cave' | 'ruins' | 'interior';
+  site?: string; // a world-map site (quests.json sites) this place belongs to; leaving returns to the world map
   parent?: { location: string; x: number; y: number; facing: 'n' | 'e' | 's' | 'w' }; // where you come out
 }
 

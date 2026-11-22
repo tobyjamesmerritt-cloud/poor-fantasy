@@ -4,5 +4,6 @@
   "old-keep": {"map": "old-keep", "intro": "You climb over a fallen gate into the ruins of the old keep.", "wander": {"chance": 0.06, "difficulty": "moderate", "dialogs": ["wander-dead-inside"]}},
   "millbrook": {"map": "millbrook", "intro": "Millbrook's market road is busy with carts and gossip."},
   "fenwick": {"map": "fenwick", "intro": "Fenwick smells of fish, smoke and river mud."},
+  "brewery-interior": {"map": "brewery-interior", "name": "Odo's Brewery", "style": "interior", "site": "brewery", "intro": "Warm, damp air thick with the smell of mash. Copper vats gleam in the half dark."},
   "shrine-of-the-dawn": {"map": "shrine-of-the-dawn", "name": "Shrine of the Dawn", "style": "ruins", "intro": "Cold air and a sour animal stink. Something skitters away from the door.", "parent": {"location": "millbrook", "x": 3, "y": 9, "facing": "s"}}
 }
