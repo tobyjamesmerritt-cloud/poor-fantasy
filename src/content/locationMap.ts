@@ -38,6 +38,10 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
     return Number.isInteger(h) && h >= 1 && h <= 4 ? h : 1;
   });
   const roof = props.map((p) => p.roof === true);
+  // roads: ground squares showing the road tile (tiny-dungeon local id 48 — the one terrain.json calls road)
+  const roadGid = (t.tilesets.find((ts) => ts.name === 'tiny-dungeon')?.firstgid ?? -1) + 48;
+  const ground = t.layers.find((l) => l.name === 'ground' && l.type === 'tilelayer');
+  const road = Array.from({ length: t.width * t.height }, (_, i) => ((ground?.data?.[i] ?? 0) & 0x1fffffff) === roadGid);
 
   let entrance: LocationMap['entrance'] | undefined;
   const exits: LocationMap['exits'] = [];
@@ -110,7 +114,7 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
   if (!exits.length && !spots.some((s) => s.kind === 'stairs')) errors.push('no "exit" (or stairs) object in the spots layer');
 
   if (errors.length) throw new Error(`Invalid location map "${id}":\n- ` + errors.join('\n- '));
-  return { id, width: t.width, height: t.height, solid: blocked, material, storeys, roof, entrance: entrance!, exits, spots };
+  return { id, width: t.width, height: t.height, solid: blocked, material, storeys, roof, road, entrance: entrance!, exits, spots };
 }
 
 /**

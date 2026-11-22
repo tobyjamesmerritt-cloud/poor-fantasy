@@ -72,6 +72,7 @@ export interface LocationMap {
   material: string[]; // row-major; what a solid square looks like in the 3D view (stone, rock, tree, wood…)
   storeys?: number[]; // row-major; storeys a solid square rises in the 3D view (tile property `height`, default 1)
   roof?: boolean[]; // row-major; a roof cap on top (tile property `roof`)
+  road?: boolean[]; // row-major; ground square is a road/path (drawn with path floor pieces in the 3D view)
   entrance: Pose;
   exits: { x: number; y: number }[];
   spots: Spot[];
@@ -113,6 +114,10 @@ export function heightAt(m: LocationMap, x: number, y: number): number {
 
 export const roofAt = (m: LocationMap, x: number, y: number): boolean =>
   x >= 0 && y >= 0 && x < m.width && y < m.height && !!m.roof?.[y * m.width + x];
+
+/** Is this square a road? Off the map counts as road, so a road runs off the edge. */
+export const roadAt = (m: LocationMap, x: number, y: number): boolean =>
+  x < 0 || y < 0 || x >= m.width || y >= m.height ? true : !!m.road?.[y * m.width + x];
 
 export function materialAt(m: LocationMap, x: number, y: number): string {
   return x < 0 || y < 0 || x >= m.width || y >= m.height ? 'wall' : m.material[y * m.width + x] || 'wall';

@@ -341,7 +341,22 @@
     "wall-tree-1": { "url": "assets/textures/walls/wall-tree-1.png" },
     "wall-tree-2": { "url": "assets/textures/walls/wall-tree-2.png" },
     "wall-wood-1": { "url": "assets/textures/walls/wall-wood-1.png" },
-    "wall-wood-2": { "url": "assets/textures/walls/wall-wood-2.png" }
+    "wall-wood-2": { "url": "assets/textures/walls/wall-wood-2.png" },
+    "floor-cave-1": { "url": "assets/textures/floors/floor-cave-1.png" },
+    "floor-cave-2": { "url": "assets/textures/floors/floor-cave-2.png" },
+    "floor-ruins-1": { "url": "assets/textures/floors/floor-ruins-1.png" },
+    "floor-ruins-2": { "url": "assets/textures/floors/floor-ruins-2.png" },
+    "floor-town-1": { "url": "assets/textures/floors/floor-town-1.png" },
+    "floor-town-2": { "url": "assets/textures/floors/floor-town-2.png" },
+    "floor-interior-1": { "url": "assets/textures/floors/floor-interior-1.png" },
+    "floor-interior-2": { "url": "assets/textures/floors/floor-interior-2.png" },
+    "floor-town-path": { "url": "assets/textures/floors/floor-town-path.png" },
+    "floor-path-straight": { "url": "assets/textures/floors/floor-path-straight.png" },
+    "floor-path-corner": { "url": "assets/textures/floors/floor-path-corner.png" },
+    "floor-path-t": { "url": "assets/textures/floors/floor-path-t.png" },
+    "floor-path-cross": { "url": "assets/textures/floors/floor-path-cross.png" },
+    "floor-path-end": { "url": "assets/textures/floors/floor-path-end.png" },
+    "ceiling-interior": { "url": "assets/textures/ceilings/ceiling-interior.png" }
   },
   "pictures": {
     "ilse": {

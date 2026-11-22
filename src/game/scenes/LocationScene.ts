@@ -42,7 +42,10 @@ import {
   viewFaces,
   locationCampCheck,
   spotPicture,
+  roadAt,
+  squareVariant,
 } from '../../rules/location';
+import { floorPiece, turnedUV } from '../../rules/pathTiles';
 import { darkness, formatClock, MINUTES } from '../../rules/time';
 import { formatCoins, passTime } from '../../rules/party';
 import { healCost, templeHeal, templeRaise, type TemplePrices } from '../../rules/services';
@@ -84,6 +87,19 @@ const MATERIALS: Record<string, { face: number; edge: number }> = {
   wood: { face: 0x8b5a2b, edge: 0x3b230c },
   wall: { face: 0x8a8a8a, edge: 0x333333 },
 };
+/** 3D floor / ceiling art per style (assets.json images): ground variants picked per square; path pieces in towns. */
+const FLOOR_TEX: Record<Style, string[]> = {
+  cave: ['floor-cave-1', 'floor-cave-2'],
+  ruins: ['floor-ruins-1', 'floor-ruins-2'],
+  town: ['floor-town-1', 'floor-town-2'],
+  interior: ['floor-interior-1'], // floor-interior-2 (stone flags) is for cellars / halls later
+};
+const CEILING_TEX: Partial<Record<Style, string>> = { interior: 'ceiling-interior' };
+const TEX = 128; // floor / ceiling texture size (px)
+interface FloorPick {
+  data: Uint8ClampedArray;
+  turns: number;
+}
 const BUILDING_LABEL: Record<string, string> = { inn: 'Inn', shop: 'Shop', temple: 'Temple', hall: 'Hall', house: 'House' };
 const FACING_NAME = { n: 'N', e: 'E', s: 'S', w: 'W' } as const;
 
@@ -109,6 +125,8 @@ export class LocationScene extends Phaser.Scene {
   private wallImg?: CanvasImageSource; // the texture chosen for the face being drawn
   private upperImg?: CanvasImageSource; // wall-stone-upper (storeys above the first), else wall-stone again
   private roofImg?: CanvasImageSource; // roof-tile: transparent top half, so the sky shows behind it
+  private texPixels = new Map<string, Uint8ClampedArray | null>(); // decoded floor / ceiling textures
+  private floorBuf?: ImageData; // scratch buffer for the per-pixel floor and ceiling
   private roofShaded = new Map<number, HTMLCanvasElement>(); // the roof tile pre-darkened per light step
   private arrow!: Phaser.GameObjects.Graphics;
   private night!: Phaser.GameObjects.Rectangle;
@@ -551,8 +569,105 @@ export class LocationScene extends Phaser.Scene {
       if (!st.sky) g.fillStyle(shade(st.ceiling, lit), 1).fillRect(0, cy - y1, PANE, y1 - y0);
     }
 
+    this.paintFloorAndCeiling(light);
+
     for (const face of viewFaces(this.map, this.pose, MAX_DEPTH, this.lockedAt, this.style === 'town')) this.drawFace(g, face, light);
     this.viewTex.refresh();
+  }
+
+
+  /** Decoded pixels of an assets.json image (cached), or null when it isn't loaded. */
+  private pixelsOf(id: string): Uint8ClampedArray | null {
+    if (this.texPixels.has(id)) return this.texPixels.get(id)!;
+    let data: Uint8ClampedArray | null = null;
+    if (this.textures.exists(imageKey(id))) {
+      const c = document.createElement('canvas');
+      c.width = c.height = TEX;
+      const x = c.getContext('2d', { willReadFrequently: true })!;
+      x.drawImage(this.textures.get(imageKey(id)).getSourceImage() as CanvasImageSource, 0, 0, TEX, TEX);
+      data = x.getImageData(0, 0, TEX, TEX).data;
+    }
+    this.texPixels.set(id, data);
+    return data;
+  }
+
+  /** Which floor texture covers a map square (and how it is turned): path pieces on roads, matching grass beside them. */
+  private floorPick(x: number, y: number): FloorPick | undefined {
+    const m = this.map;
+    const inside = x >= 0 && y >= 0 && x < m.width && y < m.height;
+    if (this.style === 'town' && inside) {
+      if (roadAt(m, x, y)) {
+        const { piece, turns } = floorPiece(roadAt(m, x, y - 1), roadAt(m, x + 1, y), roadAt(m, x, y + 1), roadAt(m, x - 1, y));
+        const data = this.pixelsOf(`floor-path-${piece}`);
+        if (data) return { data, turns };
+      } else {
+        let nearRoad = false;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inside && (dx || dy) && roadAt(m, x + dx, y + dy) && x + dx >= 0 && y + dy >= 0 && x + dx < m.width && y + dy < m.height) nearRoad = true;
+        const data = nearRoad ? this.pixelsOf('floor-town-path') : null;
+        if (data) return { data, turns: 0 };
+      }
+    }
+    const ids = FLOOR_TEX[this.style];
+    const data = this.pixelsOf(ids[squareVariant(x, y) % ids.length]);
+    return data ? { data, turns: 0 } : undefined;
+  }
+
+  /**
+   * Textured floor (and an interior ceiling): for each pixel row below the horizon the depth is z = F·0.5 / (row − horizon);
+   * each pixel then maps to a world point and so to a texture pixel of that map square. Lit by the same fog as walls.
+   * Rows beyond the draw distance keep the flat far colour painted before. Skipped where no art is loaded.
+   */
+  private paintFloorAndCeiling(light: (z: number) => number): void {
+    const ceilId = CEILING_TEX[this.style];
+    const ceil = ceilId ? this.pixelsOf(ceilId) : null;
+    if (!FLOOR_TEX[this.style].some((id) => this.pixelsOf(id)) && !ceil) return;
+    const cx = PANE / 2;
+    const cy = PANE / 2;
+    const [fx, fy] = FACING_VECTORS[this.pose.facing];
+    const [rx, ry] = FACING_VECTORS[turn(this.pose.facing, 'right')];
+    const camX = this.pose.x + 0.5;
+    const camY = this.pose.y + 0.5;
+    const zMax = MAX_DEPTH + 0.5;
+    const buf = (this.floorBuf ??= new ImageData(PANE, PANE));
+    const px = new Uint32Array(buf.data.buffer);
+    const picks = new Map<number, FloorPick | undefined>();
+    const pickAt = (x: number, y: number) => {
+      const key = (y + 64) * 256 + (x + 64);
+      if (!picks.has(key)) picks.set(key, this.floorPick(x, y));
+      return picks.get(key);
+    };
+    for (const ceiling of [false, true]) {
+      if (ceiling && !ceil) continue;
+      let first = -1;
+      let last = -1;
+      for (let y = ceiling ? 0 : cy; y < (ceiling ? cy : PANE); y++) {
+        const dy = ceiling ? cy - (y + 0.5) : y + 0.5 - cy;
+        const z = (F * 0.5) / dy;
+        if (z > zMax) continue;
+        if (first < 0) first = y;
+        last = y;
+        const shade = light(z);
+        for (let x = 0; x < PANE; x++) {
+          const X = ((x + 0.5 - cx) * z) / F;
+          const wx = camX + fx * z + rx * X;
+          const wy = camY + fy * z + ry * X;
+          const gx = Math.floor(wx);
+          const gy = Math.floor(wy);
+          let data: Uint8ClampedArray | undefined = ceil ?? undefined;
+          let turns = 0;
+          if (!ceiling) {
+            const pick = pickAt(gx, gy);
+            if (!pick) continue;
+            data = pick.data;
+            turns = pick.turns;
+          }
+          const [tu, tv] = turnedUV(wx - gx, wy - gy, turns);
+          const i = ((Math.min(TEX - 1, Math.floor(tv * TEX)) * TEX + Math.min(TEX - 1, Math.floor(tu * TEX))) << 2) as number;
+          px[y * PANE + x] = (255 << 24) | ((data![i + 2] * shade) << 16) | ((data![i + 1] * shade) << 8) | (data![i] * shade);
+        }
+      }
+      if (first >= 0) this.view.ctx.putImageData(buf, 0, 0, 0, first, PANE, last - first + 1);
+    }
   }
 
   private drawFace(g: Pane, f: Face, light: (z: number) => number): void {

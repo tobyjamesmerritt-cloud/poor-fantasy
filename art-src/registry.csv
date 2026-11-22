@@ -100,3 +100,18 @@ wall-tree-2,texture,textures,walls,Tree-line wall variant 2 (3D view),draft,Art 
 wall-wood-1,texture,textures,walls,Timber wall variant 1 (3D view),draft,Art department,Toby's own work,assets/textures/walls/wall-wood-1.png,1,,128x128 seamless; picked per square
 wall-wood-2,texture,textures,walls,Timber wall variant 2 (3D view),draft,Art department,Toby's own work,assets/textures/walls/wall-wood-2.png,1,,128x128 seamless; picked per square
 map-path,tile,tiles,map,Road/path autotile set: 16 frames by N/E/S/W connection (overhead maps),draft,Art department,Toby's own work,assets/tiles/map-path-16.png,1,,256x16 sheet of 16x16 frames; frame 0 = grass
+floor-cave-1,texture,textures,floors,Cave floor variant 1 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-cave-1.png,1,,128x128 seamless
+floor-cave-2,texture,textures,floors,Cave floor variant 2 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-cave-2.png,1,,128x128 seamless
+floor-ruins-1,texture,textures,floors,Ruins floor (flagstones) variant 1 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-ruins-1.png,1,,128x128 seamless
+floor-ruins-2,texture,textures,floors,Ruins floor (flagstones) variant 2 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-ruins-2.png,1,,128x128 seamless
+floor-town-1,texture,textures,floors,Town ground (grass) variant 1 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-town-1.png,1,,128x128 seamless
+floor-town-2,texture,textures,floors,Town ground (grass) variant 2 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-town-2.png,1,,128x128 seamless
+floor-interior-1,texture,textures,floors,Interior floor variant 1 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-interior-1.png,1,,128x128 seamless
+floor-interior-2,texture,textures,floors,Interior floor variant 2 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-interior-2.png,1,,128x128 seamless
+floor-town-path,texture,textures,floors,Town grass that matches the path pieces (used beside roads),draft,Art department,Toby's own work,assets/textures/floors/floor-town-path.png,1,,128x128 seamless
+floor-path-straight,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-straight.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
+floor-path-corner,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-corner.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
+floor-path-t,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-t.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
+floor-path-cross,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-cross.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
+floor-path-end,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-end.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
+ceiling-interior,texture,textures,ceilings,Interior ceiling (timber beams; 3D view),draft,Art department,Toby's own work,assets/textures/ceilings/ceiling-interior.png,1,,128x128 seamless

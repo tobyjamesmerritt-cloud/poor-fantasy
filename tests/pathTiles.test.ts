@@ -16,3 +16,25 @@ describe('pathFrame', () => {
     expect(seen.size).toBe(15);
   });
 });
+
+import { floorPiece, turnedUV } from '../src/rules/pathTiles';
+
+describe('floorPiece (3D path floor)', () => {
+  it('matches the art base orientations with no turn', () => {
+    expect(floorPiece(true, false, true, false).piece).toBe('straight');
+    expect(floorPiece(true, true, false, false)).toEqual({ piece: 'corner', turns: 0 });
+    expect(floorPiece(true, true, true, false)).toEqual({ piece: 't', turns: 0 });
+    expect(floorPiece(true, false, false, false)).toEqual({ piece: 'end', turns: 0 });
+    expect(floorPiece(true, true, true, true).piece).toBe('cross');
+  });
+  it('turns pieces clockwise to fit the neighbours', () => {
+    expect(floorPiece(false, true, false, false)).toEqual({ piece: 'end', turns: 1 }); // end open to the east
+    expect(floorPiece(false, true, true, false)).toEqual({ piece: 'corner', turns: 1 }); // E+S
+    expect(floorPiece(false, true, false, true)).toEqual({ piece: 'straight', turns: 1 }); // E-W
+    expect(floorPiece(true, false, true, true)).toEqual({ piece: 't', turns: 2 }); // N+S+W (east closed)
+  });
+  it('turnedUV rotates a point a quarter turn clockwise', () => {
+    expect(turnedUV(0.5, 0, 0)).toEqual([0.5, 0]);
+    expect(turnedUV(0.5, 0, 1)).toEqual([0, 0.5]); // top-middle ends up left-middle for the source→dest lookup
+  });
+});
