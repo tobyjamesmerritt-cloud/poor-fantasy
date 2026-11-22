@@ -99,3 +99,4 @@ wall-tree-1,texture,textures,walls,Tree-line wall variant 1 (3D view),draft,Art 
 wall-tree-2,texture,textures,walls,Tree-line wall variant 2 (3D view),draft,Art department,Toby's own work,assets/textures/walls/wall-tree-2.png,1,,128x128 seamless; picked per square
 wall-wood-1,texture,textures,walls,Timber wall variant 1 (3D view),draft,Art department,Toby's own work,assets/textures/walls/wall-wood-1.png,1,,128x128 seamless; picked per square
 wall-wood-2,texture,textures,walls,Timber wall variant 2 (3D view),draft,Art department,Toby's own work,assets/textures/walls/wall-wood-2.png,1,,128x128 seamless; picked per square
+map-path,tile,tiles,map,Road/path autotile set: 16 frames by N/E/S/W connection (overhead maps),draft,Art department,Toby's own work,assets/tiles/map-path-16.png,1,,256x16 sheet of 16x16 frames; frame 0 = grass

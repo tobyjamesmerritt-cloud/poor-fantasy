@@ -7,6 +7,11 @@
       "frameWidth": 16,
       "frameHeight": 16
     },
+    "map-path": {
+      "url": "assets/tiles/map-path-16.png",
+      "frameWidth": 16,
+      "frameHeight": 16
+    },
     "battle": {
       "url": "assets/tiles/tiny-battle.png",
       "frameWidth": 16,

@@ -3,6 +3,7 @@
  * Rules (blocked squares, paths, locations) come from rules/world.ts; this
  * scene only renders and forwards input. Map file: public/assets/maps/world.json.
  */
+import { drawRoads } from '../roadTiles';
 import * as Phaser from 'phaser';
 import type { Command, CommandBus, Direction } from '../../engine/commands';
 import { DIRECTION_VECTORS } from '../../engine/commands';
@@ -79,7 +80,10 @@ export class WorldScene extends Phaser.Scene {
 
     const tm = this.make.tilemap({ key: MAP_KEY });
     const tilesets = [tm.addTilesetImage('tiny-battle', 'battle')!, tm.addTilesetImage('tiny-dungeon', 'dungeon')!];
-    for (const name of ['ground', 'decor', 'structures']) tm.createLayer(name, tilesets)?.setScale(WORLD_SCALE);
+    for (const name of ['ground', 'decor', 'structures']) {
+      tm.createLayer(name, tilesets)?.setScale(WORLD_SCALE);
+      if (name === 'ground') drawRoads(this, tm, 'ground', WORLD_SCALE, 0, 0); // auto-tiled path art over road squares
+    }
 
     const saved = this.deps.game.world;
     this.pos = saved ? { ...saved } : { ...this.map.start };

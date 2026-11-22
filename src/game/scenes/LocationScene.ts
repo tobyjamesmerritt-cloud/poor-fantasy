@@ -7,6 +7,7 @@
  * All movement and view geometry comes from rules/location.ts; this scene
  * only renders and forwards commands.
  */
+import { drawRoads } from '../roadTiles';
 import { questData, wandering } from '../../content/quests';
 import { hooksAt } from '../../rules/quests';
 import * as Phaser from 'phaser';
@@ -153,6 +154,7 @@ export class LocationScene extends Phaser.Scene {
     const tilesets = [tm.addTilesetImage('tiny-battle', 'battle')!, tm.addTilesetImage('tiny-dungeon', 'dungeon')!];
     for (const name of ['ground', 'structures']) {
       tm.createLayer(name, tilesets, PANE, 0)?.setScale(MAP_SCALE).setDepth(1);
+      if (name === 'ground') drawRoads(this, tm, 'ground', MAP_SCALE, PANE, 0, 1); // auto-tiled path art over road squares
     }
     this.add.rectangle(PANE, 0, 3, PANE, 0x000000).setOrigin(0.5, 0).setDepth(3); // pane divider
     if (this.textures.exists('loc:view')) this.textures.remove('loc:view');
