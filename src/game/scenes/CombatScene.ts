@@ -118,7 +118,7 @@ export class CombatScene extends Phaser.Scene {
   private rng!: Rng;
   private state!: CombatState;
   private overlay!: Phaser.GameObjects.Graphics;
-  private skulls!: Phaser.GameObjects.Graphics;
+  private skulls!: Phaser.GameObjects.Group; // skull images on the dead (assets.json sprite `skull`)
   private ants!: Phaser.GameObjects.Graphics;
   private grid!: Phaser.GameObjects.Graphics;
   private antEdges: Edge[] = [];
@@ -166,7 +166,7 @@ export class CombatScene extends Phaser.Scene {
     this.drawGrid();
     this.ants = this.add.graphics().setDepth(0.6);
     this.overlay = this.add.graphics().setDepth(4); // above sprites so HP bars stay visible
-    this.skulls = this.add.graphics().setDepth(1.6); // above a corpse (1.5), below living units (2): a living unit standing on a body hides the skull
+    this.skulls = this.add.group(); // above a corpse (1.5), below living units (2): a living unit standing on a body hides the skull
     this.aimLayer = this.add.graphics().setDepth(3.5); // spell targets and areas, over the sprites
     for (const u of this.state.units) this.createUnitSprite(u);
     this.setCursor('default');
@@ -654,26 +654,19 @@ export class CombatScene extends Phaser.Scene {
     this.tweens.add({ targets: t, y: t.y - TILE * 0.7, alpha: 0, duration: 1200, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
   }
 
-  /** A small skull on a dead unit (not on one who is merely unconscious: those show death saves). */
+  /** The skull marker on a dead unit (not on one who is merely unconscious: those show death saves). */
   private drawSkull(u: Unit): void {
-    const g = this.skulls;
-    const cx = u.x * TILE + TILE / 2;
-    const cy = u.y * TILE + TILE / 2;
-    const r = TILE * 0.2;
-    g.fillStyle(0xf2efe6, 1);
-    g.fillCircle(cx, cy - r * 0.25, r);
-    g.fillRect(cx - r * 0.55, cy + r * 0.3, r * 1.1, r * 0.9);
-    g.fillStyle(0x111111, 1);
-    g.fillCircle(cx - r * 0.4, cy - r * 0.3, r * 0.28);
-    g.fillCircle(cx + r * 0.4, cy - r * 0.3, r * 0.28);
-    g.fillTriangle(cx, cy + r * 0.05, cx - r * 0.12, cy + r * 0.35, cx + r * 0.12, cy + r * 0.35);
-    for (const dx of [-0.25, 0, 0.25]) g.fillRect(cx + r * dx - 1, cy + r * 0.8, 2, r * 0.4);
+    const tex = spriteTexture('skull');
+    if (!tex) return;
+    const img = this.add.image(u.x * TILE + TILE / 2, u.y * TILE + TILE / 2, tex.key, tex.frame).setDepth(1.6); // above a corpse (1.5), below living units (2)
+    img.setScale((TILE * 0.55) / img.width);
+    this.skulls.add(img);
   }
 
   private redraw(): void {
     const { overlay, state } = this;
     overlay.clear();
-    this.skulls.clear();
+    this.skulls.clear(true, true);
     for (const u of state.units) {
       const before = this.lastHp.get(u.id);
       if (before !== undefined && before !== u.hp && !u.fled) this.floatNumber(u, u.hp - before);

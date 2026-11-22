@@ -117,3 +117,4 @@ floor-path-end,texture,textures,floors,Path floor piece (3D view; rotated to fit
 ceiling-interior,texture,textures,ceilings,Interior ceiling (timber beams; 3D view),draft,Art department,Toby's own work,assets/textures/ceilings/ceiling-interior.png,1,,128x128 seamless
 tile-paths,tile,tiles,map,Path/road tile sheet 5x7 (Kenney-style curved blobs; not wired yet),draft,Art department,Toby's own work,assets/tiles/tile_paths.png,1,,80x112 = 16 px tiles
 tile-winterpaths,tile,tiles,map,Snow path tile sheet (same layout as tile_paths; not wired yet),draft,Art department,Toby's own work,assets/tiles/tile_winterpaths.png,1,,80x112 = 16 px tiles
+skull,sprite,sprites,combat,Skull and crossbones marker on a dead unit (combat grid),draft,Art department (edited Kenney Tiny Battle),CC0 1.0,assets/tiles/tiny-battle.png#95,,,replaces the code-drawn skull
