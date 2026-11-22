@@ -44,6 +44,8 @@ import {
   spotPicture,
   roadAt,
   squareVariant,
+  viewProps,
+  type ViewProp,
 } from '../../rules/location';
 import { floorPiece, turnedUV } from '../../rules/pathTiles';
 import { darkness, formatClock, MINUTES } from '../../rules/time';
@@ -571,7 +573,15 @@ export class LocationScene extends Phaser.Scene {
 
     this.paintFloorAndCeiling(light);
 
-    for (const face of viewFaces(this.map, this.pose, MAX_DEPTH, this.lockedAt, this.style === 'town')) this.drawFace(g, face, light);
+    // far → near: the walls at each depth, then the props standing at that depth
+    const faces = viewFaces(this.map, this.pose, MAX_DEPTH, this.lockedAt, this.style === 'town');
+    const props = viewProps(this.map, this.pose, MAX_DEPTH);
+    let pi = 0;
+    for (const face of faces) {
+      while (pi < props.length && props[pi].depth > face.depth) this.drawProp(g, props[pi++], light);
+      this.drawFace(g, face, light);
+    }
+    while (pi < props.length) this.drawProp(g, props[pi++], light);
     this.viewTex.refresh();
   }
 
@@ -710,6 +720,59 @@ export class LocationScene extends Phaser.Scene {
     return new Phaser.Math.Vector2(PANE / 2 + (F * X) / z, PANE / 2 + (F * (0.5 - h)) / z);
   }
 
+
+  /** A prop as a billboard: `prop-<id>` art (128 px, transparent, base on the floor, one tile wide) or a code-drawn placeholder. */
+  private drawProp(g: Pane, v: ViewProp, light: (z: number) => number): void {
+    const z = v.depth;
+    const cx = PANE / 2;
+    const cy = PANE / 2;
+    const lit = light(z);
+    const size = F / z; // one tile on screen
+    const left = cx + (F * v.lateral) / z - size / 2;
+    const bottom = cy + (F * 0.5) / z;
+    if (left > PANE || left + size < 0) return;
+    const img = this.textures.exists(imageKey(`prop-${v.prop}`)) ? this.propAt(v.prop, lit) : undefined;
+    if (img) {
+      g.ctx.drawImage(img, left, bottom - size, size, size);
+      return;
+    }
+    // placeholder shapes (u across the tile, h up from the floor, both 0..1) until the art lands
+    const at = (u: number, h: number) => new Phaser.Math.Vector2(left + u * size, bottom - h * size);
+    const box = (u0: number, u1: number, h0: number, h1: number, colour: number) =>
+      g.fillStyle(shade(colour, Math.max(0.3, lit)), 1).fillPoints([at(u0, h0), at(u1, h0), at(u1, h1), at(u0, h1)], true);
+    if (v.prop === 'chest') {
+      box(0.18, 0.82, 0, 0.3, 0x7a4a1c); // body
+      box(0.16, 0.84, 0.3, 0.44, 0x5d3714); // lid
+      box(0.46, 0.54, 0.22, 0.38, 0xd8c06a); // clasp
+    } else if (v.prop === 'well') {
+      box(0.14, 0.86, 0, 0.36, 0x8a8f96); // stone ring
+      box(0.2, 0.8, 0.3, 0.38, 0x1d3a5a); // water
+      box(0.2, 0.27, 0.36, 0.86, 0x5d3714); // posts
+      box(0.73, 0.8, 0.36, 0.86, 0x5d3714);
+      g.fillStyle(shade(0x8f3e2a, Math.max(0.3, lit)), 1).fillPoints([at(0.08, 0.84), at(0.92, 0.84), at(0.5, 1)], true); // roof
+    } else box(0.25, 0.75, 0, 0.6, 0xb04bd8); // unknown prop: a purple block
+  }
+
+  /** A prop image pre-darkened to a light step (cached; keeps its transparency). */
+  private propShaded = new Map<string, HTMLCanvasElement>();
+  private propAt(id: string, lit: number): CanvasImageSource {
+    const step = Math.max(0, Math.min(8, Math.round(lit * 8)));
+    const key = `${id}:${step}`;
+    let c = this.propShaded.get(key);
+    if (!c) {
+      c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const x = c.getContext('2d')!;
+      x.imageSmoothingEnabled = false;
+      x.drawImage(this.textures.get(imageKey(`prop-${id}`)).getSourceImage() as CanvasImageSource, 0, 0, 128, 128);
+      x.globalCompositeOperation = 'source-atop';
+      x.fillStyle = `rgba(0,0,0,${1 - step / 8})`;
+      x.fillRect(0, 0, 128, 128);
+      this.propShaded.set(key, c);
+    }
+    return c;
+  }
+
   /** The roof tile darkened to a light level (cached in 8 steps), so its transparent half stays transparent. */
   private roofAt(lit: number): CanvasImageSource {
     const step = Math.max(0, Math.min(8, Math.round(lit * 8)));
@@ -754,7 +817,10 @@ export class LocationScene extends Phaser.Scene {
         const { u, z } = at(x + 0.5);
         const sx = Math.min(T - 1, Math.max(0, Math.floor(u * T)));
         const unit = F / z;
-        for (let i = 0; i < H; i++) g.ctx.drawImage(i === 0 || f.material !== 'stone' ? this.wallImg! : (this.upperImg ?? this.wallImg!), sx, 0, 1, T, x, cy + (F * (0.5 - (i + 1))) / z, 1, unit + 0.5);
+        for (let i = 0; i < H; i++) {
+          const frac = Math.min(1, H - i); // the last storey of a low wall is only partly tall: draw the bottom of the tile
+          g.ctx.drawImage(i === 0 || f.material !== 'stone' ? this.wallImg! : (this.upperImg ?? this.wallImg!), sx, T * (1 - frac), 1, T * frac, x, cy + (F * (0.5 - (i + frac))) / z, 1, unit * frac + 0.5);
+        }
         if (roof) g.ctx.drawImage(roof, sx, 0, 1, T, x, cy + (F * (0.5 - (H + 1))) / z, 1, unit + 0.5);
       }
     };

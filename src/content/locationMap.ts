@@ -30,12 +30,19 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
   const errors: string[] = [];
   const { blocked, props } = squareProps(t, errors);
   const material = props.map((p) => (typeof p.material === 'string' ? p.material : ''));
-  // taller buildings: tile property `height` (storeys, whole number 1-4) and `roof` (bool) — visual only
+  // taller buildings: tile property `height` (storeys 0.25-4; 0.5 = a low wall) and `roof` (bool) — visual only
   const storeys = props.map((p, i) => {
     if (p.height === undefined) return 1;
     const h = Number(p.height);
-    if (!Number.isInteger(h) || h < 1 || h > 4) errors.push(`square ${i % t.width},${Math.floor(i / t.width)}: height must be a whole number from 1 to 4`);
-    return Number.isInteger(h) && h >= 1 && h <= 4 ? h : 1;
+    const ok = Number.isFinite(h) && h >= 0.25 && h <= 4 && Number.isInteger(h * 4); // quarter steps: 0.5 = a low wall
+    if (!ok) errors.push(`square ${i % t.width},${Math.floor(i / t.width)}: height must be from 0.25 to 4 in quarter steps`);
+    return ok ? h : 1;
+  });
+  // props: tile property `prop` (an id like well or chest) — a billboard in the square instead of a wall
+  const prop = props.map((p, i) => {
+    if (p.prop === undefined) return undefined;
+    if (typeof p.prop !== 'string' || !/^[a-z][a-z0-9-]*$/.test(p.prop)) errors.push(`square ${i % t.width},${Math.floor(i / t.width)}: prop must be a lowercase id`);
+    return typeof p.prop === 'string' ? p.prop : undefined;
   });
   const roof = props.map((p) => p.roof === true);
   // roads: ground squares showing the road tile (tiny-dungeon local id 48 — the one terrain.json calls road)
@@ -114,7 +121,7 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
   if (!exits.length && !spots.some((s) => s.kind === 'stairs')) errors.push('no "exit" (or stairs) object in the spots layer');
 
   if (errors.length) throw new Error(`Invalid location map "${id}":\n- ` + errors.join('\n- '));
-  return { id, width: t.width, height: t.height, solid: blocked, material, storeys, roof, road, entrance: entrance!, exits, spots };
+  return { id, width: t.width, height: t.height, solid: blocked, material, storeys, roof, prop: prop.some(Boolean) ? prop : undefined, road, entrance: entrance!, exits, spots };
 }
 
 /**

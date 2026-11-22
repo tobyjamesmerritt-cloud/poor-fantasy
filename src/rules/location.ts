@@ -72,6 +72,7 @@ export interface LocationMap {
   material: string[]; // row-major; what a solid square looks like in the 3D view (stone, rock, tree, wood…)
   storeys?: number[]; // row-major; storeys a solid square rises in the 3D view (tile property `height`, default 1)
   roof?: boolean[]; // row-major; a roof cap on top (tile property `roof`)
+  prop?: (string | undefined)[]; // row-major; a billboard prop standing in the square (tile property `prop`: well, chest…) — draws no wall
   road?: boolean[]; // row-major; ground square is a road/path (drawn with path floor pieces in the 3D view)
   entrance: Pose;
   exits: { x: number; y: number }[];
@@ -114,6 +115,10 @@ export function heightAt(m: LocationMap, x: number, y: number): number {
 
 export const roofAt = (m: LocationMap, x: number, y: number): boolean =>
   x >= 0 && y >= 0 && x < m.width && y < m.height && !!m.roof?.[y * m.width + x];
+
+/** The prop standing on a square, if any (the square keeps its `blocked` setting; the 3D view draws the prop, not a wall). */
+export const propAt = (m: LocationMap, x: number, y: number): string | undefined =>
+  x < 0 || y < 0 || x >= m.width || y >= m.height ? undefined : m.prop?.[y * m.width + x];
 
 /** Is this square a road? Off the map counts as road, so a road runs off the edge. */
 export const roadAt = (m: LocationMap, x: number, y: number): boolean =>
@@ -248,7 +253,7 @@ export function viewFaces(
   };
   const solidAt = (d: number, l: number) => {
     const c = cellFor(p, d, l);
-    return isSolid(m, c.x, c.y) || doorAt(d, l);
+    return (isSolid(m, c.x, c.y) && !propAt(m, c.x, c.y)) || doorAt(d, l);
   };
   // a door is set into its building's wall: use the material of a solid neighbour
   const doorMaterial = (x: number, y: number) => {
@@ -302,6 +307,27 @@ export function viewFaces(
     }
   }
   return faces;
+}
+
+export interface ViewProp {
+  depth: number;
+  lateral: number;
+  prop: string;
+}
+
+/** Props in view, far → near (drawn as billboards after the walls of the same depth). */
+export function viewProps(m: LocationMap, p: Pose, maxDepth = 4): ViewProp[] {
+  const out: ViewProp[] = [];
+  if (!m.prop) return out;
+  for (let d = maxDepth; d >= 1; d--) {
+    const reach = 2 * d + 2;
+    for (let l = -reach; l <= reach; l++) {
+      const c = cellFor(p, d, l);
+      const prop = propAt(m, c.x, c.y);
+      if (prop) out.push({ depth: d, lateral: l, prop });
+    }
+  }
+  return out;
 }
 
 /** Camping inside a dungeon: anywhere quiet — not on an entrance, exit or special square. */
