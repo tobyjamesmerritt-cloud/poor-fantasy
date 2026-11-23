@@ -69,7 +69,7 @@ describe('encounters', () => {
       const m = loadLocationMap(c.map, tiled, Object.keys(encounters)); // throws on any mistake
       fights.push(...m.spots.filter((s) => s.kind === 'fight').map((s) => s.encounter!));
     }
-    expect(fights.sort()).toEqual(['cave-rats', 'ruins-crawlers', 'shrine-bats', 'shrine-crypt', 'shrine-nave', 'shrine-spiders']);
+    expect(fights.sort()).toEqual(['cave-rats', 'cave-rats', 'crypt-dead', 'ruins-crawlers', 'ruins-crawlers', 'shrine-bats', 'shrine-crypt', 'shrine-nave', 'shrine-spiders']);
   });
 
   it('rejects a location map with a fight for an unknown encounter', () => {

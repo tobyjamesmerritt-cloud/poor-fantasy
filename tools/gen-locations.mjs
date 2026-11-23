@@ -30,6 +30,7 @@ const DUNGEON_PROPS = {
   57: { blocked: true, material: 'stone' },
   58: { blocked: true, material: 'stone' },
   59: { blocked: true, material: 'stone' },
+  89: { prop: 'chest' },
 };
 const BATTLE_PROPS = {
   94: { blocked: true, material: 'tree' },
@@ -74,22 +75,22 @@ const LOCATIONS = {
     style: 'cave',
     facing: 'n',
     rows: [
-      '################',
+      '#......#......##',
       '###.....########',
       '###.###..#######',
       '##..###.a.######',
       '##.####...######',
-      '##.#####.#######',
+      '#......#......##',
       '##...t...#....##',
-      '####.###.#.##.##',
+      '#......#......##',
       '####.###...##.##',
-      '###..#######..##',
+      '#......#......##',
       '###.##...####.##',
-      '###.##.#.####.##',
+      '#......#......##',
       '###....#......##',
-      '#####.##########',
-      '#####@##########',
-      '#####X##########',
+      '#......#......##',
+      '#......#......##',
+      '#......#......##',
     ],
     spots: {
       a: { type: 'fight', name: 'Rat Nest', encounter: 'cave-rats', description: 'Red eyes glint in the dark. Rats — big ones!' },
@@ -100,7 +101,7 @@ const LOCATIONS = {
     style: 'ruins',
     facing: 'n',
     rows: [
-      '################',
+      '#......#......##',
       '#....#....#....#',
       '#.##.#.##.#.##.#',
       '#.#....#.....#.#',
@@ -126,22 +127,22 @@ const LOCATIONS = {
     style: 'ruins',
     facing: 'n',
     rows: [
-      '################',
+      '#......#......##',
       '#######..#######',
       '######.b..######',
       '######....######',
       '#######..#######',
-      '########.#######',
+      '#......#......##',
       '#....#..t..#...#',
       '#.##.#.....#.#.#',
       '#.#..#..a..#.#.#',
       '#.#.##.....##..#',
       '#...#.......#..#',
-      '#.#...##.##...##',
+      '#......#......##',
       '#.###.##.##.#..#',
       '#.....##s##....#',
       '#######.@#######',
-      '########X#######',
+      '#......#......##',
     ],
     spots: {
       a: { type: 'fight', name: 'Nave', encounter: 'shrine-nave', description: 'Rats swarm over the pews, gnawing on candle stubs.' },
@@ -169,7 +170,7 @@ const LOCATIONS = {
       '#..............#',
       '#..............#',
       '#######.@#######',
-      '########X#######',
+      '#......#......##',
     ],
     spots: {
       b: { type: 'building', building: 'house', name: "Odo's Office", description: 'A cramped office stacked with ledgers and sample jugs. Odo has pinned a list of orders to the wall.', picture: 'brewery-interior-odo' },
@@ -237,6 +238,92 @@ const LOCATIONS = {
       u: { type: 'text', name: 'Village Green', description: 'Children dare each other to visit the old keep.' },
     },
   },
+
+  // lower floors (DND-96): reached by stairs from the dungeon above; stairs spot '<'
+  'shrine-undercroft': {
+    style: 'ruins',
+    facing: 'n',
+    stairs: { name: 'Stairs Up', to: 'shrine-of-the-dawn', link: 'Stairs Down', dir: 'up', facing: 's' },
+    rows: [
+      '#......#......##',
+      '#..............#',
+      '#.############.#',
+      '#.#c......a..#.#',
+      '#.#.########.#.#',
+      '#.#.#......#.#.#',
+      '#.#.#.####.#.#.#',
+      '#.#...#t...#.#.#',
+      '#.#####.####.#.#',
+      '#.......#....#.#',
+      '#.#####.#.####.#',
+      '#.#...#.#......#',
+      '#.#.#.#.######.#',
+      '#...#.........##',
+      '#######@########',
+      '#######<########',
+    ],
+    spots: {
+      a: { type: 'fight', name: "Ossuary", encounter: 'crypt-dead', description: "Bones shift and rattle in the dark. The dead are not at rest." },
+      c: { type: 'chest', name: "Sealed Reliquary", description: "" },
+      t: { type: 'text', name: "Carved Wall", description: "Names are cut into the stone, row on row. The oldest are worn smooth." },
+    },
+  },
+  'old-keep-cellars': {
+    style: 'ruins',
+    facing: 's',
+    stairs: { name: 'Stairs Up', to: 'old-keep', link: 'Stairs Down', dir: 'up', facing: 'n' },
+    rows: [
+      '#######<########',
+      '#######@########',
+      '#..............#',
+      '#.####.###.###.#',
+      '#......#......##',
+      '#......#......##',
+      '#......#......##',
+      '#......#......##',
+      '#......#......##',
+      '#......#.#.....#',
+      '#.######.#####.#',
+      '#.#....#.....#.#',
+      '#.#.##.#.###.#.#',
+      '#...##.....#...#',
+      '#......#......##',
+      '#......#......##',
+    ],
+    spots: {
+      a: { type: 'fight', name: "Wine Cellar", encounter: 'ruins-crawlers', description: "Broken casks, thick webs. Something clicks in the dark." },
+      c: { type: 'chest', name: "Buried Strongbox", description: "" },
+      t: { type: 'text', name: "Scorched Door", description: "The keep's last garrison bricked this passage up. Someone has knocked a hole through." },
+    },
+  },
+  'hollow-cave-depths': {
+    style: 'cave',
+    facing: 'e',
+    stairs: { name: 'Stairs Up', to: 'hollow-cave', link: 'Stairs Down', dir: 'up', facing: 'w' },
+    rows: [
+      '#......#......##',
+      '#......#.......#',
+      '#.####.#.#####.#',
+      '#.#c...#.#...#.#',
+      '#.#.####.#.a.#.#',
+      '#.#......#...#.#',
+      '#......#......##',
+      '#.......t......#',
+      '########.#####.#',
+      '#......#......##',
+      '#......#......##',
+      '#.#......#.#...#',
+      '#.#.######.#.#.#',
+      '<@..#......#.#.#',
+      '#......#......##',
+      '#......#......##',
+    ],
+    spots: {
+      a: { type: 'fight', name: "Rat Warren", encounter: 'cave-rats', description: "The tunnels here are gnawed smooth. Dozens of eyes catch the light." },
+      c: { type: 'chest', name: "Wedged Satchel", description: "" },
+      t: { type: 'text', name: "Scratch Marks", description: "Deep claw marks score the walls, higher than any rat could reach." },
+    },
+  },
 };
 
 const STYLE = {
@@ -285,11 +372,16 @@ function build(id, loc) {
         if (loc.style === 'town') g = d(48);
         entrance = { x, y };
         obj('Entrance', 'entrance', x, y, { facing: loc.facing });
+      } else if (c === '<') {
+        const { name, ...props } = loc.stairs;
+        g = st.exit;
+        obj(name, 'stairs', x, y, props);
       } else if (/[a-z]/.test(c)) {
         const sp = loc.spots[c];
         if (!sp) throw new Error(`${id}: no spot defined for "${c}"`);
         const { type, name, ...props } = sp;
         if (type === 'building') s = d(46); // door
+        if (type === 'chest') s = d(89); // chest prop (walkable)
         obj(name, type, x, y, props);
       } else if (c !== '.') throw new Error(`${id}: unknown map character "${c}"`);
       ground.push(g);

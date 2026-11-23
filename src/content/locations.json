@@ -5,5 +5,8 @@
   "millbrook": {"map": "millbrook", "intro": "Millbrook's market road is busy with carts and gossip."},
   "fenwick": {"map": "fenwick", "intro": "Fenwick smells of fish, smoke and river mud."},
   "brewery-interior": {"map": "brewery-interior", "name": "Odo's Brewery", "style": "interior", "site": "brewery", "intro": "Warm, damp air thick with the smell of mash. Copper vats gleam in the half dark."},
-  "shrine-of-the-dawn": {"map": "shrine-of-the-dawn", "name": "Shrine of the Dawn", "style": "ruins", "intro": "Cold air and a sour animal stink. Something skitters away from the door.", "parent": {"location": "millbrook", "x": 3, "y": 9, "facing": "s"}}
+  "shrine-of-the-dawn": {"map": "shrine-of-the-dawn", "name": "Shrine of the Dawn", "style": "ruins", "intro": "Cold air and a sour animal stink. Something skitters away from the door.", "parent": {"location": "millbrook", "x": 3, "y": 9, "facing": "s"}},
+  "hollow-cave-depths": {"map": "hollow-cave-depths", "name": "Hollow Cave Depths", "style": "cave", "intro": "The passage drops into older tunnels, gnawed smooth and stinking of rat.", "parent": {"location": "hollow-cave", "x": 3, "y": 1, "facing": "e"}},
+  "old-keep-cellars": {"map": "old-keep-cellars", "name": "Old Keep Cellars", "style": "ruins", "intro": "Damp stone, broken casks and a cold that has nothing to do with the weather.", "parent": {"location": "old-keep", "x": 7, "y": 5, "facing": "s"}},
+  "shrine-undercroft": {"map": "shrine-undercroft", "name": "Shrine Undercroft", "style": "ruins", "intro": "The steps end in a low crypt. Names are cut into every wall.", "parent": {"location": "millbrook", "x": 3, "y": 9, "facing": "s"}}
 }
