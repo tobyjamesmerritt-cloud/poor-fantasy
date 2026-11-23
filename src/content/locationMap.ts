@@ -52,6 +52,12 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
   const ground = t.layers.find((l) => l.name === 'ground' && l.type === 'tilelayer');
   const road = Array.from({ length: t.width * t.height }, (_, i) => ((ground?.data?.[i] ?? 0) & 0x1fffffff) === roadGid);
 
+  // rivers: tiny-battle ground tiles 54-57 are river water; tiny-battle tile 130 (terrain.json: bridge) on any layer is a bridge deck
+  const battle = t.tilesets.find((ts) => ts.name === 'tiny-battle')?.firstgid ?? -1;
+  const gidAt = (name: string, i: number) => (t.layers.find((l) => l.name === name && l.type === 'tilelayer')?.data?.[i] ?? 0) & 0x1fffffff;
+  const water = Array.from({ length: t.width * t.height }, (_, i) => { const g = gidAt('ground', i) - battle; return battle > 0 && g >= 54 && g <= 57; });
+  const bridge = Array.from({ length: t.width * t.height }, (_, i) => battle > 0 && (gidAt('structures', i) === battle + 130 || gidAt('ground', i) === battle + 130));
+
   let entrance: LocationMap['entrance'] | undefined;
   const exits: LocationMap['exits'] = [];
   const spots: Spot[] = [];
@@ -126,7 +132,7 @@ export function loadLocationMap(id: string, t: TiledMap, knownEncounters: readon
   if (!exits.length && !spots.some((s) => s.kind === 'stairs')) errors.push('no "exit" (or stairs) object in the spots layer');
 
   if (errors.length) throw new Error(`Invalid location map "${id}":\n- ` + errors.join('\n- '));
-  return { id, width: t.width, height: t.height, solid: blocked, material, storeys, roof, prop: prop.some(Boolean) ? prop : undefined, doorTile: doorTile.some(Boolean) ? doorTile : undefined, road, entrance: entrance!, exits, spots };
+  return { id, width: t.width, height: t.height, solid: blocked, material, storeys, roof, prop: prop.some(Boolean) ? prop : undefined, doorTile: doorTile.some(Boolean) ? doorTile : undefined, road, water: water.some(Boolean) ? water : undefined, bridge: bridge.some(Boolean) ? bridge : undefined, entrance: entrance!, exits, spots };
 }
 
 /**

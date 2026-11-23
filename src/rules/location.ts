@@ -84,6 +84,8 @@ export interface LocationMap {
   roof?: boolean[]; // row-major; a roof cap on top (tile property `roof`)
   doorTile?: boolean[]; // row-major; dungeon doors (tile property `door`)
   prop?: (string | undefined)[]; // row-major; a billboard prop standing in the square (tile property `prop`: well, chest…) — draws no wall
+  water?: boolean[]; // row-major; ground square is river water (impassable unless a bridge crosses it; drawn with river floor pieces)
+  bridge?: boolean[]; // row-major; a bridge deck over the water
   road?: boolean[]; // row-major; ground square is a road/path (drawn with path floor pieces in the 3D view)
   entrance: Pose;
   exits: { x: number; y: number }[];
@@ -114,6 +116,18 @@ export function turn(f: Facing, t: Turn): Facing {
 export function stepFacing(f: Facing, d: StepDir): Facing {
   return d === 'forward' ? f : d === 'back' ? turn(f, 'around') : turn(f, d);
 }
+
+/** River water you cannot walk through (a bridge square is fine). */
+export const isWater = (m: LocationMap, x: number, y: number): boolean => {
+  if (x < 0 || y < 0 || x >= m.width || y >= m.height) return false;
+  const i = y * m.width + x;
+  return !!m.water?.[i] && !m.bridge?.[i];
+};
+/** Water or a bridge: the squares the river floor pieces cover. Off the map counts, so a river runs off the edge. */
+export const riverAt = (m: LocationMap, x: number, y: number): boolean =>
+  x < 0 || y < 0 || x >= m.width || y >= m.height ? true : !!m.water?.[y * m.width + x] || !!m.bridge?.[y * m.width + x];
+export const bridgeAt = (m: LocationMap, x: number, y: number): boolean =>
+  x >= 0 && y >= 0 && x < m.width && y < m.height && !!m.bridge?.[y * m.width + x];
 
 export function isSolid(m: LocationMap, x: number, y: number): boolean {
   return x < 0 || y < 0 || x >= m.width || y >= m.height || m.solid[y * m.width + x];
@@ -148,7 +162,7 @@ export function tryStep(m: LocationMap, p: Pose, d: StepDir, closed: (x: number,
   const [dx, dy] = FACING_VECTORS[stepFacing(p.facing, d)];
   const x = p.x + dx;
   const y = p.y + dy;
-  return isSolid(m, x, y) || closed(x, y) ? null : { x, y, facing: p.facing };
+  return isSolid(m, x, y) || isWater(m, x, y) || closed(x, y) ? null : { x, y, facing: p.facing };
 }
 
 export const spotAt = (m: LocationMap, x: number, y: number): Spot | undefined =>
@@ -167,7 +181,7 @@ export function findPath4(
   to: { x: number; y: number },
   closed: (x: number, y: number) => boolean = () => false,
 ): Facing[] | null {
-  if (isSolid(m, to.x, to.y) || closed(to.x, to.y)) return null;
+  if (isSolid(m, to.x, to.y) || isWater(m, to.x, to.y) || closed(to.x, to.y)) return null;
   if (from.x === to.x && from.y === to.y) return [];
   const key = (x: number, y: number) => y * m.width + x;
   const prev = new Map<number, { k: number; dir: Facing }>();
@@ -182,7 +196,7 @@ export function findPath4(
         const x = p.x + dx;
         const y = p.y + dy;
         const k = key(x, y);
-        if (isSolid(m, x, y) || closed(x, y) || seen.has(k)) continue;
+        if (isSolid(m, x, y) || isWater(m, x, y) || closed(x, y) || seen.has(k)) continue;
         seen.add(k);
         prev.set(k, { k: key(p.x, p.y), dir });
         if (x === to.x && y === to.y) {

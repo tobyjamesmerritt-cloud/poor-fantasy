@@ -47,11 +47,13 @@ import {
   spotDescription,
   spotPicture,
   roadAt,
+  riverAt,
+  bridgeAt,
   squareVariant,
   viewProps,
   type ViewProp,
 } from '../../rules/location';
-import { floorPiece, turnedUV } from '../../rules/pathTiles';
+import { floorPiece, riverPiece, turnedUV } from '../../rules/pathTiles';
 import { darkness, formatClock, MINUTES } from '../../rules/time';
 import { formatCoins, passTime } from '../../rules/party';
 import { healCost, templeHeal, templeRaise, type TemplePrices } from '../../rules/services';
@@ -630,6 +632,11 @@ export class LocationScene extends Phaser.Scene {
   private floorPick(x: number, y: number): FloorPick | undefined {
     const m = this.map;
     const inside = x >= 0 && y >= 0 && x < m.width && y < m.height;
+    if (inside && riverAt(m, x, y)) {
+      const { piece, turns } = riverPiece(riverAt(m, x, y - 1), riverAt(m, x + 1, y), riverAt(m, x, y + 1), riverAt(m, x - 1, y), bridgeAt(m, x, y));
+      const data = this.pixelsOf(piece === 'bridge' ? 'floor-bridge' : `floor-river-${piece}`);
+      if (data) return { data, turns };
+    }
     if (this.style === 'town' && inside) {
       const exitData = isExit(m, x, y) ? this.pixelsOf('floor-city-exit') : null;
       if (exitData) return { data: exitData, turns: 0 };

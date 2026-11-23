@@ -110,6 +110,9 @@ floor-interior-1,texture,textures,floors,Interior floor variant 1 (3D view),draf
 floor-interior-2,texture,textures,floors,Interior floor variant 2 (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-interior-2.png,1,,128x128 seamless
 floor-town-path,texture,textures,floors,Town grass that matches the path pieces (used beside roads),draft,Art department,Toby's own work,assets/textures/floors/floor-town-path.png,1,,128x128 seamless
 floor-city-exit,texture,textures,floors,Floor under a town exit gate (3D view),draft,Art department,Toby's own work,assets/textures/floors/floor-city-exit.png,1,,128x128 seamless floor tile
+floor-bridge,texture,textures,floors,Wooden bridge over an east-west river (3D floor),draft,Art department,Toby's own work,assets/textures/floors/floor-bridge.png,1,,128x128 seamless floor tile
+floor-river-corner,texture,textures,floors,River bend joining west and south (3D floor),draft,Art department,Toby's own work,assets/textures/floors/floor-river-corner.png,1,,128x128 seamless floor tile
+floor-river-straight,texture,textures,floors,River running north-south (3D floor),draft,Art department,Toby's own work,assets/textures/floors/floor-river-straight.png,1,,128x128 seamless floor tile
 floor-path-straight,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-straight.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
 floor-path-corner,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-corner.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N
 floor-path-t,texture,textures,floors,Path floor piece (3D view; rotated to fit),draft,Art department,Toby's own work,assets/textures/floors/floor-path-t.png,1,,128x128; base orientation straight=N-S corner=N+E t=N+S+E end=N

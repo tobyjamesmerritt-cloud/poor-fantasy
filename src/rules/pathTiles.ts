@@ -57,3 +57,15 @@ export function turnedUV(u: number, v: number, turns: number): [number, number] 
   for (let i = 0; i < turns; i++) [u, v] = [v, 1 - u];
   return [u, v];
 }
+
+/**
+ * Which 3D floor piece covers a river square (art: floor-river-straight runs north-south, floor-river-corner joins west and south,
+ * floor-bridge is a river running east-west under a north-south deck), and how many quarter-turns clockwise.
+ * `n/e/s/w` = the neighbour is water (or bridge, or off the map, so a river runs off the edge).
+ */
+export function riverPiece(n: boolean, e: boolean, s: boolean, w: boolean, bridge: boolean): { piece: 'straight' | 'corner' | 'bridge'; turns: number } {
+  const { piece, turns } = floorPiece(n, e, s, w);
+  if (bridge) return { piece: 'bridge', turns: piece === 'straight' ? (5 - turns) % 4 : 0 };
+  if (piece === 'corner') return { piece: 'corner', turns: (turns + 2) % 4 };
+  return { piece: 'straight', turns: piece === 'straight' ? turns : piece === 'end' ? turns : 0 };
+}
